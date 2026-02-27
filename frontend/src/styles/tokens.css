@@ -1,0 +1,141 @@
+:root {
+  --font-heading: "Barlow Semi Condensed", "Segoe UI", sans-serif;
+  --font-body: "IBM Plex Sans", "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
+
+  --bg-primary: #0f141d;
+  --bg-secondary: #141b26;
+  --bg-card: #182130;
+  --bg-elevated: #1d2738;
+  --bg-sidebar-top: #101823;
+  --bg-sidebar-bottom: #0d141e;
+
+  --accent: #3b82f6;
+  --success: #22c55e;
+  --warning: #eab308;
+  --error: #ef4444;
+  --critical: #dc2626;
+  --info: #38bdf8;
+
+  --text-primary: #f1f5f9;
+  --text-secondary: #cbd5e1;
+  --text-muted: #94a3b8;
+
+  --line-soft: rgba(148, 163, 184, 0.22);
+  --line-strong: rgba(148, 163, 184, 0.36);
+  --shadow-card: 0 6px 16px rgba(6, 10, 16, 0.24);
+  --shadow-elevated: 0 12px 28px rgba(6, 10, 16, 0.32);
+
+  --glass-bg: rgba(23, 34, 52, 0.62);
+  --glass-bg-strong: rgba(17, 26, 42, 0.78);
+  --glass-border: rgba(148, 163, 184, 0.28);
+  --glass-highlight: rgba(222, 238, 255, 0.24);
+  --glass-shadow:
+    0 16px 32px rgba(3, 8, 18, 0.28), inset 0 1px 0 rgba(228, 238, 252, 0.16);
+  --glass-blur: 12px;
+  --glass-sat: 1.15;
+  --glass-noise-opacity: 0.06;
+
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+
+  --transition-fast: 0.15s ease;
+  --transition-normal: 0.22s ease;
+
+  --scrollbar-thumb: rgba(100, 116, 139, 0.36);
+  --scrollbar-thumb-hover: rgba(100, 116, 139, 0.6);
+
+  /* ── Neon status palette (industrial HMI) ── */
+  --neon-green: #00ff9d;
+  --neon-red: #ff3366;
+  --neon-amber: #ffcc00;
+  --neon-blue: #2196f3;
+
+  /* ── Charcoal surface layers ── */
+  --surface-900: #0b0e14;
+  --surface-800: #151b26;
+  --surface-700: #232d3f;
+  --surface-600: #344055;
+
+  /* ── Primary alias ── */
+  --primary: #216abe;
+  --primary-glow: rgba(33, 106, 190, 0.6);
+
+  /* ── Card glow shadow ── */
+  --shadow-card-glow:
+    0 0 0 1px rgba(255, 255, 255, 0.05), 0 4px 6px -1px rgba(0, 0, 0, 0.5);
+  --shadow-neon-green: 0 0 8px rgba(0, 255, 157, 0.4);
+  --shadow-neon-red: 0 0 8px rgba(255, 51, 102, 0.4);
+  --shadow-neon-blue:
+    0 0 10px rgba(33, 150, 243, 0.5), 0 0 20px rgba(33, 150, 243, 0.3);
+}
+
+html[data-theme="light"] {
+  --bg-primary: #f0f4f8;
+  --bg-secondary: #f8fafc;
+  --bg-card: #ffffff;
+  --bg-elevated: #f0f4f8;
+  --bg-sidebar-top: #e8eef6;
+  --bg-sidebar-bottom: #dce4f0;
+
+  --accent: #2563eb;
+  --success: #16a34a;
+  --warning: #ca8a04;
+  --error: #dc2626;
+  --critical: #b91c1c;
+  --info: #0369a1;
+
+  --text-primary: #0f172a;
+  --text-secondary: #1e293b;
+  --text-muted: #475569;
+
+  --line-soft: rgba(15, 23, 42, 0.14);
+  --line-strong: rgba(15, 23, 42, 0.24);
+  --shadow-card:
+    0 2px 8px rgba(15, 23, 42, 0.08), 0 4px 16px rgba(15, 23, 42, 0.05);
+  --shadow-elevated:
+    0 4px 12px rgba(15, 23, 42, 0.1), 0 8px 24px rgba(15, 23, 42, 0.08);
+
+  --glass-bg: rgba(255, 255, 255, 0.92);
+  --glass-bg-strong: rgba(255, 255, 255, 0.96);
+  --glass-border: rgba(15, 23, 42, 0.15);
+  --glass-highlight: rgba(255, 255, 255, 0.7);
+  --glass-shadow:
+    0 1px 3px rgba(15, 23, 42, 0.06), 0 4px 16px rgba(15, 23, 42, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  --glass-blur: 14px;
+  --glass-sat: 1.2;
+  --glass-noise-opacity: 0.03;
+
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+
+  --scrollbar-thumb: rgba(15, 23, 42, 0.18);
+  --scrollbar-thumb-hover: rgba(15, 23, 42, 0.32);
+
+  /* ── Light mode surface layers ── */
+  --surface-900: #f0f4f8;
+  --surface-800: #ffffff;
+  --surface-700: #e2e8f0;
+  --surface-600: #cbd5e1;
+
+  /* ── Light mode primary ── */
+  --primary: #2563eb;
+  --primary-glow: rgba(37, 99, 235, 0.4);
+
+  /* ── Light mode neon (toned down for light backgrounds) ── */
+  --neon-green: #059669;
+  --neon-red: #dc2626;
+  --neon-amber: #d97706;
+  --neon-blue: #2563eb;
+
+  /* ── Light mode shadows ── */
+  --shadow-card-glow:
+    0 0 0 1px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.08);
+  --shadow-neon-green: 0 0 6px rgba(5, 150, 105, 0.2);
+  --shadow-neon-red: 0 0 6px rgba(220, 38, 38, 0.2);
+  --shadow-neon-blue:
+    0 0 8px rgba(37, 99, 235, 0.2), 0 0 16px rgba(37, 99, 235, 0.1);
+}

@@ -1,6 +1,7 @@
+import { memo } from "react";
 import { LoaderCircle, Mic, MicOff, Send } from "lucide-react";
 
-export default function ChatComposer({
+function ChatComposer({
   centered = false,
   input,
   inputRef,
@@ -17,9 +18,9 @@ export default function ChatComposer({
   return (
     <form
       onSubmit={onSubmit}
-      className={`chat-composer-form w-full ${centered ? "max-w-3xl" : "max-w-4xl"} mx-auto flex items-end gap-2`}
+      className={`chat-composer-form ${centered ? "max-w-[920px]" : ""}`}
     >
-      <div className="liquid-input-wrap glass-input chat-composer-shell flex-1 rounded-[26px] px-3 py-2.5 transition-all shadow-lg shadow-black/5">
+      <div className="chat-composer-shell glass-panel-strong glass-noise">
         <textarea
           ref={inputRef}
           rows={1}
@@ -31,49 +32,56 @@ export default function ChatComposer({
               ? "Listening..."
               : isTranscribing
                 ? "Transcribing..."
-                : "Ask about PLC, automation, troubleshooting..."
+                : "Ask about PLC diagnostics, alarm root cause, or recovery actions..."
           }
-          className="composer-textarea w-full bg-transparent focus:outline-none text-slate-900 placeholder-slate-500 px-2 py-1.5 resize-none text-[15px] leading-6"
+          className="composer-textarea"
           disabled={isLoading || isRecording || isTranscribing}
         />
 
-        <div className="flex items-center justify-end gap-1 pr-1">
+        <div className="chat-composer-actions">
           <button
             type="button"
-            onClick={
-              isTranscribing
-                ? cancelTranscription
-                : isRecording
-                  ? stopRecording
-                  : startRecording
-            }
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              if (isTranscribing) cancelTranscription();
+              else if (isRecording) stopRecording();
+              else startRecording();
+            }}
             disabled={isLoading}
-            className={`p-2.5 rounded-full transition-all flex-shrink-0 ${
-              isRecording
-                ? "bg-red-500 text-white animate-pulse"
-                : isTranscribing
-                  ? "bg-orange-100 text-orange-500"
-                  : "hover:bg-white/90 text-slate-400 hover:text-slate-700 border border-transparent hover:border-slate-200/80"
-            }`}
+            className={`chat-icon-btn glass-interactive ${isRecording ? "recording" : ""}`}
+            title={
+              isTranscribing
+                ? "Cancel transcription"
+                : isRecording
+                  ? "Stop recording"
+                  : "Start voice input"
+            }
           >
             {isTranscribing ? (
-              <LoaderCircle size={18} className="animate-spin" />
+              <LoaderCircle size={17} className="animate-spin" />
             ) : isRecording ? (
-              <MicOff size={18} />
+              <MicOff size={17} />
             ) : (
-              <Mic size={18} />
+              <Mic size={17} />
             )}
           </button>
 
           <button
             type="submit"
-            disabled={isLoading || !input.trim() || isRecording || isTranscribing}
-            className="bg-gradient-to-r from-blue-500 to-cyan-500 text-white p-2.5 rounded-full hover:from-blue-600 hover:to-cyan-600 disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-md shadow-blue-500/25 flex-shrink-0 border border-blue-300/30"
+            disabled={
+              isLoading || !input.trim() || isRecording || isTranscribing
+            }
+            className="chat-send-btn glass-interactive"
+            title="Send"
           >
             {isLoading ? (
-              <LoaderCircle size={18} className="animate-spin" />
+              <LoaderCircle size={17} className="animate-spin" />
             ) : (
-              <Send size={18} className={input.trim() ? "translate-x-0.5" : ""} />
+              <Send
+                size={16}
+                className={input.trim() ? "translate-x-[1px]" : ""}
+              />
             )}
           </button>
         </div>
@@ -81,3 +89,5 @@ export default function ChatComposer({
     </form>
   );
 }
+
+export default memo(ChatComposer);

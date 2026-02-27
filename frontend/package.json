@@ -7,30 +7,39 @@
     "dev": "vite",
     "build": "vite build",
     "start": "node server.cjs",
-    "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0",
+    "lint": "eslint . --report-unused-disable-directives --max-warnings 0",
+    "test:normalizers": "node src/features/plc/normalizers.test.mjs && node src/features/ops/dashboard/helpers.test.mjs && node src/features/ops/alarms/hooks/alarmUtils.test.mjs",
     "preview": "vite preview"
   },
   "dependencies": {
-    "axios": "^1.7.2",
+    "axios": "^1.13.2",
     "express": "^4.21.2",
+    "framer-motion": "^12.34.0",
     "http-proxy-middleware": "^3.0.3",
     "lucide-react": "^0.395.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-markdown": "^9.0.1",
-    "react-syntax-highlighter": "^15.5.0"
+    "react-router-dom": "^7.13.0",
+    "react-syntax-highlighter": "^15.6.6",
+    "recharts": "^3.7.0"
   },
   "devDependencies": {
     "@types/react": "^18.2.66",
     "@types/react-dom": "^18.2.22",
-    "@vitejs/plugin-react": "^4.2.1",
+    "@vitejs/plugin-react": "^5.1.4",
     "autoprefixer": "^10.4.19",
+    "baseline-browser-mapping": "^2.10.0",
     "eslint": "^8.57.0",
     "eslint-plugin-react": "^7.34.1",
     "eslint-plugin-react-hooks": "^4.6.0",
     "eslint-plugin-react-refresh": "^0.4.6",
     "postcss": "^8.4.38",
     "tailwindcss": "^3.4.4",
-    "vite": "^5.2.0"
+    "vite": "^7.3.1"
+  },
+  "overrides": {
+    "minimatch": "^10.2.1",
+    "ajv": "^8.17.1"
   }
 }

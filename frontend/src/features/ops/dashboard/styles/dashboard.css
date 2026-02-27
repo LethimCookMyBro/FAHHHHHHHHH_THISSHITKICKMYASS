@@ -1,0 +1,358 @@
+/* ── Dashboard Page ── */
+.ops-dashboard-page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* ── Summary Strip ── */
+.dash-summary-strip {
+  display: flex;
+  gap: 4px;
+  background: var(--surface-800);
+  border: 1px solid var(--surface-700);
+  border-radius: 10px;
+  padding: 6px;
+  overflow-x: auto;
+}
+
+.dash-summary-item {
+  flex: 1;
+  min-width: 80px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: var(--surface-900);
+  text-align: center;
+}
+
+.dash-summary-label {
+  display: block;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.dash-summary-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.dash-summary-value.is-success {
+  color: var(--neon-green);
+}
+
+.dash-summary-value.is-error {
+  color: var(--neon-red);
+}
+
+/* ── Metric Cards Grid ── */
+.dash-metric-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+.dash-metric-card {
+  position: relative;
+  background: var(--surface-800);
+  border: 1px solid var(--surface-700);
+  border-radius: 12px;
+  padding: 20px;
+  overflow: hidden;
+  transition: border-color 0.2s ease;
+}
+
+.dash-metric-card:hover {
+  border-color: var(--surface-600);
+}
+
+.dash-metric-card.is-alert {
+  border-color: rgba(255, 51, 102, 0.35);
+  box-shadow: 0 0 15px rgba(255, 51, 102, 0.1);
+}
+
+.dash-metric-icon {
+  margin-bottom: 10px;
+  opacity: 0.8;
+}
+
+.dash-metric-label {
+  margin: 0;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.dash-metric-value {
+  margin: 6px 0 0;
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1;
+}
+
+.dash-metric-hint {
+  margin: 8px 0 0;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* ── OEE Panel ── */
+.oee-panel {
+  display: grid;
+  gap: 20px;
+}
+
+.oee-bars {
+  display: grid;
+  gap: 14px;
+}
+
+.oee-bar-row {
+  padding: 0;
+}
+
+.oee-bar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.oee-bar-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-family: var(--font-mono);
+}
+
+.oee-bar-value {
+  font-size: 13px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+}
+
+.oee-bar-track {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--surface-900);
+  overflow: hidden;
+}
+
+.oee-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.5s ease;
+}
+
+/* ── Chart ── */
+.oee-chart-wrap {
+  border: 1px solid var(--surface-700);
+  border-radius: 10px;
+  background: var(--surface-900);
+  padding: 16px;
+}
+
+.oee-chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.oee-chart-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.oee-chart-empty {
+  padding: 40px 16px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.oee-chart-empty-hint {
+  margin-top: 4px;
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+/* ── Machine Cards ── */
+.machine-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
+}
+
+.machine-card {
+  background: var(--surface-800);
+  border: 1px solid var(--surface-700);
+  border-radius: 12px;
+  overflow: hidden;
+  transition: border-color 0.2s ease;
+}
+
+.machine-card:hover {
+  border-color: var(--surface-600);
+}
+
+.machine-card.is-error {
+  border-color: rgba(255, 51, 102, 0.4);
+  box-shadow: 0 0 12px rgba(255, 51, 102, 0.1);
+}
+
+.machine-card.is-idle {
+  opacity: 0.7;
+}
+
+.machine-card.is-idle:hover {
+  opacity: 1;
+}
+
+/* Head */
+.machine-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--surface-700);
+}
+
+.machine-card-info {
+  min-width: 0;
+}
+
+.machine-card-name {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.machine-card-model {
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.machine-card-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  flex-shrink: 0;
+  margin-top: 4px;
+}
+
+/* Sensor Grid */
+.machine-sensor-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  padding: 10px 12px;
+  background: rgba(0, 0, 0, 0.15);
+}
+
+.machine-sensor {
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: var(--surface-900);
+  border: 1px solid var(--surface-700);
+}
+
+.machine-sensor-label {
+  display: block;
+  font-size: 9px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 3px;
+}
+
+.machine-sensor-value {
+  font-size: 12px;
+  font-family: var(--font-mono);
+  color: var(--text-primary);
+}
+
+/* Action */
+.machine-card-action {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.machine-card-action.is-error {
+  background: rgba(255, 51, 102, 0.06);
+  color: var(--neon-red);
+}
+
+/* Bottom bar */
+.machine-bar {
+  height: 3px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.machine-bar-fill {
+  height: 100%;
+  transition: width 0.4s ease;
+}
+
+/* Empty state */
+.machine-empty {
+  padding: 40px;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.machine-empty-hint {
+  margin-top: 4px;
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+/* ── Main Grid ── */
+.ops-dashboard-main-grid {
+  display: grid;
+  grid-template-columns: minmax(300px, 1fr) minmax(500px, 1.6fr);
+  gap: 16px;
+}
+
+/* ── Responsive ── */
+@media (max-width: 1400px) {
+  .ops-dashboard-main-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 1024px) {
+  .dash-metric-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 700px) {
+  .dash-metric-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .dash-summary-strip {
+    flex-wrap: wrap;
+  }
+}

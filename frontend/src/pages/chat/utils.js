@@ -1,7 +1,6 @@
 const BULLET_LINE_RE = /^\s*(?:[-*•]|\d+[.)])\s+/;
 const SECTION_HEADER_RE = /^\s*\[[A-Z][A-Z0-9 _/.-]{2,}\]\s*$/;
 const KEY_VALUE_LINE_RE = /^([A-Za-z][^:]{1,60}):\s+(.+)$/;
-const HAS_CODE_BLOCK_RE = /```/;
 
 export const formatTimeAgo = (ts) => {
   if (!ts) return "";
@@ -134,68 +133,6 @@ const normalizePatternLinesToBullets = (text) => {
   return converted > 0 ? result.join("\n").trim() : text;
 };
 
-const convertParagraphToBullets = (paragraph) => {
-  const normalized = paragraph.replace(/\s+/g, " ").trim();
-  if (!normalized) return [];
-
-  const sentenceParts = normalized
-    .split(/(?<=[.!?])\s+/)
-    .map((part) => part.trim())
-    .filter(Boolean);
-
-  if (sentenceParts.length >= 2 && sentenceParts.length <= 8) {
-    return sentenceParts.map((part) => `- ${part}`);
-  }
-
-  const clauseParts = normalized
-    .split(/\s*[;•]\s*/)
-    .map((part) => part.trim())
-    .filter(Boolean);
-
-  if (clauseParts.length >= 2 && clauseParts.length <= 8) {
-    return clauseParts.map((part) => `- ${part}`);
-  }
-
-  return [`- ${normalized}`];
-};
-
-const ensureBulletPointResponse = (text) => {
-  const normalized = String(text || "").trim();
-  if (!normalized) return "";
-  if (HAS_CODE_BLOCK_RE.test(normalized)) return normalized;
-
-  const lines = normalized.split("\n");
-  const bulletCount = lines.filter((line) => BULLET_LINE_RE.test(line.trim())).length;
-  if (bulletCount >= 2) return normalized;
-
-  const paragraphs = normalized
-    .split(/\n{2,}/)
-    .map((part) => part.trim())
-    .filter(Boolean);
-
-  if (paragraphs.length === 0) return normalized;
-
-  return paragraphs
-    .flatMap((paragraph) => convertParagraphToBullets(paragraph))
-    .join("\n")
-    .trim();
-};
-
-const appendTroubleshootingHints = (text) => {
-  const normalized = String(text || "").trim();
-  if (!normalized) return normalized;
-
-  const needsTroubleshootingHint =
-    /(error|fault|alarm|problem|issue|cannot|unable|missing|not\s+found|insufficient|timeout|not\s+detected|disconnected)/i.test(
-      normalized,
-    );
-
-  if (!needsTroubleshootingHint) return normalized;
-  if (/troubleshooting/i.test(normalized)) return normalized;
-
-  return `${normalized}\n\n**Troubleshooting**\n- Confirm PLC model/module and software version (for example, GX Works version).\n- Record the exact error code, LED status (RUN/ERR/LINK), and observed symptom.\n- Verify network/protocol settings and list what has already been tested.\n- Check common faults: station not detected, link scan timeout, or remote disconnect.`;
-};
-
 export const formatAssistantText = (rawText) => {
   const cleaned = stripTrailingSourcesBlock(rawText || "");
   if (!cleaned) {
@@ -203,10 +140,7 @@ export const formatAssistantText = (rawText) => {
   }
 
   const normalizedPattern = normalizePatternLinesToBullets(cleaned);
-  const bulletText = ensureBulletPointResponse(normalizedPattern);
-  const withHints = appendTroubleshootingHints(bulletText);
-
-  return withHints || "- I couldn't generate a response right now. Please try again.";
+  return normalizedPattern || "- I couldn't generate a response right now. Please try again.";
 };
 
 export const getReplyText = (payload) => {

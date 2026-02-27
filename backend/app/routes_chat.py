@@ -10,7 +10,7 @@ from pydantic import BaseModel
 from typing import Any, Dict, Optional
 
 from app.chatbot import answer_question, invoke_llm_with_fallback
-from app.routes_auth import get_current_user
+from app.security import get_current_user
 from app.chat_db import (
     create_chat_session,
     get_chat_sessions,

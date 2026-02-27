@@ -2,14 +2,27 @@
   "name": "panya",
   "private": true,
   "scripts": {
-    "dev": "cd frontend && npm run dev",
-    "build": "cd frontend && npm install && cd ../frontend && npm run build",
+    "dev": "concurrently -k -n \"API,WEB\" -c \"cyan,magenta\" \"npm run dev:backend\" \"npm run dev:frontend:wait\"",
+    "dev:backend": "node scripts/dev-backend.js",
+    "dev:frontend:wait": "wait-on http-get://127.0.0.1:5000/health/live -t 300000 && cd frontend && npm run dev",
+    "dev:frontend": "cd frontend && npm run dev",
+    "lint": "cd frontend && npm run lint",
+    "build": "cd frontend && npm run build",
+    "test:backend": "python -m unittest discover -s backend/tests -p \"test_*.py\"",
+    "test:frontend": "cd frontend && npm run test:normalizers",
+    "test": "npm run test:backend && npm run test:frontend",
+    "check:backend": "python -m compileall backend/app",
+    "check": "npm run lint && npm run build && npm run check:backend",
     "start": "node server.js",
-    "install:frontend": "cd frontend && npm install"
+    "install:all": "npm install && cd frontend && npm install"
   },
   "dependencies": {
     "express": "^4.21.2",
-    "http-proxy-middleware": "^3.0.3",
-    "serve": "^14.2.0"
+    "http-proxy-middleware": "^3.0.3"
+  },
+  "devDependencies": {
+    "baseline-browser-mapping": "^2.10.0",
+    "concurrently": "^9.2.1",
+    "wait-on": "^9.0.4"
   }
 }

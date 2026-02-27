@@ -86,6 +86,14 @@ PROCEDURE_QUERY_HINTS = (
     "error code",
 )
 
+ROOT_CAUSE_QUERY_HINTS = (
+    "root cause",
+    "analysis",
+    "diagnose",
+    "root causes",
+    "root-cause",
+)
+
 TROUBLESHOOT_QUERY_HINTS = (
     "error led",
     "err led",
@@ -163,6 +171,32 @@ PARAMETER_VALUE_HINTS = (
     "scan",
 )
 
+SECTION_HEADER_LABELS = {
+    "prerequisite",
+    "prerequisites",
+    "notes",
+    "prerequisites / notes",
+    "prerequisites/notes",
+    "steps",
+    "step",
+    "troubleshooting",
+    "source",
+    "sources",
+}
+
+PLACEHOLDER_BULLET_LABELS = {
+    "prerequisites / notes",
+    "prerequisites/notes",
+    "prerequisites",
+    "notes",
+    "steps",
+    "troubleshooting",
+    "common failure patterns",
+    "likely diagnostic checks",
+    "relevant leds",
+    "led status",
+}
+
 CC_LINK_FULL_TERM = "CC-Link IE Field Network Basic (CC-Link IEF)"
 CC_LINK_SHORT_TERM = "CC-Link IEF"
 
@@ -221,7 +255,16 @@ def _is_troubleshoot_query(question: str) -> bool:
     return any(hint in q for hint in TROUBLESHOOT_QUERY_HINTS)
 
 
+def _is_root_cause_query(question: str) -> bool:
+    q = (question or "").strip().lower()
+    if not q:
+        return False
+    return any(hint in q for hint in ROOT_CAUSE_QUERY_HINTS)
+
+
 def _question_mode(question: str) -> str:
+    if _is_root_cause_query(question):
+        return "root_cause"
     if _is_troubleshoot_query(question):
         return "troubleshoot"
     if _is_procedure_query(question):
@@ -230,6 +273,16 @@ def _question_mode(question: str) -> str:
 
 
 def _build_task_prompt(question: str, mode: str) -> str:
+    if mode == "root_cause":
+        return (
+            "TASK: PLC_ROOT_CAUSE_ANALYSIS\n\n"
+            f"Observed symptom:\n{question}\n\n"
+            "Requirements:\n"
+            "- Output a professional root cause report grouping issues into relevant categories (e.g., Physical Layer Issues, Communication Parameter Mismatch, Protocol Configuration Error, Device Failure, Noise/EMI)\n"
+            "- Clearly map specific error types (like framing error vs parity error) to their most likely causes\n"
+            "- Do not invent numeric parameters or fake examples not implicitly suggested by context\n"
+            "- Answer directly with the root cause breakdown, do not list step-by-step troubleshooting actions"
+        )
     if mode == "troubleshoot":
         return (
             "TASK: PLC_TROUBLESHOOT\n\n"
@@ -238,7 +291,9 @@ def _build_task_prompt(question: str, mode: str) -> str:
             "- Combine related troubleshooting steps across multiple manual sections\n"
             "- Keep only executable inspection/recovery actions\n"
             "- Do not invent numeric parameter values not present in context\n"
-            "- If multiple model variants appear, label them clearly"
+            "- If multiple model variants appear, label them clearly\n"
+            "- If the question includes a specific error code, begin with one direct sentence explaining that code meaning from context\n"
+            "- Do not output placeholder bullets (for example: 'Prerequisites / Notes:', 'Common failure patterns:', 'Likely diagnostic checks:') without concrete details"
         )
     if mode == "procedure":
         return (
@@ -312,7 +367,7 @@ def _should_skip_ragas(question: str) -> bool:
 
 
 def _topk_for_mode(mode: str) -> int:
-    if mode in {"procedure", "troubleshoot"}:
+    if mode in {"procedure", "troubleshoot", "root_cause"}:
         value = _env_int("CHAT_TOPK_PROCEDURE", DEFAULT_PROCEDURE_TOPK)
         return _clamp_int(value, 6, 10)
     value = _env_int("CHAT_TOPK_QA", DEFAULT_QA_TOPK)
@@ -320,7 +375,7 @@ def _topk_for_mode(mode: str) -> int:
 
 
 def _rerank_topn_for_mode(mode: str) -> int:
-    if mode in {"procedure", "troubleshoot"}:
+    if mode in {"procedure", "troubleshoot", "root_cause"}:
         value = _env_int("CHAT_RERANK_TOPN_PROCEDURE", DEFAULT_PROCEDURE_RERANK_TOPN)
         return _clamp_int(value, 6, 12)
     value = _env_int("CHAT_RERANK_TOPN_QA", DEFAULT_QA_RERANK_TOPN)
@@ -328,7 +383,7 @@ def _rerank_topn_for_mode(mode: str) -> int:
 
 
 def _max_candidates_for_mode(mode: str) -> int:
-    if mode in {"procedure", "troubleshoot"}:
+    if mode in {"procedure", "troubleshoot", "root_cause"}:
         value = _env_int("CHAT_MAX_CANDIDATES_PROCEDURE", DEFAULT_PROCEDURE_MAX_CANDIDATES)
         return _clamp_int(value, 8, 20)
     value = _env_int("CHAT_MAX_CANDIDATES_QA", DEFAULT_QA_MAX_CANDIDATES)
@@ -342,7 +397,12 @@ def _normalize_technical_terms(text: str) -> str:
 
     normalized = re.sub(
         r"(?i)\bcc\s*ie\s*field\s*configuration\b",
-        f"CC IE Field Configuration (used for {CC_LINK_SHORT_TERM} setup)",
+        "CC IE Field Configuration",
+        normalized,
+    )
+    normalized = re.sub(
+        r"(?i)\bcc\s*ie\s*field\s*configuration\s*\(used\s+for[^)]*\)",
+        "CC IE Field Configuration",
         normalized,
     )
     normalized = re.sub(
@@ -371,27 +431,6 @@ def _normalize_technical_terms(text: str) -> str:
     return normalized
 
 
-def _normalize_ollama_base_url(raw_url: str) -> str:
-    value = (raw_url or "").strip()
-    if not value:
-        return "http://ollama:11434"
-
-    parsed = urlparse(value)
-    if not parsed.scheme:
-        value = f"http://{value}"
-        parsed = urlparse(value)
-
-    host = (parsed.hostname or "").lower()
-    scheme = (parsed.scheme or "").lower()
-    if scheme == "http" and host.endswith(".railway.app"):
-        return urlunparse(parsed._replace(scheme="https"))
-    return value
-
-
-def _is_method_not_allowed_error(exc: Exception) -> bool:
-    msg = str(exc or "").lower()
-    return "405" in msg and "method not allowed" in msg
-
 
 def _extract_llm_text(value: Any) -> str:
     if value is None:
@@ -409,93 +448,9 @@ def _extract_llm_text(value: Any) -> str:
     return str(value)
 
 
-def _invoke_ollama_chat_fallback(prompt: str) -> str:
-    base_url = _normalize_ollama_base_url(
-        os.getenv("OLLAMA_BASE_URL", "http://ollama:11434")
-    ).rstrip("/")
-    model = os.getenv("OLLAMA_MODEL", "llama3.2")
-    timeout = _env_int("LLM_TIMEOUT", 20)
-    num_predict = int(os.getenv("LLM_NUM_PREDICT", "420"))
-    temperature = float(os.getenv("LLM_TEMPERATURE", "0"))
-    top_p = float(os.getenv("LLM_TOP_P", "0.1"))
-    frequency_penalty = float(os.getenv("LLM_FREQUENCY_PENALTY", "0.2"))
-    repeat_penalty = float(
-        os.getenv("LLM_REPEAT_PENALTY", str(1.0 + max(0.0, frequency_penalty)))
-    )
-
-    request_payload = {
-        "model": model,
-        "stream": False,
-        "messages": [{"role": "user", "content": prompt}],
-        "options": {
-            "temperature": temperature,
-            "top_p": top_p,
-            "repeat_penalty": repeat_penalty,
-            "num_predict": num_predict,
-        },
-    }
-
-    target_url = f"{base_url}/api/chat"
-    response = requests.post(
-        target_url,
-        json=request_payload,
-        timeout=timeout,
-        allow_redirects=False,
-    )
-    if response.status_code in {301, 302, 307, 308}:
-        redirected_url = response.headers.get("Location")
-        if redirected_url:
-            follow_url = (
-                redirected_url
-                if redirected_url.startswith("http")
-                else urljoin(target_url, redirected_url)
-            )
-            response = requests.post(
-                follow_url,
-                json=request_payload,
-                timeout=timeout,
-                allow_redirects=False,
-            )
-    response.raise_for_status()
-    payload = response.json() if response.content else {}
-
-    message_content = (
-        (payload.get("message") or {}).get("content")
-        if isinstance(payload, dict)
-        else None
-    )
-    if isinstance(message_content, str) and message_content.strip():
-        return message_content.strip()
-
-    choices = payload.get("choices") if isinstance(payload, dict) else None
-    if isinstance(choices, list) and choices:
-        first_choice = choices[0] if isinstance(choices[0], dict) else {}
-        choice_text = (
-            ((first_choice.get("message") or {}).get("content"))
-            or first_choice.get("text")
-            or first_choice.get("response")
-        )
-        if isinstance(choice_text, str) and choice_text.strip():
-            return choice_text.strip()
-
-    fallback = payload.get("response") if isinstance(payload, dict) else None
-    if isinstance(fallback, str) and fallback.strip():
-        return fallback.strip()
-
-    raise RuntimeError("LLM fallback response missing content")
-
-
 def invoke_llm_with_fallback(llm: Any, prompt: str) -> str:
-    try:
-        raw = llm.invoke(prompt)
-        return _extract_llm_text(raw).strip()
-    except Exception as exc:
-        if not _is_method_not_allowed_error(exc):
-            raise
-        logger.warning(
-            "LLM invoke failed with 405. Falling back to Ollama /api/chat endpoint."
-        )
-        return _invoke_ollama_chat_fallback(prompt)
+    raw = llm.invoke(prompt)
+    return _extract_llm_text(raw).strip()
 
 
 def _content_fingerprint(text: str) -> str:
@@ -776,6 +731,40 @@ def _keyword_hits(text: str, keywords: tuple) -> int:
     return sum(1 for kw in keywords if kw in lower)
 
 
+def _extract_query_priority_terms(question: str) -> tuple:
+    query = (question or "").lower()
+    if not query:
+        return tuple()
+
+    terms = set()
+    for match in re.finditer(
+        r"\b(?:0x[0-9a-f]+|[a-z]{0,3}\d{3,6}[a-z-]{0,4}|\d{3,6})\b",
+        query,
+    ):
+        token = match.group(0).strip()
+        if token:
+            terms.add(token)
+
+    for phrase in (
+        "error code",
+        "watchdog",
+        "wdt",
+        "cc-link",
+        "cc link",
+        "field network",
+        "gx works",
+        "diagnostic",
+        "timeout",
+        "station",
+        "refresh",
+        "parameter",
+    ):
+        if phrase in query:
+            terms.add(phrase)
+
+    return tuple(sorted(terms, key=len, reverse=True))
+
+
 def _is_actionable_manual_chunk(doc) -> bool:
     content = getattr(doc, "page_content", "") or ""
     include_hits = _keyword_hits(content, RETRIEVAL_INCLUDE_TERMS)
@@ -816,6 +805,22 @@ def _dedupe_lines(items: List[str]) -> List[str]:
         seen.add(key)
         result.append(item.strip())
     return result
+
+
+def _canonical_section_label(text: str) -> str:
+    cleaned = re.sub(r"[*_`]+", "", str(text or ""))
+    cleaned = _clean_list_prefix(cleaned)
+    cleaned = re.sub(r"\s+", " ", cleaned).strip()
+    cleaned = cleaned.rstrip(":").strip()
+    return cleaned.lower()
+
+
+def _is_section_header_line(text: str) -> bool:
+    return _canonical_section_label(text) in SECTION_HEADER_LABELS
+
+
+def _is_placeholder_bullet(text: str) -> bool:
+    return _canonical_section_label(text) in PLACEHOLDER_BULLET_LABELS
 
 
 def _normalize_model_note(note: str, total_steps: int) -> str:
@@ -902,18 +907,26 @@ def _normalize_engineering_steps(raw: str, mode: str) -> str:
 
     for raw_line in lines:
         stripped = raw_line.strip()
-        if re.match(r"(?i)^\*{0,2}\s*troubleshooting\s*\*{0,2}\s*:?\s*$", stripped):
+        line_label = _canonical_section_label(stripped)
+        if line_label == "troubleshooting":
             in_troubleshooting = True
             continue
 
-        if re.match(r"(?i)^sources?\s*:", stripped):
+        if line_label in {"source", "sources"}:
             break
+
+        if _is_section_header_line(stripped):
+            continue
 
         cleaned = _clean_list_prefix(stripped)
         low = cleaned.lower()
+        cleaned_label = _canonical_section_label(cleaned)
+
+        if _is_section_header_line(cleaned) or _is_placeholder_bullet(cleaned):
+            continue
 
         if in_troubleshooting:
-            if len(cleaned) >= 6:
+            if len(cleaned) >= 6 and not _is_placeholder_bullet(cleaned):
                 troubleshooting.append(cleaned)
             continue
 
@@ -922,16 +935,15 @@ def _normalize_engineering_steps(raw: str, mode: str) -> str:
                 steps.append(cleaned)
             continue
 
-        if re.match(r"(?i)^\*{0,2}\s*(prerequisites?|notes?|steps?)\s*\*{0,2}\s*:?\s*$", stripped):
-            continue
-
         if (
             low.startswith("note:")
             or ("iq-f" in low and "step" in low)
             or ("follow steps" in low and "model" in low)
             or ("prerequisite" in low)
         ):
-            notes.append(re.sub(r"(?i)^note:\s*", "", cleaned))
+            normalized_note = re.sub(r"(?i)^note:\s*", "", cleaned).strip()
+            if normalized_note and not _is_placeholder_bullet(normalized_note):
+                notes.append(normalized_note)
             continue
 
         if stripped.startswith(("-", "*", "•")):
@@ -949,12 +961,14 @@ def _normalize_engineering_steps(raw: str, mode: str) -> str:
                     "link scan",
                 )
             ):
-                troubleshooting.append(cleaned)
+                if not _is_placeholder_bullet(cleaned):
+                    troubleshooting.append(cleaned)
             else:
-                notes.append(cleaned)
+                if not _is_placeholder_bullet(cleaned):
+                    notes.append(cleaned)
             continue
 
-        if len(cleaned) >= 10:
+        if len(cleaned) >= 10 and cleaned_label not in PLACEHOLDER_BULLET_LABELS:
             notes.append(cleaned)
 
     steps = _dedupe_lines(steps)
@@ -983,15 +997,15 @@ def _normalize_engineering_steps(raw: str, mode: str) -> str:
         ]
 
     default_troubleshooting = [
-        "Check common failures: station not detected, timeout, or link scan failure.",
-        "Verify LEDs for the target module: RUN (expected ON), ERR (expected OFF), LINK (expected ON or blinking by traffic).",
-        "Confirm station number, network parameters, and module settings match on both ends.",
-        "Capture the exact error code from diagnostics and verify it against the manual section for the selected model.",
+        "Capture exact diagnostic details (error code, sub-code, and occurrence timing) from the engineering tool before changing settings.",
+        "Verify PLC model/module, firmware, and software version against the exact manual section used for this procedure.",
+        "After each change, rerun diagnostics to confirm whether the original symptom is cleared or unchanged.",
     ]
-    for item in default_troubleshooting:
-        if len(troubleshooting) >= 4:
-            break
-        troubleshooting.append(item)
+    if len(troubleshooting) < 2:
+        for item in default_troubleshooting:
+            if len(troubleshooting) >= 3:
+                break
+            troubleshooting.append(item)
     troubleshooting = _dedupe_lines(troubleshooting)
 
     parts: List[str] = []
@@ -1161,6 +1175,7 @@ def _select_default_context_docs(
 def _select_procedure_context_docs(
     retrieved_docs: List,
     *,
+    question: str = "",
     top_k: int,
     max_candidates: int,
 ) -> List:
@@ -1184,17 +1199,30 @@ def _select_procedure_context_docs(
     if not scored:
         return []
 
+    priority_terms = _extract_query_priority_terms(question)
+    code_like_terms = tuple(
+        t for t in priority_terms if re.fullmatch(r"(?:0x[0-9a-f]+|[a-z]{0,3}\d{3,6}[a-z-]{0,4}|\d{3,6})", t)
+    )
+
     # Prefer actionable chunks, but do not hard-reject all context when keyword hits are sparse.
     boosted_scored = []
     for doc, score in scored:
         content = getattr(doc, "page_content", "") or ""
         include_hits = _keyword_hits(content, RETRIEVAL_INCLUDE_TERMS)
         exclude_hits = _keyword_hits(content, RETRIEVAL_EXCLUDE_TERMS)
+        priority_hits = _keyword_hits(content, priority_terms) if priority_terms else 0
+        code_hits = _keyword_hits(content, code_like_terms) if code_like_terms else 0
         boost = min(include_hits, 4) * 0.03
+        boost += min(priority_hits, 3) * 0.04
+        boost += min(code_hits, 2) * 0.08
         if _is_actionable_manual_chunk(doc):
             boost += 0.08
         if exclude_hits > 0 and include_hits <= 0:
             boost -= 0.05
+        if priority_terms and priority_hits == 0:
+            boost -= 0.02
+        if code_like_terms and code_hits == 0:
+            boost -= 0.03
         adjusted = max(0.0, float(score) + boost)
         boosted_scored.append((doc, float(score), adjusted))
 
@@ -1265,9 +1293,10 @@ def select_context_docs(
     mode = (question_mode or _question_mode(question)).strip().lower()
     top_k = top_k or _topk_for_mode(mode)
     max_candidates = max_candidates or _max_candidates_for_mode(mode)
-    if mode in {"procedure", "troubleshoot"}:
+    if mode in {"procedure", "troubleshoot", "root_cause"}:
         docs = _select_procedure_context_docs(
             retrieved_docs,
+            question=question,
             top_k=top_k,
             max_candidates=max_candidates,
         )
@@ -1374,6 +1403,7 @@ Use consistent terminology:
 - After first mention: CC-Link IEF
 
 Output policy:
+- If QUESTION_MODE is root_cause: Bypass the 3-step structure. Output a professional root cause analysis report grouped by root cause categories.
 - If QUESTION_MODE is procedure/troubleshoot: use this structure exactly:
   1) Prerequisites / Notes
   2) Steps
@@ -1491,7 +1521,7 @@ def answer_question(
     # Keep procedure/troubleshoot prompts lean to reduce latency and leakage.
     history_section = (
         ""
-        if question_mode in {"procedure", "troubleshoot"}
+        if question_mode in {"procedure", "troubleshoot", "root_cause"}
         else format_chat_history(chat_history or [], max_messages=5)
     )
 
@@ -1544,7 +1574,7 @@ def answer_question(
 
     context_chars = (
         _env_int("CHAT_CONTEXT_MAX_CHARS_PROCEDURE", 600)
-        if question_mode in {"procedure", "troubleshoot"}
+        if question_mode in {"procedure", "troubleshoot", "root_cause"}
         else _env_int("CHAT_CONTEXT_MAX_CHARS_QA", 420)
     )
     context_texts = [

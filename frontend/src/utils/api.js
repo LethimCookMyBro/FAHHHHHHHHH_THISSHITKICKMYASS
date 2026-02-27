@@ -1,13 +1,21 @@
 /**
- * Centralized API module for frontend
- * Provides consistent axios instance with auth interceptors
+ * Centralized API module for frontend.
+ * Cookie-session + CSRF flow (no localStorage access token usage).
  */
 
 import axios from "axios";
 
 const API_URL = import.meta.env.VITE_API_URL || "";
 const API_TIMEOUT_MS = Number(import.meta.env.VITE_API_TIMEOUT_MS || 180000);
+const CSRF_HEADER_NAME = "X-CSRF-Token";
+const CSRF_COOKIE_NAME = "csrf_token";
 const RETRYABLE_STATUS_CODES = new Set([408, 425, 429, 500, 502, 503, 504]);
+const SAFE_METHODS = new Set(["get", "head", "options"]);
+const CSRF_EXEMPT_PATHS = new Set([
+  "/api/auth/login",
+  "/api/auth/register",
+  "/api/auth/csrf",
+]);
 
 const looksLikeHtml = (value) => {
   if (typeof value !== "string") return false;
@@ -20,7 +28,8 @@ const looksLikeHtml = (value) => {
   );
 };
 
-const isApiUrl = (url = "") => /^\/?api(\/|$)/.test(url) || url.includes("/api/");
+const isApiUrl = (url = "") =>
+  /^\/?api(\/|$)/.test(url) || url.includes("/api/");
 const getHttpStatus = (error) => {
   const status = Number(error?.response?.status);
   return Number.isFinite(status) ? status : null;
@@ -70,24 +79,12 @@ export const retryApiRequest = async (requestFn, options = {}) => {
       await sleep(baseDelayMs * (attempt + 1));
     }
   }
-
   throw lastError;
 };
 
 export const getApiErrorMessage = (error, fallback = "Request failed") => {
   const status = getHttpStatus(error);
-  if (status === 504) {
-    return "Server timeout (504). The backend took too long to respond. Please retry in a few moments.";
-  }
-  if (status === 503) {
-    return "Service unavailable (503). Backend may still be starting up.";
-  }
-  if (status === 502) {
-    return "Bad gateway (502). Frontend proxy cannot reach backend service.";
-  }
-
   const data = error?.response?.data;
-
   if (typeof data === "string" && data.trim()) {
     if (looksLikeHtml(data)) {
       return "API returned HTML instead of JSON. Check VITE_API_URL or /api proxy routing.";
@@ -96,6 +93,12 @@ export const getApiErrorMessage = (error, fallback = "Request failed") => {
   }
 
   if (data && typeof data === "object") {
+    const code = String(data.code || "")
+      .trim()
+      .toUpperCase();
+    if (status === 503 && code === "BACKEND_UNAVAILABLE") {
+      return "Backend is unavailable or restarting. Wait a few seconds and retry.";
+    }
     if (typeof data.message === "string" && data.message.trim()) {
       return data.message;
     }
@@ -113,14 +116,35 @@ export const getApiErrorMessage = (error, fallback = "Request failed") => {
     }
   }
 
+  if (status === 504) {
+    return "Server timeout (504). The backend took too long to respond. Please retry in a few moments.";
+  }
+  if (status === 503) {
+    return "Service unavailable (503). Backend may still be starting up.";
+  }
+  if (status === 502) {
+    return "Bad gateway (502). Frontend proxy cannot reach backend service.";
+  }
+
   if (typeof error?.message === "string" && error.message.trim()) {
     return error.message;
   }
-
   return fallback;
 };
 
-// Create axios instance with default config
+const readCookie = (name) => {
+  if (typeof document === "undefined") return "";
+  const target = `${name}=`;
+  const parts = document.cookie.split(";");
+  for (const part of parts) {
+    const item = part.trim();
+    if (item.startsWith(target)) {
+      return decodeURIComponent(item.slice(target.length));
+    }
+  }
+  return "";
+};
+
 const api = axios.create({
   baseURL: API_URL,
   withCredentials: true,
@@ -140,21 +164,72 @@ const refreshClient = axios.create({
 });
 
 let refreshPromise = null;
+let csrfPromise = null;
 
-// Request interceptor - add auth token
+const ensureCsrf = async () => {
+  const current = readCookie(CSRF_COOKIE_NAME);
+  if (current) return current;
+
+  if (!csrfPromise) {
+    csrfPromise = refreshClient
+      .get("/api/auth/csrf")
+      .catch(() => null)
+      .finally(() => {
+        csrfPromise = null;
+      });
+  }
+  await csrfPromise;
+  return readCookie(CSRF_COOKIE_NAME);
+};
+
 api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem("access_token");
-    if (token) {
-      config.headers = config.headers || {};
-      config.headers.Authorization = `Bearer ${token}`;
+  async (config) => {
+    const method = String(config?.method || "get").toLowerCase();
+    const url = String(config?.url || "");
+    const origin =
+      typeof window !== "undefined"
+        ? window.location.origin
+        : "http://localhost";
+    const normalizedPath = url.startsWith("http")
+      ? new URL(url, origin).pathname
+      : url;
+
+    if (!SAFE_METHODS.has(method) && !CSRF_EXEMPT_PATHS.has(normalizedPath)) {
+      const csrfToken = await ensureCsrf();
+      if (csrfToken) {
+        config.headers = config.headers || {};
+        config.headers[CSRF_HEADER_NAME] = csrfToken;
+      }
     }
     return config;
   },
   (error) => Promise.reject(error),
 );
 
-// Response interceptor - handle auth errors
+refreshClient.interceptors.request.use(
+  async (config) => {
+    const method = String(config?.method || "get").toLowerCase();
+    const url = String(config?.url || "");
+    const origin =
+      typeof window !== "undefined"
+        ? window.location.origin
+        : "http://localhost";
+    const normalizedPath = url.startsWith("http")
+      ? new URL(url, origin).pathname
+      : url;
+
+    if (!SAFE_METHODS.has(method) && !CSRF_EXEMPT_PATHS.has(normalizedPath)) {
+      const csrfToken = await ensureCsrf();
+      if (csrfToken) {
+        config.headers = config.headers || {};
+        config.headers[CSRF_HEADER_NAME] = csrfToken;
+      }
+    }
+    return config;
+  },
+  (error) => Promise.reject(error),
+);
+
 api.interceptors.response.use(
   (response) => {
     const url = response?.config?.url || "";
@@ -171,7 +246,7 @@ api.interceptors.response.use(
   },
   async (error) => {
     const originalRequest = error.config || {};
-    const url = originalRequest.url || "";
+    const url = String(originalRequest.url || "");
     const isAuthEndpoint =
       url.includes("/auth/login") ||
       url.includes("/auth/register") ||
@@ -183,32 +258,19 @@ api.interceptors.response.use(
       !originalRequest._retry
     ) {
       originalRequest._retry = true;
-
       try {
         if (!refreshPromise) {
           refreshPromise = refreshClient
             .post("/api/auth/refresh")
-            .then((res) => {
-              const newToken = res.data?.access_token;
-              if (!newToken) {
-                throw new Error("Refresh token response missing access_token");
-              }
-              localStorage.setItem("access_token", newToken);
-              return newToken;
-            })
             .finally(() => {
               refreshPromise = null;
             });
         }
-
-        const newToken = await refreshPromise;
-        originalRequest.headers = originalRequest.headers || {};
-        originalRequest.headers.Authorization = `Bearer ${newToken}`;
+        await refreshPromise;
         return api(originalRequest);
       } catch (refreshError) {
-        localStorage.removeItem("access_token");
         if (typeof window !== "undefined") {
-          window.location.reload();
+          window.dispatchEvent(new CustomEvent("auth:expired"));
         }
         return Promise.reject(refreshError);
       }
@@ -218,35 +280,57 @@ api.interceptors.response.use(
   },
 );
 
-// Auth API
-export const authAPI = {
-  login: (email, password) => api.post("/api/auth/login", { email, password }),
-
-  register: (fullName, email, password) =>
-    api.post("/api/auth/register", { full_name: fullName, email, password }),
-
-  me: () => api.get("/api/auth/me"),
-};
-
-// Chat API
 export const chatAPI = {
   sendMessage: (message, sessionId = null, collection = "plcnext") =>
     api.post("/api/chat", { message, session_id: sessionId, collection }),
-
   getSessions: () => api.get("/api/chat/sessions"),
-
   getMessages: (sessionId) => api.get(`/api/chat/sessions/${sessionId}`),
-
   deleteSession: (sessionId) => api.delete(`/api/chat/sessions/${sessionId}`),
-
-  transcribe: (audioBlob, signal) => {
+  transcribe: (audioBlob, signal, language = "th") => {
     const formData = new FormData();
     formData.append("file", audioBlob, "recording.webm");
+    formData.append("language", language);
     return api.post("/api/transcribe", formData, {
       headers: { "Content-Type": "multipart/form-data" },
       signal,
     });
   },
+};
+
+const shouldRetryAuthMe = (error) => {
+  const status = getHttpStatus(error);
+  if (status === 401) return false;
+  return isRetryableApiError(error);
+};
+
+const shouldRetryAuthLogin = (error) => {
+  const status = getHttpStatus(error);
+  if (status === 401 || status === 403 || status === 409 || status === 422)
+    return false;
+  return isRetryableApiError(error);
+};
+
+export const authAPI = {
+  login: (email, password) =>
+    retryApiRequest(() => api.post("/api/auth/login", { email, password }), {
+      retries: 2,
+      baseDelayMs: 300,
+      shouldRetry: shouldRetryAuthLogin,
+    }),
+  register: (fullName, email, password) =>
+    api.post("/api/auth/register", { full_name: fullName, email, password }),
+  me: () =>
+    retryApiRequest(() => api.get("/api/auth/me"), {
+      retries: 1,
+      baseDelayMs: 250,
+      shouldRetry: shouldRetryAuthMe,
+    }),
+  logout: () => api.post("/api/auth/logout"),
+  csrf: () => api.get("/api/auth/csrf"),
+  createWsTicket: () => api.post("/api/auth/ws-ticket"),
+  getUiPreferences: () => api.get("/api/auth/preferences"),
+  updateUiPreferences: (patch) =>
+    api.patch("/api/auth/preferences", patch || {}),
 };
 
 export default api;

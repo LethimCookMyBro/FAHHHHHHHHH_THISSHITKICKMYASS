@@ -10,7 +10,7 @@ const rawApiTarget =
   process.env.BACKEND_URL ||
   process.env.BACKEND_API_URL ||
   "";
-const apiTarget = rawApiTarget || "http://localhost:5000";
+const apiTarget = rawApiTarget || "http://127.0.0.1:5000";
 const proxyTimeoutMs = Number(process.env.API_PROXY_TIMEOUT_MS || 180000);
 const proxySocketTimeoutMs = Number(
   process.env.API_SOCKET_TIMEOUT_MS ||

@@ -1,0 +1,64 @@
+/* Auth screens keep their own visual direction */
+.auth-shell {
+  background:
+    radial-gradient(900px 580px at 8% 0%, rgba(40, 121, 211, 0.34), transparent 58%),
+    radial-gradient(760px 520px at 92% 100%, rgba(11, 165, 184, 0.28), transparent 58%),
+    linear-gradient(155deg, #040711 0%, #0d1727 52%, #102744 100%);
+}
+
+.auth-card {
+  background: color-mix(in srgb, var(--glass-bg-strong) 86%, transparent);
+  border: 1px solid color-mix(in srgb, var(--glass-border) 92%, transparent);
+  box-shadow:
+    0 28px 56px rgba(2, 6, 23, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.24);
+  backdrop-filter: blur(calc(var(--glass-blur) * 0.82)) saturate(calc(var(--glass-sat) * 0.95));
+  -webkit-backdrop-filter: blur(calc(var(--glass-blur) * 0.82)) saturate(calc(var(--glass-sat) * 0.95));
+}
+
+.auth-input {
+  background: color-mix(in srgb, #0f1c31 78%, transparent);
+  border: 1px solid color-mix(in srgb, var(--glass-border) 75%, rgba(100, 116, 139, 0.48));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.auth-input:focus {
+  border-color: color-mix(in srgb, var(--accent) 62%, white 16%);
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--accent) 28%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+.animated-gradient {
+  background:
+    radial-gradient(640px 460px at 20% -10%, rgba(46, 114, 214, 0.24), transparent 60%),
+    radial-gradient(540px 460px at 92% 104%, rgba(20, 184, 166, 0.2), transparent 62%);
+}
+
+@supports not (backdrop-filter: blur(10px)) {
+  .auth-card {
+    background: rgba(8, 18, 34, 0.92);
+  }
+}
+
+html[data-theme="light"] .auth-shell {
+  background:
+    radial-gradient(900px 580px at 8% 0%, rgba(47, 99, 176, 0.26), transparent 58%),
+    radial-gradient(760px 520px at 92% 100%, rgba(41, 148, 168, 0.2), transparent 58%),
+    linear-gradient(155deg, #d9e7f6 0%, #dbe8f8 52%, #cde0f4 100%);
+}
+
+html[data-theme="light"] .auth-card {
+  background: rgba(225, 237, 250, 0.82);
+  border-color: rgba(122, 146, 171, 0.42);
+  box-shadow:
+    0 24px 46px rgba(22, 44, 69, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.84);
+}
+
+html[data-theme="light"] .auth-input {
+  background: rgba(239, 247, 255, 0.82);
+  border-color: rgba(128, 151, 178, 0.45);
+}

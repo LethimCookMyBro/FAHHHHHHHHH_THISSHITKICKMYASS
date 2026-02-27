@@ -5,7 +5,6 @@ import logging
 from typing import List, Any, Dict, Optional, Set
 from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from sentence_transformers import SentenceTransformer
 
 try:
     import torch
@@ -40,6 +39,14 @@ def get_embedder():
     """
     global _embedder
     if _embedder is None:
+        try:
+            from sentence_transformers import SentenceTransformer
+        except Exception as exc:
+            raise RuntimeError(
+                "sentence-transformers is not installed. "
+                "Install backend AI dependencies before using embedding features."
+            ) from exc
+
         model_name = os.getenv("EMBED_MODEL", "BAAI/bge-m3")
         cache_folder = os.getenv("MODEL_CACHE", "/data/models")
         device = _resolve_embed_device()

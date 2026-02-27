@@ -1,56 +1,56 @@
+import { Bot, Zap, Search, Shield } from "lucide-react";
+
+const promptIcons = [Search, Zap, Shield, Bot];
+
 export default function ChatWelcome({ user, onPromptSelect, composer }) {
+  const firstName = user?.full_name ? user.full_name.split(" ")[0] : "Operator";
+
+  const prompts = [
+    "Explain error code F800H and first field checks",
+    "How to configure CC-Link IE Field network",
+    "Give safe recovery steps for communication timeout",
+    "Summarize root cause for serial communication alarm",
+  ];
+
   return (
-    <div className="flex-1 flex flex-col items-center justify-center px-4 pb-8">
-      <div className="mb-8 text-center fade-in-up">
-        <div className="mb-4 flex justify-center">
-          <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-slate-200 bg-white/85 shadow-sm backdrop-blur">
-            <img
-              src="/panya-logo.png"
-              alt="Panya logo"
-              className="h-10 w-10 object-contain"
-            />
+    <div className="chat-welcome">
+      <div className="chat-hero fade-in-up">
+        <section className="flex flex-col items-center text-center pb-6">
+          <div className="chat-hero-badge">
+            <Bot size={14} />
+            <span>Knowledge Assistant</span>
           </div>
-        </div>
-        <div className="inline-flex items-center rounded-full border border-slate-200 bg-white/70 backdrop-blur px-3 py-1.5 text-[11px] font-semibold tracking-wider text-slate-600 uppercase mb-5">
-          Industrial Assistant
-        </div>
-        <h2 className="text-2xl sm:text-3xl font-bold text-slate-800 mb-2">
-          Hey{user.full_name ? `, ${user.full_name.split(" ")[0]}` : ""}!
-        </h2>
-        <p className="text-slate-600 max-w-xl text-sm sm:text-[15px] leading-relaxed">
-          Your PLC & Industrial Automation expert. Ask me anything about troubleshooting,
-          error codes, or technical docs.
-        </p>
-      </div>
 
-      <div className="w-full max-w-2xl mb-6 fade-in-up" style={{ animationDelay: "0.1s" }}>
-        {composer}
-      </div>
+          <h2 className="chat-hero-title mt-6">Welcome, {firstName}</h2>
+          <p className="chat-hero-sub max-w-lg">
+            Ask for PLC diagnostics, root cause analysis, action planning, and
+            safe execution guidance.
+          </p>
+        </section>
 
-      <div
-        className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-3xl w-full fade-in-up"
-        style={{ animationDelay: "0.2s" }}
-      >
-        {[
-          "What does error code F800H mean?",
-          "How to configure CC-Link IE Field?",
-          "FX3 timer instructions",
-          "Data Collector troubleshooting",
-        ].map((prompt, index) => (
-          <button
-            type="button"
-            key={index}
-            onClick={() => onPromptSelect(prompt)}
-            className="text-left px-4 py-3.5 glass-prompt rounded-2xl text-sm font-medium text-slate-700 hover:text-blue-800 hover:border-blue-200 transition-all shadow-sm"
-          >
-            {prompt}
-          </button>
-        ))}
-      </div>
+        <section className="chat-hero-card glass-panel-strong glass-noise">
+          {composer}
+        </section>
 
-      <p className="text-[10px] text-slate-400 mt-6">
-        Panya may make mistakes. Verify important information.
-      </p>
+        <section className="prompt-grid">
+          {prompts.map((prompt, index) => {
+            const Icon = promptIcons[index] || Zap;
+            return (
+              <button
+                key={prompt}
+                type="button"
+                className="prompt-card glass-panel-lite glass-interactive"
+                onClick={() => onPromptSelect(prompt)}
+              >
+                <span className="prompt-card-icon">
+                  <Icon size={15} />
+                </span>
+                <span>{prompt}</span>
+              </button>
+            );
+          })}
+        </section>
+      </div>
     </div>
   );
 }

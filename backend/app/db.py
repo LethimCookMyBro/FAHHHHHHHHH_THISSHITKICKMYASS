@@ -1,11 +1,40 @@
 # backend/app/db.py
 import os
+import time
 from psycopg2 import pool
 
-_db_pool: pool.SimpleConnectionPool | None = None
+
+class BlockingThreadedConnectionPool(pool.ThreadedConnectionPool):
+    """Thread-safe pool with short blocking wait when all connections are busy."""
+
+    def __init__(
+        self,
+        minconn: int,
+        maxconn: int,
+        *args,
+        acquire_timeout_seconds: float = 2.0,
+        acquire_retry_seconds: float = 0.05,
+        **kwargs,
+    ):
+        super().__init__(minconn, maxconn, *args, **kwargs)
+        self._acquire_timeout_seconds = max(0.1, float(acquire_timeout_seconds))
+        self._acquire_retry_seconds = max(0.01, float(acquire_retry_seconds))
+
+    def getconn(self, key=None):
+        deadline = time.monotonic() + self._acquire_timeout_seconds
+        while True:
+            try:
+                return super().getconn(key=key)
+            except pool.PoolError:
+                if time.monotonic() >= deadline:
+                    raise
+                time.sleep(self._acquire_retry_seconds)
 
 
-def init_db_pool(database_url: str) -> pool.SimpleConnectionPool:
+_db_pool: BlockingThreadedConnectionPool | None = None
+
+
+def init_db_pool(database_url: str) -> BlockingThreadedConnectionPool:
     """
     Initialize PostgreSQL connection pool (singleton).
     Called once at FastAPI startup.
@@ -22,16 +51,20 @@ def init_db_pool(database_url: str) -> pool.SimpleConnectionPool:
 
         minconn = int(os.getenv("DB_POOL_MIN", "1"))
         maxconn = int(os.getenv("DB_POOL_MAX", "10"))
-        _db_pool = pool.SimpleConnectionPool(
+        acquire_timeout_seconds = float(os.getenv("DB_POOL_ACQUIRE_TIMEOUT_SECONDS", "2.0"))
+        acquire_retry_seconds = float(os.getenv("DB_POOL_ACQUIRE_RETRY_SECONDS", "0.05"))
+        _db_pool = BlockingThreadedConnectionPool(
             minconn=minconn,
             maxconn=maxconn,
             dsn=database_url,
+            acquire_timeout_seconds=acquire_timeout_seconds,
+            acquire_retry_seconds=acquire_retry_seconds,
         )
 
     return _db_pool
 
 
-def get_db_pool() -> pool.SimpleConnectionPool:
+def get_db_pool() -> BlockingThreadedConnectionPool:
     """
     Get initialized DB pool.
     """
@@ -43,7 +76,7 @@ def get_db_pool() -> pool.SimpleConnectionPool:
     return _db_pool
 
 
-def ensure_schema(db_pool: pool.SimpleConnectionPool) -> None:
+def ensure_schema(db_pool: BlockingThreadedConnectionPool) -> None:
     """
     Apply idempotent schema migrations required by the current backend code.
     Fail-fast: raise on any error so startup does not continue with broken schema.
@@ -130,9 +163,46 @@ def ensure_schema(db_pool: pool.SimpleConnectionPool) -> None:
                   password_hash TEXT NOT NULL,
                   full_name TEXT,
                   is_active BOOLEAN DEFAULT true,
-                  role TEXT DEFAULT 'user',
+                  role TEXT DEFAULT 'operator',
                   created_at TIMESTAMPTZ DEFAULT now()
                 );
+                """,
+                """
+                ALTER TABLE public.users
+                ALTER COLUMN role SET DEFAULT 'operator';
+                """,
+                """
+                ALTER TABLE public.users
+                ADD COLUMN IF NOT EXISTS ui_preferences JSONB DEFAULT '{}'::jsonb;
+                """,
+                """
+                ALTER TABLE public.users
+                ALTER COLUMN ui_preferences SET DEFAULT '{}'::jsonb;
+                """,
+                """
+                UPDATE public.users
+                SET ui_preferences = '{}'::jsonb
+                WHERE ui_preferences IS NULL;
+                """,
+                """
+                UPDATE public.users
+                SET role = 'operator'
+                WHERE role IS NULL
+                   OR TRIM(role) = ''
+                   OR LOWER(role) = 'user';
+                """,
+                """
+                DO $$
+                BEGIN
+                  IF NOT EXISTS (
+                    SELECT 1 FROM pg_constraint
+                    WHERE conname = 'chk_users_role_valid'
+                  ) THEN
+                    ALTER TABLE public.users
+                    ADD CONSTRAINT chk_users_role_valid
+                    CHECK (role IN ('viewer', 'operator', 'admin'));
+                  END IF;
+                END $$;
                 """,
                 """
                 CREATE TABLE IF NOT EXISTS public.refresh_tokens (
@@ -152,6 +222,10 @@ def ensure_schema(db_pool: pool.SimpleConnectionPool) -> None:
                 """,
                 """
                 CREATE INDEX IF NOT EXISTS idx_refresh_tokens_token_hash
+                ON public.refresh_tokens(token_hash);
+                """,
+                """
+                CREATE UNIQUE INDEX IF NOT EXISTS uq_refresh_tokens_token_hash
                 ON public.refresh_tokens(token_hash);
                 """,
                 # chat tables
@@ -198,6 +272,163 @@ def ensure_schema(db_pool: pool.SimpleConnectionPool) -> None:
                 """
                 CREATE INDEX IF NOT EXISTS idx_chat_messages_session_created_at
                 ON public.chat_messages(session_id, created_at DESC);
+                """,
+                """
+                CREATE INDEX IF NOT EXISTS idx_chat_messages_created_at
+                ON public.chat_messages(created_at DESC);
+                """,
+                # ── PLC Monitoring tables ──
+                """
+                CREATE TABLE IF NOT EXISTS public.machines (
+                  id SERIAL PRIMARY KEY,
+                  name TEXT NOT NULL,
+                  plc_type TEXT DEFAULT 'mitsubishi',
+                  model TEXT,
+                  location TEXT,
+                  status TEXT DEFAULT 'offline',
+                  last_heartbeat TIMESTAMPTZ,
+                  config JSONB DEFAULT '{}'::jsonb,
+                  created_at TIMESTAMPTZ DEFAULT now()
+                );
+                """,
+                """
+                CREATE TABLE IF NOT EXISTS public.plc_alarms (
+                  id SERIAL PRIMARY KEY,
+                  machine_id INTEGER,
+                  error_code TEXT NOT NULL,
+                  severity TEXT DEFAULT 'warning',
+                  message TEXT,
+                  category TEXT DEFAULT 'unknown',
+                  status TEXT DEFAULT 'active',
+                  raw_data JSONB DEFAULT '{}'::jsonb,
+                  diagnosed_at TIMESTAMPTZ,
+                  resolved_at TIMESTAMPTZ,
+                  created_at TIMESTAMPTZ DEFAULT now()
+                );
+                """,
+                """
+                ALTER TABLE public.plc_alarms
+                ADD COLUMN IF NOT EXISTS acknowledged_at TIMESTAMPTZ;
+                """,
+                """
+                ALTER TABLE public.plc_alarms
+                ADD COLUMN IF NOT EXISTS acknowledged_by INTEGER;
+                """,
+                """
+                ALTER TABLE public.plc_alarms
+                ADD COLUMN IF NOT EXISTS acknowledge_note TEXT;
+                """,
+                """
+                CREATE INDEX IF NOT EXISTS idx_plc_alarms_status
+                ON public.plc_alarms(status);
+                """,
+                """
+                CREATE INDEX IF NOT EXISTS idx_plc_alarms_machine_id
+                ON public.plc_alarms(machine_id);
+                """,
+                """
+                CREATE INDEX IF NOT EXISTS idx_plc_alarms_created_at
+                ON public.plc_alarms(created_at DESC);
+                """,
+                """
+                CREATE TABLE IF NOT EXISTS public.ai_actions (
+                  id SERIAL PRIMARY KEY,
+                  alarm_id INTEGER,
+                  action_type TEXT NOT NULL,
+                  diagnosis TEXT,
+                  recommendation TEXT,
+                  confidence FLOAT DEFAULT 0.0,
+                  is_hardware BOOLEAN DEFAULT false,
+                  repair_steps JSONB DEFAULT '[]'::jsonb,
+                  sources JSONB DEFAULT '[]'::jsonb,
+                  executed_at TIMESTAMPTZ,
+                  created_at TIMESTAMPTZ DEFAULT now()
+                );
+                """,
+                """
+                ALTER TABLE public.ai_actions
+                ADD COLUMN IF NOT EXISTS action_reason TEXT;
+                """,
+                """
+                ALTER TABLE public.ai_actions
+                ADD COLUMN IF NOT EXISTS action_payload JSONB DEFAULT '{}'::jsonb;
+                """,
+                """
+                ALTER TABLE public.ai_actions
+                ADD COLUMN IF NOT EXISTS approval_info JSONB DEFAULT '{}'::jsonb;
+                """,
+                """
+                ALTER TABLE public.ai_actions
+                ADD COLUMN IF NOT EXISTS execution_status TEXT DEFAULT 'planned';
+                """,
+                """
+                ALTER TABLE public.ai_actions
+                ADD COLUMN IF NOT EXISTS execution_result JSONB DEFAULT '{}'::jsonb;
+                """,
+                """
+                ALTER TABLE public.ai_actions
+                ADD COLUMN IF NOT EXISTS before_state JSONB DEFAULT '{}'::jsonb;
+                """,
+                """
+                ALTER TABLE public.ai_actions
+                ADD COLUMN IF NOT EXISTS after_state JSONB DEFAULT '{}'::jsonb;
+                """,
+                """
+                ALTER TABLE public.ai_actions
+                ADD COLUMN IF NOT EXISTS policy_version TEXT DEFAULT 'v1-safe-actions';
+                """,
+                """
+                ALTER TABLE public.ai_actions
+                ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT now();
+                """,
+                """
+                UPDATE public.ai_actions
+                SET action_payload = '{}'::jsonb
+                WHERE action_payload IS NULL;
+                """,
+                """
+                UPDATE public.ai_actions
+                SET approval_info = '{}'::jsonb
+                WHERE approval_info IS NULL;
+                """,
+                """
+                UPDATE public.ai_actions
+                SET execution_result = '{}'::jsonb
+                WHERE execution_result IS NULL;
+                """,
+                """
+                UPDATE public.ai_actions
+                SET before_state = '{}'::jsonb
+                WHERE before_state IS NULL;
+                """,
+                """
+                UPDATE public.ai_actions
+                SET after_state = '{}'::jsonb
+                WHERE after_state IS NULL;
+                """,
+                """
+                CREATE INDEX IF NOT EXISTS idx_ai_actions_alarm_id
+                ON public.ai_actions(alarm_id);
+                """,
+                """
+                CREATE INDEX IF NOT EXISTS idx_ai_actions_created_at
+                ON public.ai_actions(created_at DESC);
+                """,
+                """
+                CREATE INDEX IF NOT EXISTS idx_ai_actions_execution_status
+                ON public.ai_actions(execution_status);
+                """,
+                """
+                CREATE TABLE IF NOT EXISTS public.sensor_data (
+                  id SERIAL PRIMARY KEY,
+                  machine_id INTEGER,
+                  data JSONB NOT NULL,
+                  created_at TIMESTAMPTZ DEFAULT now()
+                );
+                """,
+                """
+                CREATE INDEX IF NOT EXISTS idx_sensor_data_machine_id
+                ON public.sensor_data(machine_id);
                 """,
             ]
 

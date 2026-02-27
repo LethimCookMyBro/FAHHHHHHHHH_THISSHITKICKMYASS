@@ -1,0 +1,528 @@
+.plc-shell {
+  height: 100vh;
+  height: 100dvh;
+  display: flex;
+  color: var(--text-primary);
+  overflow: hidden;
+}
+
+.plc-main {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  border-radius: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior-y: contain;
+  background: var(--bg-primary);
+}
+
+.plc-main.is-chat-route {
+  overflow: hidden;
+}
+
+.page-wrap {
+  max-width: 1580px;
+  margin: 0 auto;
+  padding: 26px 28px 34px;
+}
+
+.page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 26px;
+}
+
+.page-title {
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+
+.page-subtitle {
+  margin-top: 6px;
+  color: var(--text-muted);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.live-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--surface-700);
+  background: rgba(16, 185, 129, 0.06);
+  color: var(--neon-green);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--neon-green);
+  box-shadow: 0 0 8px rgba(0, 255, 157, 0.5);
+  animation: liveBlink 1.8s ease-in-out infinite;
+}
+
+.live-dot.warn {
+  background: var(--neon-amber);
+  box-shadow: 0 0 8px rgba(255, 204, 0, 0.4);
+}
+
+.live-dot.off {
+  background: var(--text-muted);
+  box-shadow: none;
+  animation: none;
+}
+
+@keyframes liveBlink {
+  0%,
+  100% {
+    box-shadow: 0 0 8px rgba(0, 255, 157, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(0, 255, 157, 0);
+  }
+}
+
+/* ── NEXUS Sidebar ── */
+.nexus-sidebar {
+  width: 256px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(
+    180deg,
+    var(--surface-800) 0%,
+    var(--surface-900) 100%
+  );
+  border-right: 1px solid var(--surface-700);
+  height: 100vh;
+  height: 100dvh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  transition: width 0.2s ease;
+  z-index: 30;
+}
+
+.nexus-sidebar.is-collapsed {
+  width: 84px;
+}
+
+.nexus-sidebar.is-collapsed .hide-on-collapsed {
+  display: none !important;
+}
+
+/* ── Brand ── */
+.nexus-sidebar-brand {
+  padding: 16px 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.nexus-brand-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.nexus-brand-logo {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, var(--primary), #3b82f6);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  flex-shrink: 0;
+  box-shadow: 0 4px 12px rgba(33, 106, 190, 0.3);
+}
+
+.nexus-brand-title {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+  line-height: 1;
+}
+
+.nexus-brand-sub {
+  margin-top: 3px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+/* Collapsed brand */
+.nexus-sidebar.is-collapsed .nexus-sidebar-brand {
+  padding: 14px 0;
+  display: flex;
+  justify-content: center;
+}
+
+.nexus-sidebar.is-collapsed .nexus-brand-row {
+  justify-content: center;
+}
+
+/* ── Status Card ── */
+.nexus-status-card {
+  margin: 12px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--surface-700);
+}
+
+.nexus-status-mini {
+  width: 42px;
+  height: 34px;
+  margin: 10px auto 8px;
+  border-radius: 10px;
+  border: 1px solid var(--surface-700);
+  background: rgba(255, 255, 255, 0.03);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.nexus-status-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nexus-status-dot-wrap {
+  position: relative;
+  width: 10px;
+  height: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.nexus-status-ping {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background: var(--neon-green);
+  opacity: 0.75;
+  animation: statusPing 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+.nexus-status-dot {
+  position: relative;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--text-muted);
+}
+
+.nexus-status-dot.is-live {
+  background: var(--neon-green);
+  box-shadow: var(--shadow-neon-green);
+}
+
+@keyframes statusPing {
+  75%,
+  100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+
+.nexus-status-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--neon-green);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.nexus-status-wifi {
+  margin-left: auto;
+  color: var(--text-muted);
+}
+
+.nexus-status-meta {
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.nexus-mono {
+  font-family: var(--font-mono);
+}
+
+/* Collapsed status */
+.nexus-sidebar.is-collapsed .nexus-status-card {
+  margin: 0 8px;
+  padding: 10px 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.nexus-sidebar.is-collapsed .nexus-status-row {
+  justify-content: center;
+}
+
+/* ── Navigation ── */
+.nexus-nav-label {
+  padding: 16px 20px 8px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: var(--text-muted);
+}
+
+.nexus-nav-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0 10px;
+  flex: 1;
+}
+
+.nexus-nav-link {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  color: var(--text-muted);
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+  border: 1px solid transparent;
+  transition: all 0.15s ease;
+}
+
+.nexus-nav-link:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.04);
+  border-color: var(--surface-700);
+}
+
+.nexus-nav-link.is-active {
+  color: var(--text-primary);
+  background: rgba(33, 106, 190, 0.1);
+  border-color: rgba(33, 106, 190, 0.25);
+  box-shadow: 0 0 15px rgba(33, 106, 190, 0.15);
+}
+
+.nexus-nav-link.is-active::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 8px;
+  background: linear-gradient(90deg, rgba(33, 106, 190, 0.08), transparent);
+  pointer-events: none;
+}
+
+.nexus-nav-link svg {
+  flex-shrink: 0;
+}
+
+/* Collapsed nav */
+.nexus-sidebar.is-collapsed .nexus-nav-list {
+  padding: 2px 10px;
+}
+
+.nexus-sidebar.is-collapsed .nexus-nav-link {
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  margin: 0 auto;
+  padding: 0;
+  border-radius: 12px;
+}
+
+/* ── Alarm Pill ── */
+.nexus-alarm-pill {
+  margin-left: auto;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  background: rgba(255, 51, 102, 0.15);
+  border: 1px solid rgba(255, 51, 102, 0.25);
+  color: var(--neon-red);
+}
+
+/* ── Bottom Section ── */
+.nexus-sidebar-bottom {
+  margin-top: auto;
+  border-top: 1px solid var(--surface-700);
+  padding: 12px;
+}
+
+/* ── User Card ── */
+.nexus-user-card {
+  padding: 8px 8px 10px;
+  margin-bottom: 8px;
+}
+
+.nexus-user-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.nexus-user-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, var(--primary), #3b82f6);
+  color: white;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(33, 106, 190, 0.25);
+}
+
+.nexus-user-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.nexus-user-role {
+  margin-top: 1px;
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+/* Collapsed user */
+.nexus-sidebar.is-collapsed .nexus-user-card {
+  display: flex;
+  justify-content: center;
+  padding: 8px 0;
+}
+
+.nexus-sidebar.is-collapsed .nexus-user-row {
+  justify-content: center;
+}
+
+/* ── Controls ── */
+.nexus-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.nexus-ctrl-btn {
+  flex: 1;
+  height: 36px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.nexus-ctrl-btn:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.nexus-ctrl-logout:hover {
+  color: var(--neon-red);
+  background: rgba(255, 51, 102, 0.08);
+}
+
+/* Collapsed controls */
+.nexus-sidebar.is-collapsed .nexus-controls {
+  flex-direction: column;
+  gap: 6px;
+  align-items: center;
+}
+
+.nexus-sidebar.is-collapsed .nexus-ctrl-btn {
+  width: 42px;
+  height: 34px;
+  flex: 0 0 auto;
+  border-radius: 10px;
+  border: 1px solid var(--surface-700);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+/* ── App Shell ── */
+.app-shell-ambience {
+  background: var(--surface-900);
+}
+
+/* ── Control & Action buttons ── */
+.control-btn,
+.action-btn {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--surface-700);
+  background: var(--surface-800);
+  border-radius: 10px;
+  color: var(--text-muted);
+  transition: all 0.15s ease;
+}
+
+.control-btn:hover,
+.action-btn:hover {
+  border-color: var(--surface-600);
+  color: var(--text-primary);
+  background: var(--surface-700);
+}
+
+.control-btn {
+  height: 40px;
+  width: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ── Stability mode overrides ── */
+html[data-stability-mode="aggressive"] .nexus-nav-link,
+html[data-stability-mode="aggressive"] .nexus-ctrl-btn,
+html[data-stability-mode="aggressive"] .control-btn,
+html[data-stability-mode="aggressive"] .action-btn {
+  transition: none !important;
+}
+
+html[data-stability-mode="aggressive"] .nexus-nav-link:hover,
+html[data-stability-mode="aggressive"] .nexus-ctrl-btn:hover,
+html[data-stability-mode="aggressive"] .control-btn:hover,
+html[data-stability-mode="aggressive"] .action-btn:hover {
+  transform: none;
+}

@@ -1,4 +1,20 @@
 services:
+  redis:
+    image: redis:7-alpine
+    container_name: plcnext-chatbot-redis-1
+    command: ["redis-server", "--save", "60", "1000", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
   postgres:
     image: pgvector/pgvector:pg16
     container_name: plcnext-chatbot-postgres-1
@@ -81,12 +97,14 @@ services:
               count: 1
               capabilities: [gpu]
     depends_on:
+      redis:
+        condition: service_healthy
       postgres:
         condition: service_healthy
       ollama:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health/live"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -121,6 +139,7 @@ services:
         condition: service_healthy
 
 volumes:
+  redis_data:
   plcnext-data:
   ollama_data:
   pgadmin_data:

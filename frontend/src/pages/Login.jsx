@@ -1,8 +1,11 @@
 import { useState } from "react";
 import { LoaderCircle, Mail, Lock, Sparkles } from "lucide-react";
-import { authAPI, getApiErrorMessage } from "../utils/api";
+import { getApiErrorMessage } from "../utils/api";
+import { useT } from "../utils/i18n";
+import { GlassSurface } from "../components/ui";
 
 function Login({ onLogin, onGoRegister }) {
+  const { t } = useT();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -14,8 +17,7 @@ function Login({ onLogin, onGoRegister }) {
     setLoading(true);
 
     try {
-      const res = await authAPI.login(email, password);
-      onLogin(res.data.access_token);
+      await onLogin({ email, password });
     } catch (err) {
       setError(getApiErrorMessage(err, "Invalid credentials"));
     } finally {
@@ -25,16 +27,13 @@ function Login({ onLogin, onGoRegister }) {
 
   return (
     <div className="min-h-screen auth-shell flex items-center justify-center p-4 relative overflow-hidden">
-      {/* Animated gradient background */}
       <div className="fixed inset-0 animated-gradient" />
 
-      {/* Decorative orbs */}
       <div className="fixed top-1/4 left-1/4 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl" />
       <div className="fixed bottom-1/4 right-1/4 w-80 h-80 bg-cyan-500/15 rounded-full blur-3xl" />
       <div className="fixed top-1/2 right-1/3 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl" />
 
       <div className="w-full max-w-sm relative z-10 fade-in-up">
-        {/* Logo */}
         <div className="flex flex-col items-center mb-8">
           <div className="relative mb-4">
             <img
@@ -46,21 +45,28 @@ function Login({ onLogin, onGoRegister }) {
               <Sparkles className="w-5 h-5 text-cyan-400" />
             </div>
           </div>
-          <h1 className="text-3xl font-bold text-white tracking-tight">
-            Panya
+          <h1 className="text-3xl font-bold text-[color:var(--text-primary)] tracking-tight">
+            {t("brand.title")}
           </h1>
-          <p className="text-sm text-blue-300/70 mt-1 font-medium">
-            PLC & Automation AI Assistant
+          <p className="text-sm text-[color:var(--text-secondary)] mt-1 font-medium">
+            {t("brand.subtitle")}
           </p>
         </div>
 
-        {/* Card */}
-        <form
-          className="auth-card rounded-2xl p-6 sm:p-8"
+        <GlassSurface
+          as="form"
+          className="auth-card rounded-2xl p-6 sm:p-8 glass-noise"
           onSubmit={handleSubmit}
+          borderRadius={20}
+          blur={13}
+          displace={0.62}
+          brightness={56}
+          opacity={0.9}
+          saturation={1.18}
+          backgroundOpacity={0.14}
         >
-          <h2 className="text-xl font-semibold mb-6 text-center text-white">
-            Welcome back
+          <h2 className="text-xl font-semibold mb-6 text-center text-[color:var(--text-primary)]">
+            {t("auth.welcomeBack")}
           </h2>
 
           {error && (
@@ -71,8 +77,8 @@ function Login({ onLogin, onGoRegister }) {
 
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-blue-200/80 mb-1.5">
-                Email
+              <label className="block text-sm font-medium text-[color:var(--text-secondary)] mb-1.5">
+                {t("auth.email")}
               </label>
               <div className="relative">
                 <Mail
@@ -82,7 +88,7 @@ function Login({ onLogin, onGoRegister }) {
                 <input
                   type="email"
                   placeholder="you@company.com"
-                  className="auth-input w-full pl-10 pr-4 py-2.5 rounded-xl focus:outline-none text-white placeholder-slate-500"
+                  className="auth-input w-full pl-10 pr-4 py-2.5 rounded-xl focus:outline-none text-[color:var(--text-primary)] placeholder-[color:var(--text-muted)]"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
@@ -91,8 +97,8 @@ function Login({ onLogin, onGoRegister }) {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-blue-200/80 mb-1.5">
-                Password
+              <label className="block text-sm font-medium text-[color:var(--text-secondary)] mb-1.5">
+                {t("auth.password")}
               </label>
               <div className="relative">
                 <Lock
@@ -102,7 +108,7 @@ function Login({ onLogin, onGoRegister }) {
                 <input
                   type="password"
                   placeholder="••••••••"
-                  className="auth-input w-full pl-10 pr-4 py-2.5 rounded-xl focus:outline-none text-white placeholder-slate-500"
+                  className="auth-input w-full pl-10 pr-4 py-2.5 rounded-xl focus:outline-none text-[color:var(--text-primary)] placeholder-[color:var(--text-muted)]"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
@@ -114,32 +120,32 @@ function Login({ onLogin, onGoRegister }) {
           <button
             type="submit"
             disabled={loading}
-            className="w-full mt-6 bg-gradient-to-r from-blue-500 to-cyan-500 text-white py-2.5 rounded-xl hover:from-blue-600 hover:to-cyan-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-semibold shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 flex items-center justify-center gap-2"
+            className="w-full mt-6 bg-gradient-to-r from-blue-500 to-cyan-500 text-white py-2.5 rounded-xl hover:from-blue-600 hover:to-cyan-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-semibold shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 flex items-center justify-center gap-2 glass-interactive"
           >
             {loading ? (
               <>
                 <LoaderCircle size={18} className="animate-spin" />
-                Signing in...
+                {t("auth.signingIn")}
               </>
             ) : (
-              "Sign in"
+              t("auth.signIn")
             )}
           </button>
 
-          <p className="mt-6 text-sm text-center text-slate-400">
-            Don't have an account?{" "}
+          <p className="mt-6 text-sm text-center text-[color:var(--text-secondary)]">
+            {t("auth.noAccount")}{" "}
             <button
               type="button"
               onClick={onGoRegister}
               className="text-cyan-400 hover:text-cyan-300 font-medium hover:underline transition-colors"
             >
-              Create one
+              {t("auth.createOne")}
             </button>
           </p>
-        </form>
+        </GlassSurface>
 
-        <p className="text-center text-[11px] text-slate-600 mt-6">
-          Powered by Panya AI • Industrial Automation
+        <p className="text-center text-[11px] text-[color:var(--text-muted)] mt-6">
+          {t("auth.powered")}
         </p>
       </div>
     </div>

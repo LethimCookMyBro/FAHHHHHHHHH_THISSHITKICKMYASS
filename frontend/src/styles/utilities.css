@@ -1,0 +1,25 @@
+.plc-card {
+  border-radius: var(--radius-md);
+  border: 1px solid var(--line-soft);
+  background: color-mix(in srgb, var(--bg-card) 90%, transparent);
+}
+
+.plc-card-static {
+  border-radius: var(--radius-md);
+  border: 1px solid var(--line-soft);
+  background: color-mix(in srgb, var(--bg-card) 93%, transparent);
+}
+
+.plc-badge {
+  border-radius: 999px;
+  padding: 4px 9px;
+  border: 1px solid var(--line-soft);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.plc-mono {
+  font-family: var(--font-mono);
+}

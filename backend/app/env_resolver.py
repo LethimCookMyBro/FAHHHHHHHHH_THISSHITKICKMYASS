@@ -1,7 +1,14 @@
 import os
 import re
+from pathlib import Path
 from typing import List, Optional, Tuple
 from urllib.parse import quote, urlsplit
+
+from dotenv import load_dotenv
+
+# Load .env from the backend directory (where this module lives)
+_backend_dir = Path(__file__).resolve().parent.parent
+load_dotenv(_backend_dir / ".env", override=False)
 
 
 _PLACEHOLDER_PATTERNS = (

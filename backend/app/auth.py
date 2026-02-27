@@ -1,4 +1,5 @@
 import os
+import secrets
 from datetime import datetime, timedelta
 from typing import Optional
 
@@ -42,6 +43,7 @@ def create_access_token(subject: str, expires_seconds: Optional[int] = None) -> 
         "sub": str(subject),
         "exp": exp,
         "typ": "access",
+        "jti": secrets.token_urlsafe(12),
     }
     return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGO)
 
@@ -52,6 +54,7 @@ def create_refresh_token(subject: str, expires_seconds: Optional[int] = None) ->
         "sub": str(subject),
         "exp": exp,
         "typ": "refresh",
+        "jti": secrets.token_urlsafe(12),
     }
     return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGO)
 

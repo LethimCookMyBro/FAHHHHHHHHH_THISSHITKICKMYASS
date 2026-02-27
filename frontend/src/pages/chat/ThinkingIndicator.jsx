@@ -1,15 +1,19 @@
+import { Bot } from "lucide-react";
+
 export default function ThinkingIndicator() {
   return (
-    <div className="fade-in-up flex justify-start">
-      <div className="thinking-shell inline-flex items-center rounded-2xl border px-4 py-3 backdrop-blur">
-        <div className="flex items-center gap-2">
-          {[0, 1, 2, 3].map((idx) => (
-            <span
-              key={`thinking-dot-${idx}`}
-              className="thinking-dot-modern h-2 w-2 rounded-full bg-sky-500/80"
-              style={{ animationDelay: `${idx * 0.12}s` }}
-            />
-          ))}
+    <div className="msg-row assistant fade-in-up">
+      <span className="msg-avatar">
+        <Bot size={14} />
+      </span>
+      <div className="flex flex-col items-start">
+        <div
+          className="msg-bubble assistant typing-bubble"
+          aria-label="Assistant is thinking"
+        >
+          <span className="typing-dot" />
+          <span className="typing-dot" />
+          <span className="typing-dot" />
         </div>
       </div>
     </div>

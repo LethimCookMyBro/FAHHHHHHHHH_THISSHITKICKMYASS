@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, Menu, RefreshCw } from "lucide-react";
+import { useLocation } from "react-router-dom";
 import api, { getApiErrorMessage, retryApiRequest } from "../utils/api";
 import { useVoiceRecording } from "../hooks/useVoiceRecording";
+import { useT } from "../utils/i18n";
+import { GlassSurface } from "../components/ui";
 import ChatComposer from "./chat/ChatComposer";
 import ChatMessages from "./chat/ChatMessages";
 import ChatSidebar from "./chat/ChatSidebar";
@@ -20,7 +23,11 @@ import {
   unwrapResponsePayload,
 } from "./chat/utils";
 
+const COMPACT_CHAT_BREAKPOINT = 980;
+
 export default function Chat({ onLogout }) {
+  const location = useLocation();
+  const { locale } = useT();
   const [user, setUser] = useState({ full_name: "User" });
   const [chatHistory, setChatHistory] = useState([]);
   const [activeChatId, setActiveChatId] = useState(null);
@@ -43,10 +50,12 @@ export default function Chat({ onLogout }) {
   const [pendingMessage, setPendingMessage] = useState(null);
   const [apiError, setApiError] = useState("");
   const [isRecovering, setIsRecovering] = useState(false);
+  const [autoStickToBottom, setAutoStickToBottom] = useState(true);
 
   const messagesContainerRef = useRef(null);
   const inputRef = useRef(null);
   const compactModeRef = useRef(null);
+  const shouldStickToBottomRef = useRef(true);
 
   const {
     isRecording,
@@ -57,14 +66,17 @@ export default function Chat({ onLogout }) {
   } = useVoiceRecording((text) => {
     setInput((prev) => prev + (prev ? " " : "") + text);
     inputRef.current?.focus();
-  });
+  }, locale);
 
   const activeChat = useMemo(
     () => chatHistory.find((chat) => chat.id === activeChatId),
     [activeChatId, chatHistory],
   );
 
-  const activeMessages = useMemo(() => toArray(activeChat?.messages), [activeChat]);
+  const activeMessages = useMemo(
+    () => toArray(activeChat?.messages),
+    [activeChat],
+  );
   const hasMessages = activeMessages.length > 0 || !!pendingMessage;
 
   const sortedChats = useMemo(
@@ -73,7 +85,9 @@ export default function Chat({ onLogout }) {
         .filter(
           (chat) =>
             !searchQuery.trim() ||
-            (chat.title || "").toLowerCase().includes(searchQuery.toLowerCase()),
+            (chat.title || "")
+              .toLowerCase()
+              .includes(searchQuery.toLowerCase()),
         )
         .sort((left, right) => {
           const leftPinned = pinnedChats.includes(left.id);
@@ -100,7 +114,10 @@ export default function Chat({ onLogout }) {
     const sessions = mapSessionsFromPayload(sessionsRes?.data);
     setChatHistory(sessions);
     setActiveChatId((currentId) => {
-      if (currentId != null && sessions.some((session) => session.id === currentId)) {
+      if (
+        currentId != null &&
+        sessions.some((session) => session.id === currentId)
+      ) {
         return currentId;
       }
       return sessions[0]?.id ?? null;
@@ -122,7 +139,9 @@ export default function Chat({ onLogout }) {
 
     const messages = mapMessagesFromPayload(response?.data);
     setChatHistory((prev) =>
-      prev.map((chat) => (chat.id === sessionId ? { ...chat, messages } : chat)),
+      prev.map((chat) =>
+        chat.id === sessionId ? { ...chat, messages } : chat,
+      ),
     );
     setApiError("");
 
@@ -131,10 +150,13 @@ export default function Chat({ onLogout }) {
 
   useEffect(() => {
     const updateResponsiveMode = () => {
-      const nextCompact = window.innerWidth <= 1024;
+      const nextCompact = window.innerWidth <= COMPACT_CHAT_BREAKPOINT;
       setIsCompactLayout(nextCompact);
 
-      if (compactModeRef.current == null || compactModeRef.current !== nextCompact) {
+      if (
+        compactModeRef.current == null ||
+        compactModeRef.current !== nextCompact
+      ) {
         setSidebarCollapsed(nextCompact);
         compactModeRef.current = nextCompact;
       }
@@ -144,6 +166,12 @@ export default function Chat({ onLogout }) {
     window.addEventListener("resize", updateResponsiveMode);
     return () => window.removeEventListener("resize", updateResponsiveMode);
   }, []);
+
+  useEffect(() => {
+    if (isCompactLayout) {
+      setSidebarCollapsed(true);
+    }
+  }, [isCompactLayout, location.pathname]);
 
   useEffect(() => {
     let cancelled = false;
@@ -190,7 +218,7 @@ export default function Chat({ onLogout }) {
     if (!element) return;
 
     element.style.height = "0px";
-    const nextHeight = Math.min(180, Math.max(44, element.scrollHeight));
+    const nextHeight = Math.min(184, Math.max(52, element.scrollHeight));
     element.style.height = `${nextHeight}px`;
   }, []);
 
@@ -211,7 +239,27 @@ export default function Chat({ onLogout }) {
   }, []);
 
   useEffect(() => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+
+    const onScroll = () => {
+      const distanceFromBottom =
+        container.scrollHeight - (container.scrollTop + container.clientHeight);
+      const nextShouldStick = distanceFromBottom < 72;
+      shouldStickToBottomRef.current = nextShouldStick;
+      setAutoStickToBottom((current) =>
+        current === nextShouldStick ? current : nextShouldStick,
+      );
+    };
+
+    container.addEventListener("scroll", onScroll, { passive: true });
+    onScroll();
+    return () => container.removeEventListener("scroll", onScroll);
+  }, [activeChatId, hasMessages]);
+
+  useEffect(() => {
     if (!hasMessages) return;
+    if (!autoStickToBottom) return;
 
     const rafId = window.requestAnimationFrame(() => {
       scrollMessagesToBottom(isLoading ? "smooth" : "auto");
@@ -221,6 +269,7 @@ export default function Chat({ onLogout }) {
   }, [
     activeChatId,
     activeMessages.length,
+    autoStickToBottom,
     hasMessages,
     isLoading,
     pendingMessage,
@@ -228,6 +277,8 @@ export default function Chat({ onLogout }) {
   ]);
 
   const handleNewChat = useCallback(() => {
+    shouldStickToBottomRef.current = true;
+    setAutoStickToBottom(true);
     setActiveChatId(null);
     setIsNewChat(true);
     setInput("");
@@ -250,8 +301,11 @@ export default function Chat({ onLogout }) {
     try {
       const sessions = await loadBootstrapData();
       const hasCurrentSession =
-        activeChatId != null && sessions.some((session) => session.id === activeChatId);
-      const targetSessionId = hasCurrentSession ? activeChatId : sessions[0]?.id ?? null;
+        activeChatId != null &&
+        sessions.some((session) => session.id === activeChatId);
+      const targetSessionId = hasCurrentSession
+        ? activeChatId
+        : (sessions[0]?.id ?? null);
 
       if (targetSessionId != null) {
         await loadMessagesForSession(targetSessionId);
@@ -280,6 +334,8 @@ export default function Chat({ onLogout }) {
       };
 
       const requestStartsNewChat = activeChatId == null || isNewChat;
+      shouldStickToBottomRef.current = true;
+      setAutoStickToBottom(true);
 
       setApiError("");
       setInput("");
@@ -310,11 +366,17 @@ export default function Chat({ onLogout }) {
 
         if (sessionId == null && requestStartsNewChat) {
           try {
-            const sessionsRes = await retryApiRequest(() => api.get("/api/chat/sessions"), {
-              retries: 1,
-              baseDelayMs: 500,
-            });
-            sessionId = findFallbackSessionId(sessionsRes?.data, userMessage.text);
+            const sessionsRes = await retryApiRequest(
+              () => api.get("/api/chat/sessions"),
+              {
+                retries: 1,
+                baseDelayMs: 500,
+              },
+            );
+            sessionId = findFallbackSessionId(
+              sessionsRes?.data,
+              userMessage.text,
+            );
           } catch (lookupError) {
             console.warn("Session fallback lookup failed:", lookupError);
           }
@@ -412,10 +474,9 @@ export default function Chat({ onLogout }) {
         }
       } finally {
         setIsLoading(false);
-        setTimeout(() => scrollMessagesToBottom("smooth"), 100);
       }
     },
-    [activeChatId, input, isLoading, isNewChat, scrollMessagesToBottom],
+    [activeChatId, input, isLoading, isNewChat],
   );
 
   const handleComposerKeyDown = useCallback(
@@ -430,6 +491,8 @@ export default function Chat({ onLogout }) {
 
   const handleSelectChat = useCallback(
     (chatId) => {
+      shouldStickToBottomRef.current = true;
+      setAutoStickToBottom(true);
       setActiveChatId(chatId);
       setIsNewChat(false);
       setPendingMessage(null);
@@ -464,14 +527,18 @@ export default function Chat({ onLogout }) {
 
       try {
         await api.delete(`/api/chat/sessions/${normalizedId}`);
-        setChatHistory((prev) => prev.filter((chat) => chat.id !== normalizedId));
+        setChatHistory((prev) =>
+          prev.filter((chat) => chat.id !== normalizedId),
+        );
 
         if (normalizeChatId(activeChatId) === normalizedId) {
           handleNewChat();
         }
       } catch (error) {
         if (error?.response?.status === 404) {
-          setChatHistory((prev) => prev.filter((chat) => chat.id !== normalizedId));
+          setChatHistory((prev) =>
+            prev.filter((chat) => chat.id !== normalizedId),
+          );
           if (normalizeChatId(activeChatId) === normalizedId) {
             handleNewChat();
           }
@@ -511,7 +578,8 @@ export default function Chat({ onLogout }) {
       }
 
       const objectUrl = URL.createObjectURL(blob);
-      const targetUrl = isPdf && page > 0 ? `${objectUrl}#page=${page}` : objectUrl;
+      const targetUrl =
+        isPdf && page > 0 ? `${objectUrl}#page=${page}` : objectUrl;
       const opened = window.open(targetUrl, "_blank", "noopener,noreferrer");
       if (!opened) {
         window.location.href = targetUrl;
@@ -548,16 +616,19 @@ export default function Chat({ onLogout }) {
     cancelTranscription,
   };
 
-  return (
-    <div className="liquid-shell chat-shell-height flex font-sans relative overflow-hidden">
-      <div className="liquid-orb liquid-orb-a" />
-      <div className="liquid-orb liquid-orb-b" />
-      <div className="liquid-orb liquid-orb-c" />
+  const activeTitle = activeChat
+    ? activeChat.title?.length > 56
+      ? `${activeChat.title.slice(0, 56)}...`
+      : activeChat.title || "New Session"
+    : "New Session";
 
+  return (
+    <div className="chat-shell-height chat-page">
       <ChatSidebar
         isCompactLayout={isCompactLayout}
         sidebarCollapsed={sidebarCollapsed}
         setSidebarCollapsed={setSidebarCollapsed}
+        overlayEnabled={isCompactLayout}
         sortedChats={sortedChats}
         activeChatId={activeChatId}
         onSelectChat={handleSelectChat}
@@ -566,60 +637,69 @@ export default function Chat({ onLogout }) {
         onDeleteChat={handleDelete}
         searchQuery={searchQuery}
         onSearchQueryChange={setSearchQuery}
-        user={user}
         onLogout={onLogout}
         onNewChat={handleNewChat}
       />
 
-      <div className="flex-1 flex flex-col h-full relative z-10 chat-main-surface">
-        <header className="h-14 glass border-b border-slate-200/40 flex items-center justify-between px-4 sm:px-6 shrink-0 z-10">
+      <GlassSurface
+        as="section"
+        className="chat-main-shell glass-noise"
+        borderRadius={18}
+        blur={14}
+        displace={0.65}
+        brightness={58}
+        opacity={0.92}
+        saturation={1.2}
+        backgroundOpacity={0.22}
+      >
+        <header className="chat-header">
           <div className="flex items-center gap-3 min-w-0">
-            {isCompactLayout && (
+            {isCompactLayout ? (
               <button
                 type="button"
+                className="control-btn glass-interactive"
                 onClick={() => setSidebarCollapsed(false)}
-                className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500"
+                title="Open chat sessions"
               >
-                <Menu size={20} />
+                <Menu size={15} />
               </button>
-            )}
+            ) : null}
+
             <div className="min-w-0">
-              <span className="font-semibold text-slate-800 text-sm truncate block max-w-[320px] sm:max-w-[420px]">
-                {activeChat
-                  ? activeChat.title?.length > 45
-                    ? `${activeChat.title.slice(0, 45)}...`
-                    : activeChat.title || "New Chat"
-                  : "New Chat"}
-              </span>
-              <span className="text-[11px] text-slate-600">Panya Assistant</span>
+              <p className="chat-header-title">{activeTitle}</p>
+              <p className="chat-header-sub">
+                Operational guidance for PLC troubleshooting and safe actions
+              </p>
             </div>
           </div>
 
-          <div className="hidden sm:flex items-center gap-2 text-[11px] font-semibold text-slate-600">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_0_3px_rgba(16,185,129,0.15)]" />
+          <span className="live-indicator">
+            <span className="live-dot" />
             Ready
-          </div>
+          </span>
         </header>
 
-        {apiError && (
-          <div className="absolute left-0 right-0 top-14 z-30 px-3 sm:px-5 pointer-events-none">
-            <div className="max-w-3xl mx-auto rounded-xl border border-red-200 bg-red-50/95 px-3 py-2.5 shadow-lg pointer-events-auto">
-              <div className="flex items-start gap-2.5">
-                <AlertTriangle size={16} className="text-red-600 mt-0.5 shrink-0" />
-                <p className="text-sm text-red-700 flex-1">{apiError}</p>
-                <button
-                  type="button"
-                  onClick={handleRetryConnection}
-                  disabled={isRecovering}
-                  className="inline-flex items-center gap-1 rounded-md border border-red-200 bg-white px-2 py-1 text-xs font-semibold text-red-700 hover:bg-red-100 disabled:opacity-60 disabled:cursor-not-allowed"
-                >
-                  <RefreshCw size={12} className={isRecovering ? "animate-spin" : ""} />
-                  Retry
-                </button>
-              </div>
-            </div>
+        {apiError ? (
+          <div className="chat-banner">
+            <AlertTriangle
+              size={15}
+              className="mt-[2px] text-[color:var(--error)]"
+            />
+            <p className="flex-1">{apiError}</p>
+            <button
+              type="button"
+              onClick={handleRetryConnection}
+              disabled={isRecovering}
+              className="action-btn glass-interactive"
+            >
+              <RefreshCw
+                size={13}
+                className={isRecovering ? "animate-spin" : ""}
+              />
+              Retry
+            </button>
           </div>
-        )}
+        ) : null}
 
         {!hasMessages ? (
           <ChatWelcome
@@ -634,6 +714,7 @@ export default function Chat({ onLogout }) {
               activeMessages={activeMessages}
               pendingMessage={pendingMessage}
               activeChat={activeChat}
+              autoStickToBottom={autoStickToBottom}
               isLoading={isLoading}
               copiedId={copiedId}
               onCopyMessage={copyMessage}
@@ -642,15 +723,15 @@ export default function Chat({ onLogout }) {
               apiError={apiError}
             />
 
-            <div className="p-3 glass border-t border-slate-200/40 shrink-0 chat-composer-safe chat-dock">
+            <div className="chat-compose-dock">
               <ChatComposer centered={false} {...composerProps} />
-              <p className="text-center text-[10px] text-slate-400 mt-2">
-                Panya may make mistakes. Verify important information.
+              <p className="text-center text-[11px] text-[color:var(--text-muted)] mt-2">
+                Validate critical operations with on-site safety procedures.
               </p>
             </div>
           </>
         )}
-      </div>
+      </GlassSurface>
     </div>
   );
 }
