@@ -1,81 +1,232 @@
-# PLC Assistant
+# 🏭 Panya — PLC Assistant
 
-An AI-powered chatbot for **industrial automation** and **PLCnext** technical support. Uses **RAG (Retrieval-Augmented Generation)** to answer questions from your PLC documentation.
+An AI-powered knowledge assistant for **industrial automation** and **PLC** operations. Built with **RAG (Retrieval-Augmented Generation)**, real-time PLC monitoring, and an agentic workflow engine for automated diagnostics and corrective actions.
 
-## Key Features
+---
 
-- **RAG-Powered Answers** - Retrieves information from embedded documents for accurate responses
-- **Multi-Input Support** - Text, and voice (Whisper)
-- **Local LLM** - Runs offline with LLaMA 3.2 via Ollama (no API costs)
-- **GPU Accelerated** - NVIDIA GPU support for 5-10x faster responses
+## ✨ Key Features
 
-## Tech Stack
+| Category                 | Features                                                                                                    |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------- |
+| **AI Chat**              | RAG-powered Q&A from your PLC documentation, multi-turn conversations, source citations, Markdown rendering |
+| **PLC Live Monitoring**  | Real-time WebSocket data stream, machine status cards, OEE trend charts, alarm management                   |
+| **Agentic Workflow**     | AI-driven root cause analysis, auto-suggested corrective actions, action log tracking                       |
+| **Multi-Input**          | Text and voice input (Whisper STT)                                                                          |
+| **Evaluation**           | Built-in RAGAS evaluation pipeline for answer quality metrics                                               |
+| **Auth & Security**      | JWT authentication, CSRF protection, Redis-backed rate limiting, role-based access                          |
+| **Internationalization** | English & Thai (🇬🇧 / 🇹🇭)                                                                                    |
+| **Theming**              | Dark / Light mode with glassmorphism UI                                                                     |
 
-| Layer | Technology |
-|-------|------------|
-| Frontend | React + Vite + TailwindCSS |
-| Backend | FastAPI (Python) |
-| Database | PostgreSQL + pgvector |
-| LLM | Ollama (LLaMA 3.2) |
-| Embeddings | BAAI/bge-m3 |
-| Deployment | Docker Compose |
+---
 
-## Quick Start
+## 🛠 Tech Stack
+
+| Layer                  | Technology                                                               |
+| ---------------------- | ------------------------------------------------------------------------ |
+| **Frontend**           | React 18 · Vite · Tailwind CSS · Framer Motion · Recharts · Lucide Icons |
+| **Backend**            | FastAPI (Python) · LangChain · LangGraph                                 |
+| **LLM**                | Groq (`llama-3.3-70b-versatile`) — also supports Ollama (local LLaMA)    |
+| **Embeddings**         | `BAAI/bge-m3` via SentenceTransformers                                   |
+| **Database**           | PostgreSQL + pgvector                                                    |
+| **Cache / Rate Limit** | Redis 7                                                                  |
+| **PLC Connector**      | Modbus TCP (pymodbus) / Built-in Simulator                               |
+| **STT**                | faster-whisper                                                           |
+| **Evaluation**         | RAGAS                                                                    |
+| **Deployment**         | Docker Compose · Railway                                                 |
+
+---
+
+## 📁 Project Structure
+
+```
+Panya/
+├── backend/                    # FastAPI backend
+│   ├── main.py                 # App entrypoint, lifespan, middleware
+│   ├── embed.py                # Standalone embedding / ingest CLI
+│   ├── app/
+│   │   ├── routes_api.py       # General API routes
+│   │   ├── routes_auth.py      # Auth endpoints (login/register/refresh)
+│   │   ├── routes_chat.py      # Chat & RAG endpoints
+│   │   ├── routes_plc.py       # PLC data, alarms, actions, WebSocket
+│   │   ├── chatbot.py          # LLM orchestration, agent workflow
+│   │   ├── retriever.py        # Vector search + FlashRank reranker
+│   │   ├── llm.py              # LLM provider factory (Groq / Ollama)
+│   │   ├── db.py               # Database connection & schema
+│   │   ├── security.py         # JWT, password hashing, CSRF
+│   │   ├── auth.py             # Auth dependency injection
+│   │   ├── embed_logic.py      # Chunking & embedding logic
+│   │   ├── ingest_state.py     # Incremental ingest state tracking
+│   │   ├── ragas_eval.py       # RAGAS evaluation pipeline
+│   │   ├── seed.py             # Golden QA seeding
+│   │   ├── plc/                # PLC integration
+│   │   │   ├── connector.py    # Abstract PLC connector
+│   │   │   ├── simulator.py    # Built-in PLC simulator (dev)
+│   │   │   ├── modbus_connector.py  # Modbus TCP connector (prod)
+│   │   │   ├── diagnostic.py   # AI-powered PLC diagnostics
+│   │   │   ├── action_policy.py    # Action approval policies
+│   │   │   ├── contracts.py    # Data contracts / schemas
+│   │   │   └── mapping.py      # Register ↔ tag mapping
+│   │   └── core/               # Cross-cutting concerns
+│   │       ├── rate_limit.py   # Redis-backed rate limiter
+│   │       ├── redis_client.py # Redis connection
+│   │       ├── metrics.py      # Request counters
+│   │       ├── retention.py    # Data retention cleanup
+│   │       ├── plc_ingest.py   # Background alarm ingestion
+│   │       ├── upload_guard.py # Upload size/type validation
+│   │       └── ws_ticket.py    # WebSocket auth tickets
+│   ├── data/                   # PLC mapping configs
+│   └── requirements.txt
+│
+├── frontend/                   # React + Vite SPA
+│   ├── src/
+│   │   ├── App.jsx             # Root: routing, auth, theme, providers
+│   │   ├── pages/
+│   │   │   ├── Chat.jsx        # Knowledge Assistant chat page
+│   │   │   ├── chat/           # Chat sub-components
+│   │   │   │   ├── ChatComposer.jsx
+│   │   │   │   ├── ChatMessages.jsx
+│   │   │   │   ├── ChatSidebar.jsx
+│   │   │   │   ├── ChatWelcome.jsx
+│   │   │   │   ├── ThinkingIndicator.jsx
+│   │   │   │   └── markdown.jsx
+│   │   │   ├── Login.jsx
+│   │   │   └── Register.jsx
+│   │   ├── features/
+│   │   │   ├── ops/            # Operations module
+│   │   │   │   ├── dashboard/  # Plant overview, OEE charts, machine queue
+│   │   │   │   ├── alarms/     # Alarm list, incident analysis panel
+│   │   │   │   └── actions/    # AI action log, timeline, filters
+│   │   │   ├── plc/            # PLC live data context & normalizers
+│   │   │   └── auth/           # Auth context & session hooks
+│   │   ├── components/
+│   │   │   ├── Sidebar.jsx     # Main navigation sidebar
+│   │   │   ├── GooeyNav.jsx    # Animated bottom nav
+│   │   │   └── ui/             # Shared UI primitives
+│   │   │       ├── GlassSurface.jsx
+│   │   │       ├── DataTable.jsx
+│   │   │       ├── MetricTile.jsx
+│   │   │       ├── SectionCard.jsx
+│   │   │       ├── StatusPill.jsx
+│   │   │       ├── Skeleton.jsx
+│   │   │       └── ...
+│   │   ├── hooks/              # usePlcLiveData, useVoiceRecording, ...
+│   │   ├── utils/              # API client, i18n, feature flags, markdown
+│   │   ├── locales/            # en.json, th.json
+│   │   └── styles/             # Design tokens, glass, layout, responsive
+│   ├── server.cjs              # Production Express server (serves dist + API proxy)
+│   └── package.json
+│
+├── scripts/
+│   ├── dev-backend.js          # Dev backend launcher (uvicorn + venv detection)
+│   └── ingest_knowledge.sh     # Knowledge ingest helper
+│
+├── server.js                   # Root production web server (proxy + static)
+├── docker-compose.yml          # 6-service stack (see below)
+├── Dockerfile                  # Single-service production image
+├── .env.example                # All configuration variables
+└── package.json                # Monorepo dev scripts (concurrently)
+```
+
+---
+
+## 🚀 Quick Start
 
 ### Prerequisites
 
-- Docker Desktop (with GPU support for NVIDIA)
-- 8GB+ RAM recommended
+- **Node.js** ≥ 18
+- **Python** ≥ 3.10 with a virtual environment
+- **PostgreSQL** with pgvector extension
+- **Redis** (for rate limiting)
+- **Groq API key** (or local Ollama)
 
-### Installation
+### Local Development
 
 ```bash
-# 1. Clone the repository
-git clone https://github.com/MetasitKaewsritong/Panya.git
+# 1. Clone
+git clone https://github.com/LethimCookMyBro/FAHHHHHHHHH_THISSHITKICKMYASS.git
 cd Panya
 
-# 2. Create environment file
+# 2. Environment
 cp .env.example .env
+# Edit .env → set GROQ_API_KEY, DATABASE_URL, etc.
 
-# 3. Start all services
-docker compose up -d
+# 3. Backend setup
+cd backend
+python -m venv ../.venv
+source ../.venv/bin/activate        # Linux/macOS
+# ..\.venv\Scripts\activate         # Windows
+pip install -r requirements.txt
+cd ..
 
-# 4. Pull required LLM models
-docker compose exec ollama ollama pull llama3.2
-docker compose exec ollama ollama pull phi3:mini
+# 4. Frontend setup
+cd frontend
+npm install
+cd ..
+
+# 5. Install root dev deps
+npm install
+
+# 6. Start both (API + Web dev servers)
+npm run dev
 ```
 
 ### Access
 
-- **Frontend:** http://localhost:5173
-- **Backend API:** http://localhost:5000
-- **pgAdmin:** http://localhost:5050 (admin@admin.com / admin)
+| Service         | URL                        |
+| --------------- | -------------------------- |
+| **Frontend**    | http://localhost:5173      |
+| **Backend API** | http://localhost:5000      |
+| **API Docs**    | http://localhost:5000/docs |
 
-## Embedding Documents
+---
 
-The embed pipeline is now **incremental** with a persistent ingest state file.
+## 🐳 Docker Compose
 
-Behavior:
-- Existing file with same checksum: skip
-- New file: embed
-- Existing file with changed checksum: replace old chunks then embed new
-- First run without state file: bootstrap state from DB (no re-embed for existing sources)
+The `docker-compose.yml` runs the full stack with 6 services:
 
-### Docker Compose (local)
-
-```yaml
-services:
-  backend:
-    volumes:
-      - ./backend:/app
-      - ./data:/data
-```
+| Service      | Image                         | Port  |
+| ------------ | ----------------------------- | ----- |
+| **postgres** | `pgvector/pgvector:pg16`      | 5432  |
+| **redis**    | `redis:7-alpine`              | 6379  |
+| **ollama**   | `ollama/ollama` (GPU)         | 11435 |
+| **backend**  | Custom (FastAPI)              | 5000  |
+| **frontend** | Custom (Vite build + Express) | 5173  |
+| **pgadmin**  | `dpage/pgadmin4`              | 5050  |
 
 ```bash
-# Optional: create volume-like folders
-mkdir -p ./data/Knowledge ./data/models ./data/ingest
+# Start all services
+docker compose up -d
 
-# Embed knowledge folder manually
+# Pull LLM model (if using Ollama)
+docker compose exec ollama ollama pull llama3.2
+
+# View logs
+docker compose logs -f backend
+
+# Stop (keeps data)
+docker compose down
+
+# Stop and delete all data
+docker compose down -v
+```
+
+**pgAdmin access:** http://localhost:5050 (`admin@admin.com` / `admin`)
+
+---
+
+## 📚 Document Embedding
+
+The embed pipeline supports **incremental ingestion** with checksum-based deduplication.
+
+| Behavior             | Description                   |
+| -------------------- | ----------------------------- |
+| Same checksum        | Skip (already embedded)       |
+| New file             | Embed and index               |
+| Changed checksum     | Replace old chunks, embed new |
+| First run (no state) | Bootstrap state from DB       |
+
+```bash
+# Manual embed (Docker)
 docker compose exec backend python embed.py /data/Knowledge \
   --collection plcnext \
   --knowledge-root /data/Knowledge \
@@ -84,195 +235,148 @@ docker compose exec backend python embed.py /data/Knowledge \
   --bootstrap-from-db \
   --replace-updated
 
-# Dry-run (no DB/state write)
+# Dry-run preview
 docker compose exec backend python embed.py /data/Knowledge --dry-run
-```
 
-### Embed Options
-
-| Option | Default | Description |
-|--------|---------|-------------|
-| `--collection` | `plcnext` | Vector store collection name |
-| `--knowledge-root` | `KNOWLEDGE_DIR` | Root path used to build `source_key` |
-| `--state-path` | `INGEST_STATE_PATH` | Persistent ingest state JSON |
-| `--device` | `auto` | Embedding device (`auto`, `cpu`, `cuda`, `cuda:N`) |
-| `--skip-mode` | `checksum` | Skip by `checksum` or `filename` |
-| `--bootstrap-from-db` | `true` | Build state from existing DB docs if state missing |
-| `--replace-updated` | `true` | Replace old rows when checksum changes |
-| `--replace-all` | `false` | Force rebuild all discovered sources |
-| `--prune-missing` | `false` | Delete rows/state for files missing from disk |
-| `--chunk-size` | `800` | Characters per chunk |
-| `--chunk-overlap` | `150` | Overlap between chunks |
-| `--batch-size` | `1000` | Embeddings per batch |
-| `--max-embed-tokens` | `480` | Hard token cap per chunk before embedding |
-| `--embed-token-overlap` | `64` | Token overlap when oversized chunk is split |
-| `--dry-run` | `false` | Preview without saving |
-
-## Common Commands
-
-```bash
-# Start all services
-docker compose up -d
-
-# View backend logs
-docker compose logs -f backend
-
-# Restart backend after code changes
-docker compose restart backend
-
-# Stop all services (keeps data)
-docker compose down
-
-# Stop and delete all data (caution!)
-docker compose down -v
-```
-
-## Environment Variables
-
-Key settings in `.env`:
-
-```env
-# LLM
-OLLAMA_MODEL=llama3.2
-LLM_TEMPERATURE=0.7
-
-# Embeddings
-EMBED_MODEL=BAAI/bge-m3
-EMBED_DEVICE=auto
-MODEL_CACHE=/data/models
-KNOWLEDGE_DIR=/data/Knowledge
-INGEST_STATE_PATH=/data/ingest/state.json
-EMBED_MAX_TOKENS=480
-EMBED_TOKEN_OVERLAP=64
-
-# Production recommendation: use manual ingest command instead of startup auto-embed
-AUTO_EMBED_KNOWLEDGE=false
-AUTO_EMBED_SYNC_IF_NOT_EMPTY=false
-ALLOW_STARTUP_INGEST_IN_PRODUCTION=false
-
-# RAG Settings
-RETRIEVE_LIMIT=50
-RERANK_TOPN=8
-```
-
-## Railway Deploy (Important)
-
-If the browser shows `API returned HTML instead of JSON`, your frontend is hitting a static page instead of backend API.
-
-### Option A: Single Railway service (frontend + backend together)
-
-This repo now includes a root `Dockerfile` that runs both services in one container:
-
-- FastAPI backend on `127.0.0.1:8000`
-- Node web server on `$PORT` (Railway public port), serving `frontend/dist`
-- Runtime proxy `/api/*` -> `http://127.0.0.1:8000`
-
-Railway setup:
-
-- Service Root Directory: repo root (`Panya/`)
-- Deploy with Docker (uses root `Dockerfile`)
-
-Required env (same as backend requirements):
-
-- `APP_ENV=production`
-- `JWT_SECRET=<strong-random-secret>`
-- `OLLAMA_BASE_URL`
-- `OLLAMA_MODEL`
-- database config using one of:
-  - `DATABASE_URL=<postgresql://...>`
-  - or all fallback vars: `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, `PGDATABASE`
-- plus your existing backend env variables
-- Railway volume setup:
-  - mount path: `/data`
-  - set `KNOWLEDGE_DIR=/data/Knowledge`
-  - set `MODEL_CACHE=/data/models`
-  - set `INGEST_STATE_PATH=/data/ingest/state.json`
-  - set `AUTO_EMBED_KNOWLEDGE=false`
-  - set `AUTO_EMBED_SYNC_IF_NOT_EMPTY=false`
-  - set `ALLOW_STARTUP_INGEST_IN_PRODUCTION=false`
-
-Recommended for single-service mode:
-
-- Do not set `API_PROXY_TARGET` (defaults to internal backend `http://127.0.0.1:8000`)
-- Do not set `VITE_API_URL`
-- If `API_PROXY_TARGET` is already set to `http://127.0.0.1:$PORT` (for example `5000`), remove it.
-
-If you set `API_PROXY_TARGET`, it must point to backend only. Never set it to your frontend public domain.
-
-Invalid examples (do not use):
-
-```env
-DATABASE_URL=${DATABASE_URL}
-API_PROXY_TARGET=http://127.0.0.1:$PORT
-```
-
-Run ingest manually from Railway shell:
-
-```bash
-mkdir -p /data/Knowledge /data/models /data/ingest
-python /app/backend/embed.py /data/Knowledge \
-  --collection plcnext \
-  --knowledge-root /data/Knowledge \
-  --state-path /data/ingest/state.json \
-  --skip-mode checksum \
-  --bootstrap-from-db \
-  --replace-updated
-```
-
-Or use the helper script:
-
-```bash
-# incremental (default)
+# Helper script (Railway)
 sh /app/scripts/ingest_knowledge.sh
-
-# full rebuild (delete+re-embed all discovered files)
+# Full rebuild
 INGEST_MODE=rebuild sh /app/scripts/ingest_knowledge.sh
 ```
 
-### Option B: Two Railway services (frontend + backend split)
+<details>
+<summary><b>All Embed Options</b></summary>
 
-Recommended layout is **2 Railway services**:
+| Option                  | Default             | Description                                        |
+| ----------------------- | ------------------- | -------------------------------------------------- |
+| `--collection`          | `plcnext`           | Vector store collection name                       |
+| `--knowledge-root`      | `KNOWLEDGE_DIR`     | Root path for `source_key`                         |
+| `--state-path`          | `INGEST_STATE_PATH` | Persistent ingest state JSON                       |
+| `--device`              | `auto`              | Embedding device (`auto`, `cpu`, `cuda`, `cuda:N`) |
+| `--skip-mode`           | `checksum`          | Skip by `checksum` or `filename`                   |
+| `--bootstrap-from-db`   | `true`              | Build state from existing DB if state missing      |
+| `--replace-updated`     | `true`              | Replace old rows when checksum changes             |
+| `--replace-all`         | `false`             | Force rebuild all discovered sources               |
+| `--prune-missing`       | `false`             | Delete rows for files missing from disk            |
+| `--chunk-size`          | `800`               | Characters per chunk                               |
+| `--chunk-overlap`       | `150`               | Overlap between chunks                             |
+| `--batch-size`          | `1000`              | Embeddings per batch                               |
+| `--max-embed-tokens`    | `480`               | Token cap per chunk                                |
+| `--embed-token-overlap` | `64`                | Token overlap for oversized chunks                 |
+| `--dry-run`             | `false`             | Preview without saving                             |
 
-1. `frontend` service
-2. `backend` service
+</details>
 
-### Frontend service
+---
 
-- Root Directory: `frontend`
-- Build Command: `npm run build`
-- Start Command: `npm start` (runs `server.cjs`)
+## ⚙️ Environment Variables
 
-`server.cjs` serves `dist` and proxies `/api/*` to backend while preserving the full path.
+All configurable via `.env`. See [`.env.example`](.env.example) for the full reference.
 
-Set:
+<details>
+<summary><b>Key Variables</b></summary>
+
+| Variable                 | Description                                 |
+| ------------------------ | ------------------------------------------- |
+| `GROQ_API_KEY`           | Groq API key (primary LLM provider)         |
+| `DATABASE_URL`           | PostgreSQL connection string                |
+| `REDIS_URL`              | Redis connection string                     |
+| `JWT_SECRET`             | Secret for JWT token signing                |
+| `OLLAMA_BASE_URL`        | Ollama server URL (if using local LLM)      |
+| `OLLAMA_MODEL`           | Ollama model name (e.g. `llama3.2`)         |
+| `EMBED_MODEL`            | Embedding model (`BAAI/bge-m3`)             |
+| `EMBED_DEVICE`           | Device for embeddings (`auto`/`cpu`/`cuda`) |
+| `PLC_CONNECTOR`          | `simulator` (dev) or `modbus_tcp` (prod)    |
+| `PLC_MODBUS_HOST`        | Modbus TCP host address                     |
+| `APP_ENV`                | `development` or `production`               |
+| `FEATURE_AGENT_WORKFLOW` | Enable agentic diagnostics                  |
+| `VITE_FEATURE_UI_V2`     | Enable v2 glass UI                          |
+
+</details>
+
+---
+
+## 🔌 PLC Connector
+
+Panya supports two PLC connector modes:
+
+| Mode           | Use Case                                                             | Config                     |
+| -------------- | -------------------------------------------------------------------- | -------------------------- |
+| **Simulator**  | Development & demo. Generates virtual machine data and random alarms | `PLC_CONNECTOR=simulator`  |
+| **Modbus TCP** | Production. Connects to real PLCs via Modbus TCP protocol            | `PLC_CONNECTOR=modbus_tcp` |
+
+In **development**, the simulator starts automatically with 4 virtual machines. In **production**, configure `PLC_MODBUS_HOST` and `PLC_MODBUS_PORT` for real PLC connections.
+
+The PLC module provides:
+
+- **Live data streaming** via WebSocket (`/api/plc/ws`)
+- **Alarm management** — active alarms, acknowledgement, history
+- **AI Diagnostics** — root cause analysis with LLM
+- **Corrective Actions** — AI-suggested fixes with approval workflow
+- **Register mapping** — configurable via `plc_mapping.json`
+
+---
+
+## 🚂 Railway Deployment
+
+### Option A: Single Service (Recommended)
+
+The root `Dockerfile` bundles both frontend and backend into one container:
+
+- FastAPI backend on `127.0.0.1:8000`
+- Node web server on `$PORT`, serving `frontend/dist`
+- Runtime proxy: `/api/*` → `http://127.0.0.1:8000`
+
+**Required env:**
 
 ```env
-API_PROXY_TARGET=https://<your-backend-service>.up.railway.app
+APP_ENV=production
+JWT_SECRET=<strong-random-secret>
+DATABASE_URL=<postgresql://...>
+GROQ_API_KEY=<your-key>
+AUTO_EMBED_KNOWLEDGE=false
+ALLOW_STARTUP_INGEST_IN_PRODUCTION=false
 ```
 
-Do not use `npm run preview` or `serve -s dist` as production start commands.
-Do not set `VITE_API_URL` on the frontend production service.
+**Volume mount:** `/data` → set `KNOWLEDGE_DIR=/data/Knowledge`, `MODEL_CACHE=/data/models`, `INGEST_STATE_PATH=/data/ingest/state.json`
 
-### Backend service
+### Option B: Two Services (Frontend + Backend split)
+
+**Frontend service:**
+
+- Root Directory: `frontend`
+- Start: `npm start` (runs `server.cjs`)
+- Set `API_PROXY_TARGET=https://<backend-service>.up.railway.app`
+
+**Backend service:**
 
 - Root Directory: `backend`
-- Run with the provided backend Dockerfile / uvicorn startup
-
-Ensure backend is reachable on its Railway domain.
+- Run with Dockerfile / uvicorn
 
 ### Verification
 
 ```bash
-curl -i https://<frontend-service>.up.railway.app/api/auth/me
-curl -i -X POST https://<frontend-service>.up.railway.app/api/chat \
-  -H "Content-Type: application/json" \
-  -d '{}'
+# Should return JSON (401/422 is OK, not HTML)
+curl -i https://<frontend>.up.railway.app/api/auth/me
 ```
 
-Expected: backend JSON responses (`401`/`422` are acceptable), not HTML and not frontend `404`.
+---
 
-If `/api/*` returns `431 Request Header Fields Too Large`, the frontend proxy target usually points to the frontend itself, causing a proxy loop. Set `API_PROXY_TARGET` to the backend service domain.
+## 🧪 Testing
 
-## License
+```bash
+# Run all tests
+npm test
 
-MIT License
+# Backend only
+npm run test:backend
+
+# Frontend normalizer tests
+npm run test:frontend
+
+# Lint
+npm run lint
+```
+
+# run all (use this for production)
+npm run dev
