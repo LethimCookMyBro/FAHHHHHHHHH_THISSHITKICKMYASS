@@ -15,7 +15,6 @@ import {
   Wifi,
 } from "lucide-react";
 import { useT } from "../utils/i18n";
-import GooeyNav from "./GooeyNav";
 
 const NAV_ITEMS = [
   { to: "/", key: "nav.dashboard", icon: LayoutDashboard, end: true },
@@ -61,33 +60,6 @@ export default function Sidebar({
     );
     return idx >= 0 ? idx : 0;
   }, [location.pathname]);
-
-  const gooeyItems = useMemo(
-    () =>
-      NAV_ITEMS.map(({ to, key, icon: Icon, end }) => ({
-        content: (
-          <NavLink
-            to={to}
-            end={end}
-            className={({ isActive }) => {
-              const active = end ? location.pathname === "/" : isActive;
-              return `nexus-nav-link ${active ? "is-active" : ""}`;
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <Icon size={18} />
-            <span className="hide-on-collapsed">{t(key)}</span>
-            {key === "nav.incidents" && alarmCount > 0 ? (
-              <span className="nexus-alarm-pill hide-on-collapsed">
-                {alarmCount}
-              </span>
-            ) : null}
-          </NavLink>
-        ),
-        to,
-      })),
-    [t, alarmCount, location.pathname],
-  );
 
   useEffect(() => {
     const tick = () => {
@@ -165,22 +137,55 @@ export default function Sidebar({
       )}
 
       {/* ── Navigation ── */}
-      <div className="nexus-nav-label hide-on-collapsed">
-        {t("nav.navigation")}
-      </div>
+      {/* ── Search Bar ── */}
+      {!collapsed && (
+        <div className="nexus-sidebar-search">
+          <div className="nexus-search-wrap">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="nexus-search-icon"
+            >
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input
+              type="text"
+              placeholder={t("nav.search") || "Search 205 drivers"}
+              className="nexus-search-input"
+            />
+          </div>
+        </div>
+      )}
 
+      {/* ── Navigation ── */}
       <nav className="nexus-nav-list">
-        <GooeyNav
-          items={gooeyItems}
-          activeIndex={activeNavIndex}
-          onSelect={(idx) => navigate(NAV_ITEMS[idx].to)}
-          particleCount={12}
-          particleDistances={[70, 8]}
-          particleR={80}
-          animationTime={600}
-          timeVariance={250}
-          colors={[1, 2, 3, 1, 2, 3, 1, 4]}
-        />
+        {NAV_ITEMS.map(({ to, key, icon: Icon, end }) => (
+          <NavLink
+            key={key}
+            to={to}
+            end={end}
+            className={({ isActive }) => {
+              const active = end ? location.pathname === "/" : isActive;
+              return `nexus-nav-link ${active ? "is-active" : ""}`;
+            }}
+          >
+            <Icon size={18} />
+            <span className="hide-on-collapsed">{t(key)}</span>
+            {key === "nav.incidents" && alarmCount > 0 ? (
+              <span className="nexus-alarm-pill hide-on-collapsed">
+                {alarmCount}
+              </span>
+            ) : null}
+          </NavLink>
+        ))}
       </nav>
 
       {/* ── Bottom Section ── */}
@@ -192,7 +197,9 @@ export default function Sidebar({
               <span className="nexus-user-avatar">{getInitials(userName)}</span>
               <div className="hide-on-collapsed min-w-0">
                 <p className="nexus-user-name">{userName}</p>
-                {userRole ? <p className="nexus-user-role">{userRole}</p> : null}
+                {userRole ? (
+                  <p className="nexus-user-role">{userRole}</p>
+                ) : null}
               </div>
             </div>
           </div>

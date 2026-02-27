@@ -100,11 +100,7 @@
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  background: linear-gradient(
-    180deg,
-    var(--surface-800) 0%,
-    var(--surface-900) 100%
-  );
+  background: #131b2f;
   border-right: 1px solid var(--surface-700);
   height: 100vh;
   height: 100dvh;
@@ -281,6 +277,46 @@
   justify-content: center;
 }
 
+/* ── Search Bar ── */
+.nexus-sidebar-search {
+  padding: 0 16px 16px;
+}
+
+.nexus-search-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.nexus-search-icon {
+  position: absolute;
+  left: 12px;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.nexus-search-input {
+  width: 100%;
+  height: 36px;
+  padding: 0 12px 0 36px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
+  font-size: 13px;
+  transition: all 0.2s ease;
+}
+
+.nexus-search-input::placeholder {
+  color: rgba(255, 255, 255, 0.3);
+}
+
+.nexus-search-input:focus {
+  outline: none;
+  background: rgba(255, 255, 255, 0.1);
+  border-color: var(--primary);
+}
+
 /* ── Navigation ── */
 .nexus-nav-label {
   padding: 16px 20px 8px;
@@ -294,8 +330,8 @@
 .nexus-nav-list {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  padding: 0 10px;
+  gap: 4px; /* Increased gap for industrial feel */
+  padding: 0 12px;
   flex: 1;
 }
 
@@ -305,37 +341,27 @@
   align-items: center;
   gap: 12px;
   padding: 10px 12px;
-  border-radius: 8px;
+  border-radius: 6px; /* Flatter edges */
   color: var(--text-muted);
   text-decoration: none;
   font-size: 14px;
   font-weight: 500;
-  border: 1px solid transparent;
+  border: none; /* No border initially */
   transition: all 0.15s ease;
 }
 
 .nexus-nav-link:hover {
   color: var(--text-primary);
-  background: rgba(255, 255, 255, 0.04);
-  border-color: var(--surface-700);
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .nexus-nav-link.is-active {
-  color: var(--text-primary);
-  background: rgba(33, 106, 190, 0.1);
-  border-color: rgba(33, 106, 190, 0.25);
-  box-shadow: 0 0 15px rgba(33, 106, 190, 0.15);
+  color: #ffffff;
+  background: var(--primary); /* Solid blue accent */
+  font-weight: 600;
 }
 
-.nexus-nav-link.is-active::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: 8px;
-  background: linear-gradient(90deg, rgba(33, 106, 190, 0.08), transparent);
-  pointer-events: none;
-}
-
+/* Removed the glowing gradient overlay */
 .nexus-nav-link svg {
   flex-shrink: 0;
 }
