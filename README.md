@@ -198,7 +198,7 @@ The `docker-compose.yml` runs the full stack with 6 services:
 docker compose up -d
 
 # Pull LLM model (if using Ollama)
-docker compose exec ollama ollama pull llama3.2
+docker compose exec ollama ollama pull llama-3.3-70b-versatile
 
 # View logs
 docker compose logs -f backend
@@ -378,5 +378,5 @@ npm run test:frontend
 npm run lint
 ```
 
-# run all (use this for production)
+# run all (use this for development)
 npm run dev

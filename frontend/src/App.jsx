@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect, useState } from "react";
+import React, { Suspense, lazy, useEffect, useState } from "react";
 import {
   Navigate,
   Route,
@@ -15,8 +15,58 @@ import {
 } from "./features/plc/PlcLiveDataContext";
 import { I18nProvider } from "./utils/i18n";
 import featureFlags from "./utils/featureFlags";
-import { LoaderCircle } from "lucide-react";
+import { LoaderCircle, AlertTriangle } from "lucide-react";
 import { useUserUiPreferencesSync } from "./hooks/useUserUiPreferencesSync";
+
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+  componentDidCatch(error, errorInfo) {
+    console.error("ErrorBoundary caught an error:", error, errorInfo);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div
+          style={{
+            padding: "2rem",
+            color: "var(--error, #ef4444)",
+            textAlign: "center",
+            marginTop: "10vh",
+          }}
+        >
+          <AlertTriangle size={48} style={{ margin: "0 auto 1rem" }} />
+          <h2 style={{ fontSize: "1.5rem", marginBottom: "0.5rem" }}>
+            Something went wrong.
+          </h2>
+          <p style={{ color: "var(--text-secondary, #94a3b8)" }}>
+            The application encountered an unexpected error.
+          </p>
+          <button
+            onClick={() => window.location.reload()}
+            style={{
+              marginTop: "1rem",
+              padding: "0.5rem 1rem",
+              background: "var(--accent, #2ea7e0)",
+              color: "#fff",
+              borderRadius: "0.5rem",
+              border: "none",
+              cursor: "pointer",
+            }}
+          >
+            Reload Page
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 const Dashboard = lazy(() => import("./features/ops/dashboard/DashboardPage"));
 const Alarms = lazy(() => import("./features/ops/alarms/AlarmsPage"));
@@ -70,11 +120,7 @@ function PageLoader() {
 function AppShell() {
   const navigate = useNavigate();
   const { sessionStatus, isAuthenticated, login, logout, user } = useSession();
-  const [theme, setTheme] = useState("dark");
-
-  useEffect(() => {
-    setTheme(resolveInitialTheme());
-  }, []);
+  const [theme, setTheme] = useState(resolveInitialTheme);
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
@@ -139,16 +185,18 @@ function AppShell() {
 
   return (
     <PlcLiveDataProvider>
-      <AuthenticatedLayout
-        onLogout={async () => {
-          await logout();
-          navigate("/login");
-        }}
-        theme={theme}
-        onToggleTheme={handleToggleTheme}
-        userName={user?.full_name || user?.email || "Operator"}
-        userRole={user?.role || ""}
-      />
+      <ErrorBoundary>
+        <AuthenticatedLayout
+          onLogout={async () => {
+            await logout();
+            navigate("/login");
+          }}
+          theme={theme}
+          onToggleTheme={handleToggleTheme}
+          userName={user?.full_name || user?.email || "Operator"}
+          userRole={user?.role || ""}
+        />
+      </ErrorBoundary>
     </PlcLiveDataProvider>
   );
 }
@@ -170,7 +218,7 @@ function AuthenticatedLayout({
   return (
     <div className={shellClass}>
       <Sidebar
-        alarmCount={derived.alarmCount}
+        alarmCount={derived?.alarmCount || 0}
         onLogout={onLogout}
         theme={theme}
         onToggleTheme={onToggleTheme}
@@ -180,15 +228,17 @@ function AuthenticatedLayout({
       />
 
       <main className={`plc-main ${isChatRoute ? "is-chat-route" : ""}`}>
-        <Suspense fallback={<PageLoader />}>
-          <Routes>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/alarms" element={<Alarms />} />
-            <Route path="/chat" element={<Chat onLogout={onLogout} />} />
-            <Route path="/actions" element={<ActionLog />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </Suspense>
+        <ErrorBoundary>
+          <Suspense fallback={<PageLoader />}>
+            <Routes>
+              <Route path="/" element={<Dashboard />} />
+              <Route path="/alarms" element={<Alarms />} />
+              <Route path="/chat" element={<Chat onLogout={onLogout} />} />
+              <Route path="/actions" element={<ActionLog />} />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </Suspense>
+        </ErrorBoundary>
       </main>
     </div>
   );
