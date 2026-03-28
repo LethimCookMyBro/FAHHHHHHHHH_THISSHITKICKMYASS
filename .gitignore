@@ -96,4 +96,7 @@ temp/
 *.tar
 *.tar.gz
 *.7z
-*.rar
+*.rar.venv_linux/
+.venv/
+*.so
+*.so.*
