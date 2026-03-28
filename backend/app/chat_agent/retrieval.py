@@ -10,9 +10,9 @@ from langchain_core.prompts import PromptTemplate
 logger = logging.getLogger(__name__)
 
 # Re-use existing constants from where they will be stored or keep them here for now
-RAGAS_MIN_THRESHOLD = 0.50
-RAGAS_FAITHFULNESS_HARD_FAIL = 0.40
-RAGAS_RELEVANCY_HARD_FAIL = 0.40
+RAGAS_MIN_THRESHOLD = 0.55
+RAGAS_FAITHFULNESS_HARD_FAIL = 0.45
+RAGAS_RELEVANCY_HARD_FAIL = 0.45
 RAGAS_METRIC_WEIGHTS = {
     "answer_relevancy": 0.35,
     "faithfulness": 0.35,
@@ -39,6 +39,7 @@ SKIP_RAGAS_PATTERNS = (
     "help",
     "what can you do",
 )
+THAI_CHAR_PATTERN = re.compile(r"[\u0E00-\u0E7F]")
 
 def _env_bool(key: str, default: bool = False) -> bool:
     raw = os.getenv(key)
@@ -77,6 +78,27 @@ def _should_skip_ragas(question: str) -> bool:
         re.search(rf"\b{re.escape(pattern)}\b", normalized) is not None
         for pattern in SKIP_RAGAS_PATTERNS
     )
+
+def _contains_thai_script(text: Any) -> bool:
+    return bool(THAI_CHAR_PATTERN.search(str(text or "")))
+
+def _force_english_rewrite(llm: Any, text: str) -> str:
+    original = str(text or "").strip()
+    if not original:
+        return original
+    prompt = (
+        "Rewrite the following PLC assistant answer into clear professional English only.\n"
+        "Keep the exact technical meaning, keep bullets/steps, do not add new facts.\n\n"
+        "Answer:\n"
+        f"{original}\n\n"
+        "English rewrite:"
+    )
+    try:
+        rewritten = invoke_llm_with_fallback(llm, prompt).strip()
+        return rewritten or original
+    except Exception as exc:
+        logger.warning("English rewrite guard failed: %s", exc)
+        return original
 
 def _question_mode(question: str) -> str:
     from app.chatbot import _question_mode as q_mode
@@ -133,6 +155,11 @@ def fix_markdown_tables(text: str) -> str:
 def _sanitize_prompt_leakage(text: Any) -> str:
     from app.chatbot import _sanitize_prompt_leakage as s_pl
     return s_pl(text)
+
+
+def sanitize_prompt_input(text: Any, max_chars: int = 2000) -> str:
+    from app.chatbot import sanitize_prompt_input as s_pi
+    return s_pi(text, max_chars)
 
 def _normalize_engineering_steps(raw: str, mode: str) -> str:
     from app.chatbot import _normalize_engineering_steps as n_es
@@ -198,7 +225,9 @@ def answer_question(
     chat_history: List[dict] = None,
 ) -> dict:
 
-    processed_msg = preprocess_query((question or "").strip())
+    processed_msg = preprocess_query(
+        sanitize_prompt_input((question or "").strip(), max_chars=1600)
+    )
     if not processed_msg:
         return {"reply": "Please enter a question."}
 
@@ -230,25 +259,56 @@ def answer_question(
 
     # ============ RERANKING PHASE ============
     t_rerank_start = time.perf_counter()
-    
-    reranker = None
-    for kwargs in (
-        {"base_retriever": base_retriever, "prefetched_docs": raw_retrieved_docs, "top_n": rerank_top_n},
-        {"base_retriever": base_retriever, "prefetched_docs": raw_retrieved_docs},
-        {"base_retriever": base_retriever, "top_n": rerank_top_n},
-        {"base_retriever": base_retriever},
-    ):
-        try:
-            reranker = reranker_class(**kwargs)
-            break
-        except TypeError:
-            continue
-    if reranker is None:
-        raise RuntimeError("Failed to initialize reranker with compatible arguments")
 
-    retrieved_docs = reranker.invoke(processed_msg) or []
+    # Two-stage pipeline: if CrossEncoder is selected, run Flashrank first
+    from app.retriever import CrossEncoderRerankRetriever, EnhancedFlashrankRerankRetriever
+
+    if reranker_class is CrossEncoderRerankRetriever:
+        # Stage 1: Flashrank narrows candidates with domain boosts
+        try:
+            flashrank_stage = EnhancedFlashrankRerankRetriever(
+                base_retriever=base_retriever,
+                prefetched_docs=raw_retrieved_docs,
+                top_n=rerank_top_n,
+            )
+        except TypeError:
+            flashrank_stage = EnhancedFlashrankRerankRetriever(
+                base_retriever=base_retriever,
+            )
+        stage1_docs = flashrank_stage.invoke(processed_msg) or []
+
+        # Stage 2: Cross-encoder re-scores for maximum accuracy
+        try:
+            reranker = CrossEncoderRerankRetriever(
+                base_retriever=base_retriever,
+                prefetched_docs=stage1_docs,
+                top_n=rerank_top_n,
+            )
+        except TypeError:
+            reranker = CrossEncoderRerankRetriever(
+                base_retriever=base_retriever,
+                prefetched_docs=stage1_docs,
+            )
+        reranked_docs = reranker.invoke(processed_msg) or []
+    else:
+        # Single-stage reranking (Flashrank or NoRerank)
+        reranker = None
+        for kwargs in (
+            {"base_retriever": base_retriever, "prefetched_docs": raw_retrieved_docs, "top_n": rerank_top_n},
+            {"base_retriever": base_retriever, "prefetched_docs": raw_retrieved_docs},
+            {"base_retriever": base_retriever, "top_n": rerank_top_n},
+            {"base_retriever": base_retriever},
+        ):
+            try:
+                reranker = reranker_class(**kwargs)
+                break
+            except TypeError:
+                continue
+        if reranker is None:
+            raise RuntimeError("Failed to initialize reranker with compatible arguments")
+        reranked_docs = reranker.invoke(processed_msg) or []
     selected_docs = select_context_docs(
-        retrieved_docs,
+        reranked_docs,
         question=processed_msg,
         question_mode=question_mode,
         top_k=selected_top_k,
@@ -264,12 +324,81 @@ def answer_question(
         else _env_int("CHAT_CONTEXT_MAX_CHARS_QA", 420)
     )
     context_texts = [
-        _compact_context_text(getattr(d, "page_content", "") or "", context_chars)
+        sanitize_prompt_input(
+            _compact_context_text(getattr(d, "page_content", "") or "", context_chars),
+            max_chars=context_chars,
+        )
         for d in selected_docs
     ]
     citation_items = build_source_citations(selected_docs)
-    max_score = get_doc_score(retrieved_docs[0]) if retrieved_docs else None
+    max_score = get_doc_score(reranked_docs[0]) if reranked_docs else None
     task_prompt = _build_task_prompt(processed_msg, question_mode)
+
+    # ============ CONFIDENCE GATE (Pre-LLM) ============
+    enable_confidence_gate = _env_bool("ENABLE_CONFIDENCE_GATE", True)
+    confidence_threshold = _env_float("CONFIDENCE_MIN_SCORE", 0.25)
+
+    if enable_confidence_gate and not selected_docs:
+        logger.warning(
+            "\u26a0\ufe0f Confidence gate: No relevant documents found for query: %s",
+            processed_msg[:100],
+        )
+        total_time = time.perf_counter() - t0
+        return {
+            "reply": (
+                "I could not find any relevant information in the documentation to answer "
+                "this question accurately.\n\n"
+                "**Suggestions:**\n"
+                "\u2022 Rephrase the question with specific terms (model number, error code, protocol)\n"
+                "\u2022 Check if the topic is covered in the uploaded manuals\n"
+                "\u2022 Ask about a related but more specific topic"
+            ),
+            "processing_time": total_time,
+            "retrieval_time": retrieval_time,
+            "context_count": 0,
+            "sources": [],
+            "ragas": None,
+            "timing": {
+                "retrieval_s": round(retrieval_time, 3),
+                "rerank_s": round(rerank_time, 3),
+                "llm_s": 0.0,
+                "total_s": round(total_time, 3),
+            },
+            "citations": [],
+            "max_score": round(max_score, 4) if max_score is not None else None,
+            "confidence_gate": "no_docs",
+        }
+
+    if enable_confidence_gate and max_score is not None and max_score < confidence_threshold:
+        logger.warning(
+            "\u26a0\ufe0f Confidence gate triggered: max_score=%.4f < threshold=%.4f for query: %s",
+            max_score, confidence_threshold, processed_msg[:100],
+        )
+        total_time = time.perf_counter() - t0
+        return {
+            "reply": (
+                "I found some documents, but none are confident enough to provide an accurate answer.\n\n"
+                f"**Confidence score: {max_score:.1%}** (minimum required: {confidence_threshold:.0%})\n\n"
+                "**Suggestions:**\n"
+                "\u2022 Try using exact model numbers or error codes in your question\n"
+                "\u2022 Check if the relevant manual has been uploaded to the knowledge base\n"
+                "\u2022 Ask about a more specific topic covered in the documentation"
+            ),
+            "processing_time": total_time,
+            "retrieval_time": retrieval_time,
+            "context_count": len(selected_docs),
+            "sources": citation_items,
+            "ragas": None,
+            "timing": {
+                "retrieval_s": round(retrieval_time, 3),
+                "rerank_s": round(rerank_time, 3),
+                "llm_s": 0.0,
+                "total_s": round(total_time, 3),
+            },
+            "citations": citation_items,
+            "max_score": round(max_score, 4),
+            "confidence_gate": "low_score",
+        }
 
     # ============ LLM PHASE ============
     t_llm_start = time.perf_counter()
@@ -325,6 +454,9 @@ def answer_question(
     reply = _sanitize_prompt_leakage(reply)
     reply = _normalize_engineering_steps(reply, question_mode)
     reply = _enforce_numeric_guardrail(reply, context_texts, question_mode)
+    if _contains_thai_script(reply):
+        logger.info("Detected Thai script in assistant reply; enforcing English rewrite.")
+        reply = _force_english_rewrite(llm, reply)
     if _looks_broken_reply(reply):
         logger.warning("⚠️ Broken/empty LLM reply detected. Replacing with safe fallback.")
         reply = (
@@ -349,6 +481,7 @@ def answer_question(
 
     # ============ RAGAS EVALUATION ============
     ragas_scores = None
+    weighted_quality = None
     enable_chat_ragas = _env_bool("ENABLE_CHAT_RAGAS", False)
     allow_source_citations = True
 
@@ -419,7 +552,11 @@ def answer_question(
             logger.warning(f"RAGAS evaluation failed: {e}")
             ragas_scores = None
 
-    if question_mode == "qa" and allow_source_citations and _env_bool("APPEND_SOURCE_CITATIONS", True):
+    force_all_modes = _env_bool("FORCE_CITATIONS_ALL_MODES", True)
+    should_cite = allow_source_citations and (
+        force_all_modes or question_mode == "qa"
+    ) and _env_bool("APPEND_SOURCE_CITATIONS", True)
+    if should_cite:
         citations = build_citations_from_docs(selected_docs)
         if citations:
             reply += "\n\nSources:\n- " + "\n- ".join(citations)
@@ -434,15 +571,25 @@ def answer_question(
         rerank_time=rerank_time,
         llm_time=llm_time,
         total_time=total_time,
-        retrieved_docs=retrieved_docs,
+        retrieved_docs=raw_retrieved_docs,
         reranked_docs=reranked_docs,
         selected_docs=selected_docs,
         max_score=max_score,
         ragas_scores=ragas_scores,
     )
+    ragas_payload = None
+    if ragas_scores:
+        ragas_payload = dict(ragas_scores)
+        if weighted_quality is not None:
+            ragas_payload["quality_score"] = weighted_quality
 
     return {
         "reply": reply,
+        "processing_time": total_time,
+        "retrieval_time": retrieval_time,
+        "context_count": len(selected_docs),
+        "sources": citation_items,
+        "ragas": ragas_payload,
         "timing": {
             "retrieval_s": round(retrieval_time, 3),
             "rerank_s": round(rerank_time, 3),
@@ -451,5 +598,4 @@ def answer_question(
         },
         "citations": citation_items,
         "max_score": round(max_score, 4) if max_score is not None else None,
-        "ragas": {"quality_score": weighted_quality, "details": ragas_scores} if ragas_scores else None,
     }

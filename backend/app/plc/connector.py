@@ -208,8 +208,8 @@ def _default_connector_type() -> str:
     explicit = (os.getenv("PLC_CONNECTOR", "") or "").strip().lower()
     if explicit:
         return explicit
-    app_env = (os.getenv("APP_ENV", "development") or "development").strip().lower()
-    return "modbus_tcp" if app_env == "production" else "simulator"
+    app_env = (os.getenv("APP_ENV") or "production").strip().lower()
+    return "simulator" if app_env == "development" else "modbus_tcp"
 
 
 def _build_connector(connector_type: str) -> PLCConnector:

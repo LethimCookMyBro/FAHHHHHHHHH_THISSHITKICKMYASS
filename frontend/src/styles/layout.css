@@ -1,554 +1,978 @@
 .plc-shell {
-  height: 100vh;
-  height: 100dvh;
+  min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
+  background: transparent;
   color: var(--text-primary);
-  overflow: hidden;
 }
 
 .plc-main {
   flex: 1;
   min-width: 0;
   min-height: 0;
-  border-radius: 0;
-  overflow-y: auto;
-  overflow-x: hidden;
-  overscroll-behavior-y: contain;
-  background: var(--bg-primary);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
+.plc-route-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  background: transparent;
+}
+
+.plc-route-body.is-chat-route,
 .plc-main.is-chat-route {
   overflow: hidden;
 }
 
-.page-wrap {
-  max-width: 1580px;
-  margin: 0 auto;
-  padding: 26px 28px 34px;
+.app-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  display: grid;
+  gap: 10px;
+  padding: 16px 24px 14px;
+  min-height: 72px;
+  background: var(--surface-overlay);
+  border-bottom: 1px solid var(--border);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
-.page-header {
+.app-topbar-utility-row {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 18px;
-  margin-bottom: 26px;
+  gap: 12px;
+  min-width: 0;
 }
 
-.page-title {
-  font-size: 28px;
-  font-weight: 700;
-  line-height: 1.15;
-  letter-spacing: -0.02em;
+.app-topbar-main,
+.app-topbar-left {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
-.page-subtitle {
-  margin-top: 6px;
+.app-topbar-menu-btn,
+.app-topbar-icon-btn,
+.app-topbar-btn,
+.control-btn,
+.action-btn,
+.app-theme-toggle {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-secondary);
+}
+
+.app-topbar-menu-btn,
+.app-topbar-icon-btn {
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.app-topbar-search {
+  width: min(360px, 100%);
+  min-width: 240px;
+  height: 42px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 16px;
+}
+
+.app-topbar-search:focus-within {
+  border-color: color-mix(in srgb, var(--accent) 28%, var(--border));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.app-topbar-search input {
+  border: 0;
+  outline: 0;
+  background: transparent;
+  flex: 1;
+  min-width: 0;
+  color: var(--text-primary);
+  font-size: var(--text-body);
+  font-weight: 500;
+}
+
+.app-topbar-search input::placeholder {
   color: var(--text-muted);
-  font-size: 14px;
-  line-height: 1.6;
 }
 
-.live-indicator {
+.app-topbar-search-icon {
+  color: var(--text-muted);
+}
+
+.app-topbar-kbd {
+  height: 24px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  display: inline-flex;
+  align-items: center;
+  padding: 0 9px;
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+  color: var(--text-muted);
+  background: var(--surface2);
+  white-space: nowrap;
+}
+
+.app-topbar-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  min-width: 0;
+}
+
+.app-topbar-status {
+  height: 38px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--status-ok-border);
+  padding: 0 14px;
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 14px;
+  background: var(--status-ok-bg);
+  color: var(--status-ok-text);
+  font-size: var(--text-caption);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+
+.app-topbar-status .status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.app-topbar-status.tone-warning,
+.app-topbar-status.tone-neutral {
+  color: var(--status-warning-text);
+  border-color: var(--status-warning-border);
+  background: var(--status-warning-bg);
+}
+
+.app-topbar-status.tone-live,
+.app-topbar-status.tone-success,
+.app-topbar-status.tone-secure {
+  color: var(--status-ok-text);
+  border-color: var(--status-ok-border);
+  background: var(--status-ok-bg);
+}
+
+.app-topbar-btn,
+.control-btn,
+.action-btn {
+  min-height: 40px;
+  border-radius: 14px;
+  padding: 0 16px;
+  font-size: var(--text-body);
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  cursor: pointer;
+  transition:
+    transform var(--transition-fast),
+    box-shadow var(--transition-fast),
+    border-color var(--transition-fast);
+}
+
+.app-topbar-btn:hover,
+.control-btn:hover,
+.action-btn:hover,
+.app-topbar-menu-btn:hover,
+.app-topbar-icon-btn:hover,
+.app-theme-toggle:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--accent) 24%, var(--border));
+  box-shadow: var(--shadow-hover);
+}
+
+.app-topbar-btn.primary {
+  color: var(--text-on-accent);
+  border-color: var(--accent);
+  background: var(--accent);
+}
+
+.app-topbar-btn.primary:hover {
+  background: var(--color-primary-hover);
+}
+
+.app-topbar-btn.secondary {
+  background: var(--surface);
+}
+
+.app-topbar-btn:disabled,
+.control-btn:disabled,
+.action-btn:disabled,
+.app-topbar-menu-btn:disabled,
+.app-topbar-icon-btn:disabled,
+.app-theme-toggle:disabled {
+  opacity: 0.58;
+  transform: none;
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+.app-topbar-icon-btn {
+  position: relative;
+  cursor: pointer;
+}
+
+.app-topbar-icon-badge {
+  position: absolute;
+  top: -5px;
+  right: -2px;
+  min-width: 17px;
+  height: 17px;
   border-radius: 999px;
-  border: 1px solid var(--surface-700);
-  background: rgba(16, 185, 129, 0.06);
-  color: var(--neon-green);
-  font-size: 12px;
-  font-weight: 600;
+  padding: 0 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.6rem;
+  font-weight: 700;
+  background: var(--badge-bg);
+  color: var(--critical);
+  border: 1px solid var(--surface);
+}
+
+.app-theme-toggle {
+  width: 62px;
+  height: 36px;
+  border-radius: 999px;
+  padding: 3px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.app-theme-toggle-track {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 0;
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface2));
+}
+
+.app-theme-toggle-knob {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface);
+  color: var(--accent);
+  transform: translateX(0);
+  transition: transform 280ms cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: var(--shadow-soft);
+}
+
+.app-theme-toggle[data-mode="dark"] .app-theme-toggle-knob {
+  transform: translateX(26px);
+}
+
+.app-topbar-profile {
+  min-width: 188px;
+  min-height: 44px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px 6px 7px;
+  box-shadow: 0 12px 28px color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
+.app-topbar-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--text-on-accent);
+  font-size: 0.7rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  letter-spacing: 0.02em;
+  flex-shrink: 0;
+}
+
+.app-topbar-user-copy {
+  min-width: 0;
+  line-height: 1.15;
+}
+
+.app-topbar-user-name {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.app-topbar-user-role {
+  margin-top: 2px;
+  font-size: 0.66rem;
+  color: var(--text-muted);
+  white-space: nowrap;
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
 
-.live-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 999px;
-  background: var(--neon-green);
-  box-shadow: 0 0 8px rgba(0, 255, 157, 0.5);
-  animation: liveBlink 1.8s ease-in-out infinite;
+.app-topbar-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
 }
 
-.live-dot.warn {
-  background: var(--neon-amber);
-  box-shadow: 0 0 8px rgba(255, 204, 0, 0.4);
+.app-topbar-title {
+  font-size: 1.82rem;
+  font-weight: 800;
+  letter-spacing: -0.04em;
 }
 
-.live-dot.off {
-  background: var(--text-muted);
-  box-shadow: none;
-  animation: none;
+.app-topbar-subtitle {
+  margin: 3px 0 0;
+  color: var(--text-secondary);
+  font-size: 0.96rem;
 }
 
-@keyframes liveBlink {
-  0%,
-  100% {
-    box-shadow: 0 0 8px rgba(0, 255, 157, 0.5);
-  }
-  50% {
-    box-shadow: 0 0 0 6px rgba(0, 255, 157, 0);
-  }
+.nexus-sidebar-backdrop {
+  position: fixed;
+  inset: 0;
+  border: 0;
+  background: color-mix(in srgb, var(--bg) 72%, transparent);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 39;
 }
 
-/* ── NEXUS Sidebar ── */
 .nexus-sidebar {
-  width: 256px;
+  width: 268px;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  background: #131b2f;
-  border-right: 1px solid var(--surface-700);
+  color: var(--text-primary);
+  background:
+    radial-gradient(
+      circle at 18% 10%,
+      color-mix(in srgb, var(--accent) 14%, transparent) 0%,
+      transparent 24%
+    ),
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--surface) 68%, transparent) 0%,
+      transparent 18%
+    ),
+    var(--sidebar-bg);
+  border-right: 1px solid var(--border);
+  position: sticky;
+  top: 0;
   height: 100vh;
-  height: 100dvh;
-  overflow-y: auto;
-  overflow-x: hidden;
-  transition: width 0.2s ease;
-  z-index: 30;
+  z-index: 40;
+  transition:
+    width 260ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 260ms cubic-bezier(0.22, 1, 0.36, 1),
+    background 220ms ease;
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
 }
 
-.nexus-sidebar.is-collapsed {
-  width: 84px;
+.nexus-sidebar::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 1px;
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    color-mix(in srgb, var(--accent) 28%, transparent) 18%,
+    transparent 100%
+  );
+  opacity: 0.8;
+  pointer-events: none;
 }
 
-.nexus-sidebar.is-collapsed .hide-on-collapsed {
-  display: none !important;
-}
-
-/* ── Brand ── */
 .nexus-sidebar-brand {
-  padding: 16px 20px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 22px 20px 12px;
 }
 
 .nexus-brand-row {
-  display: flex;
-  align-items: center;
+  display: grid;
   gap: 12px;
+  padding: 4px 2px 10px;
+}
+
+.nexus-brand-logo,
+.nexus-user-avatar {
+  background: var(--accent);
+  color: var(--text-on-accent);
+  box-shadow: var(--shadow-brand);
 }
 
 .nexus-brand-logo {
-  width: 36px;
-  height: 36px;
-  border-radius: 8px;
-  background: linear-gradient(135deg, var(--primary), #3b82f6);
+  width: 48px;
+  height: 48px;
+  border-radius: 16px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: white;
-  flex-shrink: 0;
-  box-shadow: 0 4px 12px rgba(33, 106, 190, 0.3);
+  transition:
+    transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 220ms ease,
+    border-radius 220ms ease;
+  overflow: hidden;
+  position: relative;
+}
+
+.nexus-brand-logo-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
 .nexus-brand-title {
-  font-size: 18px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
+  margin-top: 2px;
+  font-size: 1.55rem;
+  font-weight: 800;
   color: var(--text-primary);
   line-height: 1;
 }
 
-.nexus-brand-sub {
-  margin-top: 3px;
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.15em;
+.nexus-brand-sub,
+.nexus-nav-section,
+.nexus-user-role,
+.nexus-status-label,
+.live-indicator {
   color: var(--text-muted);
-  font-weight: 500;
 }
 
-/* Collapsed brand */
-.nexus-sidebar.is-collapsed .nexus-sidebar-brand {
-  padding: 14px 0;
-  display: flex;
-  justify-content: center;
+.nexus-brand-sub {
+  margin-top: 8px;
+  font-size: 0.65rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  line-height: 1.55;
+  max-width: 156px;
 }
 
-.nexus-sidebar.is-collapsed .nexus-brand-row {
-  justify-content: center;
-}
-
-/* ── Status Card ── */
 .nexus-status-card {
-  margin: 12px;
-  padding: 12px 14px;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid var(--surface-700);
+  margin: 0 20px 14px;
+  padding: 0 2px 12px;
+  border-bottom: 1px solid var(--border);
+  background: transparent;
 }
 
-.nexus-status-mini {
-  width: 42px;
-  height: 34px;
-  margin: 10px auto 8px;
-  border-radius: 10px;
-  border: 1px solid var(--surface-700);
-  background: rgba(255, 255, 255, 0.03);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.nexus-status-row {
+.nexus-status-row,
+.nexus-user-row {
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
 .nexus-status-dot-wrap {
+  width: 8px;
+  height: 8px;
   position: relative;
-  width: 10px;
-  height: 10px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
   flex-shrink: 0;
 }
 
+.nexus-status-dot,
 .nexus-status-ping {
   position: absolute;
   inset: 0;
-  border-radius: 999px;
-  background: var(--neon-green);
-  opacity: 0.75;
-  animation: statusPing 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;
+  border-radius: 50%;
 }
 
 .nexus-status-dot {
-  position: relative;
-  width: 10px;
-  height: 10px;
-  border-radius: 999px;
-  background: var(--text-muted);
+  background: color-mix(in srgb, var(--text-muted) 70%, transparent);
 }
 
 .nexus-status-dot.is-live {
-  background: var(--neon-green);
-  box-shadow: var(--shadow-neon-green);
+  background: var(--accent);
 }
 
-@keyframes statusPing {
-  75%,
-  100% {
-    transform: scale(2);
-    opacity: 0;
-  }
-}
-
-.nexus-status-label {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--neon-green);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.nexus-status-wifi {
-  margin-left: auto;
-  color: var(--text-muted);
+.nexus-status-ping {
+  background: color-mix(in srgb, var(--accent) 30%, transparent);
+  animation: ping 1.8s ease-out infinite;
 }
 
 .nexus-status-meta {
   margin-top: 6px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 11px;
-  color: var(--text-muted);
+  font-size: 0.76rem;
+  color: var(--text-primary);
+}
+
+.nexus-status-wifi {
+  margin-left: auto;
+  opacity: 0.72;
+  color: var(--accent);
 }
 
 .nexus-mono {
   font-family: var(--font-mono);
 }
 
-/* Collapsed status */
-.nexus-sidebar.is-collapsed .nexus-status-card {
-  margin: 0 8px;
-  padding: 10px 0;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-.nexus-sidebar.is-collapsed .nexus-status-row {
-  justify-content: center;
-}
-
-/* ── Search Bar ── */
-.nexus-sidebar-search {
-  padding: 0 16px 16px;
-}
-
-.nexus-search-wrap {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-.nexus-search-icon {
-  position: absolute;
-  left: 12px;
-  color: var(--text-muted);
-  pointer-events: none;
-}
-
-.nexus-search-input {
-  width: 100%;
-  height: 36px;
-  padding: 0 12px 0 36px;
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: var(--text-primary);
-  font-size: 13px;
-  transition: all 0.2s ease;
-}
-
-.nexus-search-input::placeholder {
-  color: rgba(255, 255, 255, 0.3);
-}
-
-.nexus-search-input:focus {
-  outline: none;
-  background: rgba(255, 255, 255, 0.1);
-  border-color: var(--primary);
-}
-
-/* ── Navigation ── */
-.nexus-nav-label {
-  padding: 16px 20px 8px;
-  font-size: 10px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.15em;
-  color: var(--text-muted);
-}
-
 .nexus-nav-list {
+  flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 4px; /* Increased gap for industrial feel */
-  padding: 0 12px;
-  flex: 1;
+  gap: 6px;
+  padding: 0 20px 16px;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.nexus-nav-section {
+  margin: 2px 20px 10px;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.nexus-nav-list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.nexus-nav-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.nexus-nav-list::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--text-primary) 18%, transparent);
+  border-radius: 4px;
 }
 
 .nexus-nav-link {
-  position: relative;
+  min-height: 54px;
+  border-radius: 18px;
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 10px 12px;
-  border-radius: 6px; /* Flatter edges */
-  color: var(--text-muted);
+  padding: 12px 14px;
+  border: 1px solid transparent;
+  color: var(--text-secondary);
   text-decoration: none;
-  font-size: 14px;
-  font-weight: 500;
-  border: none; /* No border initially */
-  transition: all 0.15s ease;
+  position: relative;
+  overflow: hidden;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  transition:
+    color 180ms ease,
+    background 180ms ease,
+    border-color 180ms ease,
+    transform 240ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 220ms ease;
+  animation: nexusNavIn 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(var(--nav-index, 0) * 45ms);
 }
 
-.nexus-nav-link:hover {
-  color: var(--text-primary);
-  background: rgba(255, 255, 255, 0.06);
+.nexus-nav-link::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    120deg,
+    transparent 18%,
+    color-mix(in srgb, var(--surface) 26%, transparent) 50%,
+    transparent 82%
+  );
+  opacity: 0;
+  transform: translateX(-18%);
+  transition:
+    opacity 220ms ease,
+    transform 320ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.nexus-nav-active-bg {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--sidebar-active);
+  border: 1px solid color-mix(in srgb, var(--accent) 18%, transparent);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, white 22%, transparent),
+    0 10px 24px color-mix(in srgb, var(--accent) 14%, transparent);
+  animation: nexusActiveIn 260ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.nexus-nav-active-bg::before {
+  content: "";
+  position: absolute;
+  inset: 10px auto 10px 0;
+  width: 3px;
+  border-radius: 999px;
+  background: var(--accent);
+}
+
+.nexus-nav-icon,
+.nexus-nav-text,
+.nexus-alarm-pill {
+  position: relative;
+  z-index: 2;
+}
+
+.nexus-nav-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
+    background 180ms ease,
+    color 180ms ease;
+}
+
+.nexus-nav-text {
+  font-size: 0.94rem;
+  font-weight: 700;
+  white-space: normal;
+  line-height: 1.2;
+  flex: 1;
+  min-width: 0;
 }
 
 .nexus-nav-link.is-active {
-  color: #ffffff;
-  background: var(--primary); /* Solid blue accent */
-  font-weight: 600;
+  color: var(--accent);
 }
 
-/* Removed the glowing gradient overlay */
-.nexus-nav-link svg {
-  flex-shrink: 0;
+.nexus-nav-link.is-active .nexus-nav-icon {
+  transform: scale(1.04);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
 }
 
-/* Collapsed nav */
-.nexus-sidebar.is-collapsed .nexus-nav-list {
-  padding: 2px 10px;
+.nexus-nav-link:not(.is-active):hover {
+  transform: translateX(4px);
+  background: color-mix(in srgb, var(--surface) 52%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 14%, transparent);
+  box-shadow: 0 10px 20px color-mix(in srgb, black 5%, transparent);
 }
 
-.nexus-sidebar.is-collapsed .nexus-nav-link {
-  justify-content: center;
-  width: 44px;
-  height: 44px;
-  margin: 0 auto;
-  padding: 0;
-  border-radius: 12px;
+.nexus-nav-link:hover::after {
+  opacity: 1;
+  transform: translateX(0);
 }
 
-/* ── Alarm Pill ── */
 .nexus-alarm-pill {
   margin-left: auto;
   min-width: 20px;
   height: 20px;
-  padding: 0 6px;
-  border-radius: 6px;
+  border-radius: 999px;
+  background: var(--badge-bg);
+  color: var(--critical);
+  font-size: 10px;
+  font-weight: 800;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 10px;
-  font-weight: 700;
-  background: rgba(255, 51, 102, 0.15);
-  border: 1px solid rgba(255, 51, 102, 0.25);
-  color: var(--neon-red);
+  padding: 0 5px;
 }
 
-/* ── Bottom Section ── */
 .nexus-sidebar-bottom {
-  margin-top: auto;
-  border-top: 1px solid var(--surface-700);
-  padding: 12px;
+  border-top: 1px solid var(--border);
+  padding: 14px 20px 20px;
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    color-mix(in srgb, var(--surface) 44%, transparent) 100%
+  );
 }
 
-/* ── User Card ── */
 .nexus-user-card {
-  padding: 8px 8px 10px;
-  margin-bottom: 8px;
-}
-
-.nexus-user-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
+  margin-bottom: 12px;
+  padding: 0 2px 10px;
+  border-bottom: 1px solid var(--border);
 }
 
 .nexus-user-avatar {
-  width: 34px;
-  height: 34px;
-  border-radius: 8px;
-  background: linear-gradient(135deg, var(--primary), #3b82f6);
-  color: white;
+  width: 40px;
+  height: 40px;
+  border-radius: 14px;
+  font-size: 0.72rem;
+  font-weight: 800;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
-  font-weight: 700;
-  flex-shrink: 0;
-  box-shadow: 0 2px 8px rgba(33, 106, 190, 0.25);
 }
 
 .nexus-user-name {
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 0.86rem;
+  font-weight: 700;
   color: var(--text-primary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .nexus-user-role {
-  margin-top: 1px;
-  font-size: 11px;
-  color: var(--text-muted);
+  margin-top: 2px;
+  font-size: 0.64rem;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  letter-spacing: 0.02em;
 }
 
-/* Collapsed user */
-.nexus-sidebar.is-collapsed .nexus-user-card {
-  display: flex;
-  justify-content: center;
-  padding: 8px 0;
-}
-
-.nexus-sidebar.is-collapsed .nexus-user-row {
-  justify-content: center;
-}
-
-/* ── Controls ── */
 .nexus-controls {
-  display: flex;
-  align-items: center;
-  gap: 4px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
 }
 
 .nexus-ctrl-btn {
-  flex: 1;
-  height: 36px;
-  border-radius: 8px;
-  border: none;
-  background: transparent;
-  color: var(--text-muted);
+  min-height: 38px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-secondary);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition:
+    transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 180ms ease,
+    color 180ms ease,
+    box-shadow 220ms ease,
+    background 180ms ease;
 }
 
 .nexus-ctrl-btn:hover {
-  color: var(--text-primary);
-  background: rgba(255, 255, 255, 0.05);
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--accent) 24%, var(--border));
+  color: var(--accent);
+  box-shadow: var(--shadow-hover);
 }
 
 .nexus-ctrl-logout:hover {
-  color: var(--neon-red);
-  background: rgba(255, 51, 102, 0.08);
+  color: var(--critical);
+  border-color: color-mix(in srgb, var(--critical) 24%, var(--border));
 }
 
-/* Collapsed controls */
-.nexus-sidebar.is-collapsed .nexus-controls {
-  flex-direction: column;
-  gap: 6px;
+.live-indicator {
+  display: inline-flex;
   align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  font-size: 0.76rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+}
+
+.live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.nexus-sidebar.is-collapsed {
+  width: 132px;
+}
+
+.nexus-sidebar.is-collapsed .hide-on-collapsed,
+.nexus-sidebar.is-collapsed .nexus-status-card,
+.nexus-sidebar.is-collapsed .nexus-nav-section {
+  display: none !important;
+}
+
+.nexus-sidebar.is-collapsed .nexus-sidebar-brand,
+.nexus-sidebar.is-collapsed .nexus-sidebar-bottom {
+  padding-left: 16px;
+  padding-right: 16px;
+}
+
+.nexus-sidebar.is-collapsed .nexus-brand-row,
+.nexus-sidebar.is-collapsed .nexus-user-card {
+  justify-items: center;
+  padding: 0;
+}
+
+.nexus-sidebar.is-collapsed .nexus-nav-list {
+  gap: 8px;
+  padding-left: 16px;
+  padding-right: 16px;
+}
+
+.nexus-sidebar.is-collapsed .nexus-brand-logo {
+  width: 54px;
+  height: 54px;
+  border-radius: 18px;
+}
+
+.nexus-sidebar.is-collapsed .nexus-nav-link {
+  min-height: 68px;
+  justify-content: center;
+  padding: 10px;
+  border-radius: 20px;
+}
+
+.nexus-sidebar.is-collapsed .nexus-nav-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 15px;
+}
+
+.nexus-sidebar.is-collapsed .nexus-user-avatar {
+  width: 46px;
+  height: 46px;
+  border-radius: 16px;
+}
+
+.nexus-sidebar.is-collapsed .nexus-controls {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
 }
 
 .nexus-sidebar.is-collapsed .nexus-ctrl-btn {
-  width: 42px;
-  height: 34px;
-  flex: 0 0 auto;
-  border-radius: 10px;
-  border: 1px solid var(--surface-700);
-  background: rgba(255, 255, 255, 0.02);
+  min-height: 44px;
+  border-radius: 14px;
 }
 
-/* ── App Shell ── */
-.app-shell-ambience {
-  background: var(--surface-900);
+.nexus-sidebar.is-collapsed .nexus-ctrl-logout {
+  grid-column: 1 / -1;
 }
 
-/* ── Control & Action buttons ── */
-.control-btn,
-.action-btn {
-  position: relative;
-  overflow: hidden;
-  border: 1px solid var(--surface-700);
-  background: var(--surface-800);
-  border-radius: 10px;
-  color: var(--text-muted);
-  transition: all 0.15s ease;
+@keyframes ping {
+  0% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+
+  100% {
+    transform: scale(2.4);
+    opacity: 0;
+  }
 }
 
-.control-btn:hover,
-.action-btn:hover {
-  border-color: var(--surface-600);
-  color: var(--text-primary);
-  background: var(--surface-700);
+@keyframes nexusNavIn {
+  from {
+    opacity: 0;
+    transform: translateX(-10px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
 }
 
-.control-btn {
-  height: 40px;
-  width: 40px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+@keyframes nexusActiveIn {
+  from {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
-/* ── Stability mode overrides ── */
-html[data-stability-mode="aggressive"] .nexus-nav-link,
-html[data-stability-mode="aggressive"] .nexus-ctrl-btn,
-html[data-stability-mode="aggressive"] .control-btn,
-html[data-stability-mode="aggressive"] .action-btn {
-  transition: none !important;
+@media (prefers-reduced-motion: reduce) {
+  .nexus-sidebar,
+  .nexus-brand-logo,
+  .nexus-nav-link,
+  .nexus-nav-link::after,
+  .nexus-nav-icon,
+  .nexus-nav-active-bg,
+  .nexus-ctrl-btn,
+  .nexus-status-ping {
+    animation: none !important;
+    transition: none !important;
+  }
 }
 
-html[data-stability-mode="aggressive"] .nexus-nav-link:hover,
-html[data-stability-mode="aggressive"] .nexus-ctrl-btn:hover,
-html[data-stability-mode="aggressive"] .control-btn:hover,
-html[data-stability-mode="aggressive"] .action-btn:hover {
-  transform: none;
+@media (max-width: 1220px) and (min-width: 768px) {
+  .nexus-sidebar {
+    width: 252px;
+  }
+
+  .app-topbar {
+    padding: 14px 18px 12px;
+  }
+}
+
+@media (max-width: 980px) {
+  .nexus-sidebar {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: min(86vw, 336px);
+    transform: translateX(-104%);
+  }
+
+  .nexus-sidebar.is-mobile-open {
+    transform: translateX(0);
+  }
+
+  .hide-on-mobile {
+    display: none !important;
+  }
+
+  .app-topbar {
+    padding: 12px;
+    gap: 8px;
+  }
+
+  .app-topbar-search {
+    width: 100%;
+  }
+
+  .app-topbar-actions {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .app-topbar-utility-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .app-topbar-user-copy {
+    display: none;
+  }
+}
+
+@media (max-width: 720px) {
+  .app-topbar-kbd,
+  .app-topbar-status {
+    display: none;
+  }
+
+  .app-topbar-btn {
+    min-height: 36px;
+    padding: 0 12px;
+  }
 }

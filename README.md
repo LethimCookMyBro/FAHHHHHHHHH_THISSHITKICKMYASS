@@ -182,7 +182,8 @@ npm run dev
 
 ## 🐳 Docker Compose
 
-The `docker-compose.yml` runs the full stack with 6 services:
+The `docker-compose.yml` runs the full stack with 6 services.
+`pgadmin` is on the optional `debug` profile and is not started by default.
 
 | Service      | Image                         | Port  |
 | ------------ | ----------------------------- | ----- |
@@ -194,8 +195,14 @@ The `docker-compose.yml` runs the full stack with 6 services:
 | **pgadmin**  | `dpage/pgadmin4`              | 5050  |
 
 ```bash
-# Start all services
+# Start all core services
 docker compose up -d
+
+# Start pgAdmin only when needed
+docker compose --profile debug up -d pgadmin
+
+# Run an isolated audit stack with a different project/port set
+BACKEND_PORT=15000 FRONTEND_PORT=15173 POSTGRES_PUBLISHED_PORT=15432 REDIS_PORT=16379 OLLAMA_PUBLISHED_PORT=11445 docker compose -p panya-audit up -d
 
 # Pull LLM model (if using Ollama)
 docker compose exec ollama ollama pull llama-3.3-70b-versatile
@@ -210,7 +217,9 @@ docker compose down
 docker compose down -v
 ```
 
-**pgAdmin access:** http://localhost:5050 (`admin@admin.com` / `admin`)
+**pgAdmin access:** http://localhost:5050 using `PGADMIN_DEFAULT_EMAIL` / `PGADMIN_DEFAULT_PASSWORD`
+
+Backend database config resolves in this order: `DATABASE_URL`, then `PG*`, then `POSTGRES_*`.
 
 ---
 

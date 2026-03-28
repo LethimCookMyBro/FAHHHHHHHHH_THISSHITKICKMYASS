@@ -9,6 +9,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from app.auth import decode_token
 from app.db_helpers import get_user_by_id
 from app.core.ws_ticket import consume_ws_ticket
+from app.utils import get_app_env
 
 logger = logging.getLogger(__name__)
 
@@ -33,17 +34,34 @@ ROLE_RANK = {
 
 
 def _cookie_secure() -> bool:
-    env = (os.getenv("APP_ENV", "development") or "development").strip().lower()
+    env = get_app_env()
     if env == "production":
         return True
     return (os.getenv("COOKIE_SECURE", "false") or "false").strip().lower() == "true"
 
 
 def _cookie_samesite() -> str:
-    env = (os.getenv("APP_ENV", "development") or "development").strip().lower()
+    env = get_app_env()
     if env == "production":
         return "strict"
-    return (os.getenv("COOKIE_SAMESITE", "lax") or "lax").strip().lower()
+    configured = (os.getenv("COOKIE_SAMESITE", "lax") or "lax").strip().lower()
+    return configured if configured in {"lax", "strict", "none"} else "lax"
+
+
+def get_cookie_security_settings() -> Dict[str, object]:
+    samesite = _cookie_samesite()
+    secure = _cookie_secure() or samesite == "none"
+    return {"secure": secure, "samesite": samesite}
+
+
+def _allow_ws_cookie_fallback() -> bool:
+    return (os.getenv("WS_ALLOW_COOKIE_FALLBACK", "false") or "false").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "y",
+        "on",
+    }
 
 
 def create_csrf_token() -> str:
@@ -54,8 +72,9 @@ def set_auth_cookies(response, *, access_token: str, refresh_token: str, csrf_to
     refresh_max_age = int(os.getenv("REFRESH_TOKEN_EXPIRE_SECONDS", "1209600"))
     access_max_age = int(os.getenv("ACCESS_TOKEN_EXPIRE_SECONDS", "86400"))
 
-    cookie_secure = _cookie_secure()
-    cookie_samesite = _cookie_samesite()
+    cookie_settings = get_cookie_security_settings()
+    cookie_secure = bool(cookie_settings["secure"])
+    cookie_samesite = str(cookie_settings["samesite"])
 
     response.set_cookie(
         key=ACCESS_COOKIE_NAME,
@@ -88,12 +107,13 @@ def set_auth_cookies(response, *, access_token: str, refresh_token: str, csrf_to
 
 def rotate_access_cookie(response, *, access_token: str) -> None:
     access_max_age = int(os.getenv("ACCESS_TOKEN_EXPIRE_SECONDS", "86400"))
+    cookie_settings = get_cookie_security_settings()
     response.set_cookie(
         key=ACCESS_COOKIE_NAME,
         value=access_token,
         httponly=True,
-        secure=_cookie_secure(),
-        samesite=_cookie_samesite(),
+        secure=bool(cookie_settings["secure"]),
+        samesite=str(cookie_settings["samesite"]),
         max_age=access_max_age,
         path="/",
     )
@@ -183,6 +203,16 @@ def get_current_user(
     return user
 
 
+def get_optional_current_user(
+    request: Request,
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(_SECURITY_SCHEME),
+):
+    token = _token_from_request(request, credentials)
+    if not token:
+        return None
+    return get_current_user(request, credentials)
+
+
 def require_roles(*roles: str):
     role_names = [str(role).strip().lower() for role in roles if str(role).strip()]
     if not role_names:
@@ -242,6 +272,9 @@ def authenticate_websocket(websocket: WebSocket) -> Optional[Dict]:
         except Exception:
             return None
         return user
+
+    if not _allow_ws_cookie_fallback():
+        return None
 
     cookie_token = websocket.cookies.get(ACCESS_COOKIE_NAME)
     if not cookie_token:

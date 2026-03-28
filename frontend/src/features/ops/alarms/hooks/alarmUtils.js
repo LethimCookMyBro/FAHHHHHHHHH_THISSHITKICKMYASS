@@ -1,9 +1,30 @@
-export const FALLBACK_DIAGNOSIS = {
+export const createFallbackDiagnosis = (t) => ({
   issue_type: "unknown",
-  diagnosis: "Diagnosis unavailable. Retry when service is stable.",
-  recommendation: "Verify backend services and run diagnosis again.",
+  diagnosis: t("alarms.diagnosisUnavailable"),
+  recommendation: t("alarms.verifyBackendServices"),
   confidence: 0,
-};
+});
+
+const EMPTY_COUNTS = Object.freeze({
+  active: 0,
+  acknowledged: 0,
+  resolved: 0,
+  critical: 0,
+});
+
+const SEARCH_FIELDS = ["error_code", "machine_name", "message", "category"];
+
+const createDisabledAction = (label) => ({
+  kind: "none",
+  label,
+  disabled: true,
+});
+
+const matchesAlarmQuery = (alarm, query) =>
+  !query ||
+  SEARCH_FIELDS.some((field) =>
+    String(alarm?.[field] || "").toLowerCase().includes(query),
+  );
 
 export const toReadableTime = (iso) => {
   if (!iso) return "-";
@@ -31,10 +52,11 @@ export const buildPrimaryAction = ({
   planningId,
   approvingId,
   acknowledgingId,
+  t = (value) => value,
 }) => {
-  if (!selectedAlarm) return { kind: "none", label: "Select an incident", disabled: true };
+  if (!selectedAlarm) return createDisabledAction(t("alarms.selectIncident"));
   if (selectedAlarm.status === "resolved") {
-    return { kind: "none", label: "Incident resolved", disabled: true };
+    return createDisabledAction(t("alarms.incidentResolved"));
   }
 
   const diagnosis = diagnosticsByAlarm[selectedAlarm.id];
@@ -42,17 +64,25 @@ export const buildPrimaryAction = ({
   const hardware = isHardwareAlarm(selectedAlarm, diagnosis);
 
   if (!diagnosis) {
-    return { kind: "diagnose", label: "1) Run Diagnose", disabled: diagnosingId === selectedAlarm.id };
+    return {
+      kind: "diagnose",
+      label: t("alarms.runDiagnoseButton"),
+      disabled: diagnosingId === selectedAlarm.id,
+    };
   }
 
   if (!plan) {
-    return { kind: "plan", label: "2) Generate Plan", disabled: planningId === selectedAlarm.id };
+    return {
+      kind: "plan",
+      label: t("alarms.generatePlanButton"),
+      disabled: planningId === selectedAlarm.id,
+    };
   }
 
   if (hardware && selectedAlarm.status === "active") {
     return {
       kind: "acknowledge",
-      label: "3) Acknowledge for Hardware Intervention",
+      label: t("alarms.acknowledgeHardwareWork"),
       disabled: acknowledgingId === selectedAlarm.id,
     };
   }
@@ -60,34 +90,38 @@ export const buildPrimaryAction = ({
   if (selectedAlarm.status === "active") {
     return {
       kind: "approve",
-      label: "3) Approve Planned Action",
+      label: t("alarms.approvePlannedAction"),
       disabled: approvingId === selectedAlarm.id,
     };
   }
 
-  return { kind: "none", label: "No immediate action", disabled: true };
+  return createDisabledAction(t("alarms.noImmediateAction"));
 };
 
 export const filterAlarms = ({ alarms, searchQuery, statusFilter }) => {
   const query = searchQuery.trim().toLowerCase();
+
   return alarms.filter((alarm) => {
     if (statusFilter !== "all" && alarm.status !== statusFilter) return false;
-    if (!query) return true;
-    return (
-      String(alarm.error_code || "").toLowerCase().includes(query) ||
-      String(alarm.machine_name || "").toLowerCase().includes(query) ||
-      String(alarm.message || "").toLowerCase().includes(query) ||
-      String(alarm.category || "").toLowerCase().includes(query)
-    );
+    return matchesAlarmQuery(alarm, query);
   });
 };
 
-export const buildAlarmCounts = (alarms) => ({
-  active: alarms.filter((alarm) => alarm.status === "active").length,
-  acknowledged: alarms.filter((alarm) => alarm.status === "acknowledged").length,
-  resolved: alarms.filter((alarm) => alarm.status === "resolved").length,
-  critical: alarms.filter((alarm) => alarm.severity === "critical" && alarm.status === "active").length,
-});
+export const buildAlarmCounts = (alarms) =>
+  alarms.reduce((counts, alarm) => {
+    if (alarm.status === "active") {
+      counts.active += 1;
+      if (alarm.severity === "critical") {
+        counts.critical += 1;
+      }
+    } else if (alarm.status === "acknowledged") {
+      counts.acknowledged += 1;
+    } else if (alarm.status === "resolved") {
+      counts.resolved += 1;
+    }
+
+    return counts;
+  }, { ...EMPTY_COUNTS });
 
 export const decorateIncidentRows = (alarms) =>
   alarms.map((alarm) => ({

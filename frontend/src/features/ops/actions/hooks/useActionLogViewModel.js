@@ -1,7 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
-import api, { getApiErrorMessage } from "../../../../utils/api";
-import { normalizeActionsPayload } from "../../../plc/normalizers";
-import { usePlcLiveDataContext } from "../../../plc/PlcLiveDataContext";
+import { useMemo, useState } from "react";
+import { useT } from "../../../../utils/i18n";
+import { useOpsSyncContext } from "../../OpsSyncContext";
 
 const toReadableTime = (iso) => {
   if (!iso) return "-";
@@ -28,38 +27,16 @@ const isToday = (iso) => {
 };
 
 export default function useActionLogViewModel() {
-  const { connectionState } = usePlcLiveDataContext();
-
-  const [actions, setActions] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const { t } = useT();
+  const {
+    connectionState,
+    actions,
+    loading,
+    error,
+  } = useOpsSyncContext();
   const [query, setQuery] = useState("");
   const [quickFilter, setQuickFilter] = useState("all");
   const [expandedId, setExpandedId] = useState(null);
-
-  useEffect(() => {
-    let mounted = true;
-    const loadActions = async () => {
-      setLoading(true);
-      setError("");
-      try {
-        const response = await api.get("/api/plc/actions", { params: { limit: 150 } });
-        if (!mounted) return;
-        const normalized = normalizeActionsPayload(response?.data || {});
-        setActions(normalized.actions);
-      } catch (requestError) {
-        if (!mounted) return;
-        setError(getApiErrorMessage(requestError, "Failed to load action history"));
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    };
-
-    loadActions();
-    return () => {
-      mounted = false;
-    };
-  }, []);
 
   const filteredActions = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -70,12 +47,18 @@ export default function useActionLogViewModel() {
       if (quickFilter === "today" && !isToday(action.created_at)) return false;
 
       if (!q) return true;
-      return (
-        String(action.error_code || "").toLowerCase().includes(q) ||
-        String(action.error_message || "").toLowerCase().includes(q) ||
-        String(action.action_type || "").toLowerCase().includes(q) ||
-        String(action.execution_status || "").toLowerCase().includes(q)
-      );
+      return [
+        action.error_code,
+        action.error_message,
+        action.message,
+        action.action_type,
+        action.execution_status,
+        action.machine_name,
+        action.device_id,
+      ]
+        .join(" ")
+        .toLowerCase()
+        .includes(q);
     });
   }, [actions, query, quickFilter]);
 
@@ -95,10 +78,19 @@ export default function useActionLogViewModel() {
       filteredActions.map((action) => ({
         ...action,
         createdText: toReadableTime(action.created_at),
-        machineText: action.error_code ? `${action.error_code} - ${action.error_message || "No message"}` : action.error_message || "No message",
-        reasonText: action.action_reason || action.recommendation || "No decision reason",
+        machineText:
+          [
+            action.machine_name || action.device_id || "",
+            action.error_code || action.error_message || action.action_type || "",
+          ]
+            .filter(Boolean)
+            .join(" / ") || t("actions.unknownAsset"),
+        reasonText:
+          action.action_reason ||
+          action.recommendation ||
+          t("actions.noDecisionReason"),
       })),
-    [filteredActions],
+    [filteredActions, t],
   );
 
   return {

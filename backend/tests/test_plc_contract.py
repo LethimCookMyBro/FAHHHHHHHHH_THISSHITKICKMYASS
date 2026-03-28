@@ -56,6 +56,17 @@ class PlcContractTests(unittest.TestCase):
         self.assertEqual(action["action_payload"]["action_name"], "reload_soft_parameters")
         self.assertEqual(action["approval_info"]["approved_by"], 99)
 
+    def test_alarm_message_falls_back_to_error_message(self):
+        alarm = _normalize_alarm(
+            {
+                "id": 8,
+                "error_code": "7001",
+                "error_message": "Servo overload",
+            }
+        )
+        self.assertEqual(alarm["message"], "Servo overload")
+        self.assertEqual(alarm["error_message"], "Servo overload")
+
 
 if __name__ == "__main__":
     unittest.main()

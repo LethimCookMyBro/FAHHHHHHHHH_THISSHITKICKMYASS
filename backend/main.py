@@ -17,8 +17,8 @@ from typing import Any, Optional
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from starlette.middleware.gzip import GZipMiddleware
 
-from langchain_groq import ChatGroq
 from dotenv import load_dotenv
 
 load_dotenv()  # Load backend/.env if exists
@@ -46,7 +46,7 @@ from app.utils import (
     validate_runtime_security_config,
 )
 from app.startup import (
-    verify_groq_connection,
+    ensure_development_auth_user,
     test_database_connection,
     run_background_startup_tasks,
 )
@@ -61,7 +61,7 @@ warnings.filterwarnings("ignore", category=DeprecationWarning)
 class Config:
     """Centralized configuration management"""
 
-    APP_ENV: str = (os.getenv("APP_ENV", "development") or "development").strip().lower()
+    APP_ENV: str = (os.getenv("APP_ENV") or "production").strip().lower()
 
     GROQ_API_KEY: str = os.getenv("GROQ_API_KEY", "")
     GROQ_MODEL: str = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
@@ -85,6 +85,7 @@ class Config:
 
 
 config = Config()
+config.APP_ENV = get_app_env(config)
 
 
 # ============================================================================
@@ -98,23 +99,14 @@ logging.basicConfig(
 )
 logger = logging.getLogger("PLCAssistant")
 
-logger.info("=" * 60)
-logger.info("🤖 PLC Assistant v3.0 - Starting up (Groq)")
-logger.info("=" * 60)
-logger.info(f"  App Env: {config.APP_ENV}")
-logger.info(f"  Groq Model: {config.GROQ_MODEL}")
+logger.info("App Env: %s", config.APP_ENV)
+logger.info("Groq Model: %s", config.GROQ_MODEL)
 logger.info(
-    "  LLM sampling: temp=%s top_p=%s max_tokens=%s",
+    "LLM sampling: temp=%s top_p=%s max_tokens=%s",
     config.LLM_TEMPERATURE,
     config.LLM_TOP_P,
     config.LLM_MAX_TOKENS,
 )
-logger.info(f"  Embed Model: {config.EMBED_MODEL_NAME}")
-logger.info("=" * 60)
-
-
-# ============================================================================
-# APPLICATION LIFESPAN
 # ============================================================================
 
 @asynccontextmanager
@@ -135,31 +127,18 @@ async def lifespan(app: FastAPI):
     # Database
     try:
         database_url, db_source = resolve_database_url()
-        logger.info("📦 Connecting to database (%s): %s", db_source, redact_database_url(database_url))
+        logger.info("Connecting to database (%s): %s", db_source, redact_database_url(database_url))
         app.state.db_pool = init_db_pool(database_url)
         if app.state.db_pool:
             ensure_schema(app.state.db_pool)
             test_database_connection(app.state.db_pool)
+            ensure_development_auth_user()
     except RuntimeError as e:
-        logger.warning("⚠️ No database configured — running without database: %s", e)
+        logger.warning("No database configured — running without database: %s", e)
 
-    # LLM (Groq)
-    if config.GROQ_API_KEY:
-        try:
-            app.state.llm = ChatGroq(
-                api_key=config.GROQ_API_KEY,
-                model=config.GROQ_MODEL,
-                temperature=config.LLM_TEMPERATURE,
-                max_tokens=config.LLM_MAX_TOKENS,
-            )
-            set_llm(app.state.llm)
-            verify_groq_connection(app.state.llm, config.GROQ_MODEL)
-            logger.info("✅ LLM initialized: %s (Groq)", config.GROQ_MODEL)
-        except Exception as e:
-            logger.error("❌ Failed to initialize Groq LLM: %s", e)
-            app.state.llm = None
-    else:
-        logger.error("❌ GROQ_API_KEY not set — chat endpoints will fail")
+    # LLM is initialized in background startup tasks to keep liveness fast.
+    set_llm(None)
+    logger.info("⏳ LLM initialization deferred to background startup")
 
     # Background tasks (embedder, auto-embed, golden QA)
     bg_thread = threading.Thread(
@@ -203,7 +182,7 @@ async def lifespan(app: FastAPI):
         )
     except Exception as e:
         app.state.plc_startup_error = str(e)
-        logger.error("🔥 Failed to start PLC connector: %s", e)
+        logger.error("Failed to start PLC connector: %s", e)
 
     logger.info("🎉 Application startup complete")
     app.state.retriever = None
@@ -237,7 +216,7 @@ async def lifespan(app: FastAPI):
             await connector.disconnect()
             logger.info("PLC connector disconnected")
     except Exception as e:
-        logger.error(f"🔥 Failed to disconnect PLC connector: {e}")
+        logger.error("Failed to disconnect PLC connector: %s", e)
 
 
 # ============================================================================
@@ -268,6 +247,7 @@ CORS_ORIGINS = os.getenv(
     "http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000,http://127.0.0.1:5173",
 ).split(",")
 CORS_ORIGINS = [origin.strip() for origin in CORS_ORIGINS if origin.strip()]
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=CORS_ORIGINS,
@@ -289,6 +269,7 @@ async def enforce_rate_limit(request: Request, call_next):
     allowed, retry_after = check_rate_limit(
         ip=client_ip(request),
         path=request.url.path,
+        method=request.method,
         now=time.time(),
     )
     if not allowed:
@@ -382,7 +363,7 @@ async def add_request_id(request: Request, call_next):
 @app.exception_handler(AppException)
 async def app_exception_handler(request: Request, exc: AppException):
     request_id = getattr(request.state, 'request_id', None)
-    logger.warning(f"[{request_id}] AppException: {exc.code} - {exc.message}")
+    logger.warning("[%s] AppException: %s - %s", request_id, exc.code, exc.message)
     return create_error_response(
         code=exc.code,
         message=exc.message,
@@ -423,7 +404,7 @@ async def http_exception_handler(request: Request, exc: HTTPException):
 @app.exception_handler(Exception)
 async def general_exception_handler(request: Request, exc: Exception):
     request_id = getattr(request.state, 'request_id', None)
-    logger.error(f"[{request_id}] Unhandled exception: {exc}", exc_info=True)
+    logger.error("[%s] Unhandled exception: %s", request_id, exc, exc_info=True)
     return create_error_response(
         code=ErrorCode.INTERNAL_ERROR,
         message="An unexpected error occurred. Please try again.",

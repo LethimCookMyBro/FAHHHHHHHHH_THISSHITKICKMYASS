@@ -1,0 +1,599 @@
+.ops-portmap-page {
+  display: grid;
+  gap: 16px;
+  align-content: start;
+  --zone-panel-width: clamp(400px, 31vw, 460px);
+}
+
+@media (min-width: 1280px) {
+  .ops-portmap-page.has-zone-panel {
+    padding-right: calc(var(--zone-panel-width) + 20px);
+  }
+}
+
+.portmap-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.portmap-summary-card {
+  border-radius: 16px;
+  border: 1px solid var(--line-soft);
+  background: var(--surface-spotlight);
+  box-shadow: var(--shadow-soft);
+  padding: 14px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.portmap-summary-card.is-active {
+  border-color: color-mix(in srgb, var(--accent) 42%, var(--line-soft));
+  box-shadow: var(--shadow-card);
+}
+
+.portmap-summary-card.state-running {
+  border-color: color-mix(in srgb, var(--status-ok-text) 34%, var(--line-soft));
+  background: color-mix(in srgb, var(--status-ok-bg) 78%, var(--surface-spotlight));
+}
+
+.portmap-summary-card.state-warning {
+  border-color: color-mix(
+    in srgb,
+    var(--status-warning-text) 34%,
+    var(--line-soft)
+  );
+  background: color-mix(
+    in srgb,
+    var(--status-warning-bg) 72%,
+    var(--surface-spotlight)
+  );
+}
+
+.portmap-summary-card.state-critical {
+  border-color: color-mix(
+    in srgb,
+    var(--status-critical-text) 34%,
+    var(--line-soft)
+  );
+  background: color-mix(
+    in srgb,
+    var(--status-critical-bg) 72%,
+    var(--surface-spotlight)
+  );
+}
+
+.portmap-summary-card.state-running.is-active {
+  border-color: var(--status-ok-text);
+}
+
+.portmap-summary-card.state-warning.is-active {
+  border-color: var(--status-warning-text);
+}
+
+.portmap-summary-card.state-critical.is-active {
+  border-color: var(--status-critical-text);
+}
+
+.portmap-summary-card h3 {
+  margin: 4px 0 0;
+  font-size: 1rem;
+}
+
+.portmap-summary-label,
+.portmap-action-label,
+.zone-panel-eyebrow {
+  margin: 0;
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.portmap-summary-metrics {
+  text-align: right;
+}
+
+.portmap-summary-metrics span,
+.portmap-summary-metrics strong {
+  display: block;
+}
+
+.portmap-summary-metrics span {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+}
+
+.portmap-summary-metrics strong {
+  margin-top: 6px;
+  font-size: 0.92rem;
+  color: var(--text-primary);
+}
+
+.map-container {
+  border: 1px solid var(--surface-border);
+  border-radius: var(--radius-lg);
+  background:
+    radial-gradient(circle, var(--surface-canvas-grid) 1.5px, transparent 1.5px),
+    var(--surface-canvas);
+  background-size: 24px 24px;
+  box-shadow: var(--shadow-card);
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: 24px;
+  min-height: clamp(460px, 58vh, 720px);
+}
+
+.interactive-svg {
+  width: 100%;
+  max-width: 860px;
+  height: auto;
+  border-radius: 16px;
+}
+
+.map-zone {
+  fill: var(--surface-overlay-strong);
+  stroke: var(--surface-border);
+  stroke-width: 2;
+  cursor: pointer;
+  transition: fill var(--transition-fast), stroke var(--transition-fast), transform var(--transition-fast);
+}
+
+.map-zone.state-running {
+  stroke: var(--status-ok-text);
+}
+
+.map-zone.state-warning {
+  stroke: var(--status-warning-text);
+  stroke-dasharray: 6 4;
+}
+
+.map-zone.state-critical {
+  stroke: var(--status-critical-text);
+}
+
+.map-zone.hovered,
+.map-zone.active {
+  fill: color-mix(in srgb, var(--accent) 22%, var(--surface));
+  stroke: color-mix(in srgb, var(--accent) 60%, var(--surface-border));
+}
+
+.map-zone.active {
+  stroke-width: 4;
+}
+
+.map-zone.hovered.state-running,
+.map-zone.active.state-running {
+  fill: color-mix(in srgb, var(--status-ok-bg) 56%, var(--surface));
+  stroke: var(--status-ok-text);
+}
+
+.map-zone.hovered.state-warning,
+.map-zone.active.state-warning {
+  fill: color-mix(in srgb, var(--status-warning-bg) 52%, var(--surface));
+  stroke: var(--status-warning-text);
+}
+
+.map-zone.hovered.state-critical,
+.map-zone.active.state-critical {
+  fill: color-mix(in srgb, var(--status-critical-bg) 52%, var(--surface));
+  stroke: var(--status-critical-text);
+}
+
+.map-zone-title,
+.map-zone-subtitle {
+  fill: var(--text-primary);
+  font-family: var(--font-sans, inherit);
+  text-anchor: middle;
+  pointer-events: none;
+}
+
+.map-zone-title {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.map-zone-subtitle {
+  font-size: 10px;
+  fill: var(--text-secondary);
+}
+
+.zone-tooltip {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  background: var(--surface-overlay-strong);
+  border: 1px solid var(--surface-border);
+  border-radius: var(--radius-md);
+  padding: 14px;
+  box-shadow: var(--shadow-card);
+  display: grid;
+  gap: 8px;
+  min-width: 220px;
+  z-index: 3;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.zone-tooltip strong {
+  font-size: 1rem;
+  color: var(--text-primary);
+}
+
+.zone-tooltip p {
+  margin: 0;
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
+.tooltip-metrics {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+}
+
+.text-error {
+  color: var(--error);
+}
+
+.text-success {
+  color: var(--success);
+}
+
+.portmap-action-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(280px, 0.9fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.portmap-action-card {
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--surface-border);
+  background: var(--surface-panel);
+  box-shadow: var(--shadow-soft);
+  padding: 18px;
+  display: grid;
+  gap: 14px;
+  align-content: start;
+}
+
+.portmap-action-card.is-highlight {
+  background: var(--surface-spotlight-strong);
+}
+
+.portmap-action-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.portmap-action-head h3 {
+  margin: 4px 0 0;
+  font-size: 1.08rem;
+}
+
+.portmap-action-card p {
+  margin: 0;
+  color: var(--text-secondary);
+  line-height: 1.55;
+}
+
+.portmap-action-copy {
+  max-width: 64ch;
+}
+
+.portmap-action-buttons {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, max-content));
+  gap: 10px;
+  align-items: start;
+}
+
+.zone-summary-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: var(--zone-panel-width);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  background:
+    radial-gradient(
+      circle at top right,
+      color-mix(in srgb, var(--accent) 10%, transparent) 0%,
+      transparent 30%
+    ),
+    var(--surface-panel);
+  border-left: 1px solid var(--surface-border);
+  box-shadow: -10px 0 32px rgba(0, 0, 0, 0.24);
+}
+
+.zone-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px 22px 16px;
+  border-bottom: 1px solid var(--surface-border);
+  background: var(--surface-overlay);
+  backdrop-filter: blur(14px);
+}
+
+.zone-panel-header h3 {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 1.08rem;
+  color: var(--text-primary);
+}
+
+.zone-panel-close {
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  border: 1px solid var(--surface-border);
+  background: var(--surface-base);
+  color: var(--text-secondary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.zone-panel-body {
+  flex: 1;
+  overflow: auto;
+  padding: 22px;
+}
+
+.zone-panel-content {
+  display: grid;
+  gap: 18px;
+}
+
+.zone-panel-overview-card,
+.zone-panel-section {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  border-radius: 20px;
+  border: 1px solid var(--surface-border);
+  background: var(--surface-overlay);
+  box-shadow: var(--shadow-soft);
+}
+
+.zone-panel-intro {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.zone-panel-intro h4 {
+  margin: 4px 0 0;
+  font-size: 1.24rem;
+  color: var(--text-primary);
+  line-height: 1.35;
+}
+
+.zone-panel-status {
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.zone-panel-status.tone-critical {
+  background: var(--status-critical-bg);
+  color: var(--status-critical-text);
+}
+
+.zone-panel-status.tone-warning {
+  background: var(--status-warning-bg);
+  color: var(--status-warning-text);
+}
+
+.zone-panel-status.tone-running {
+  background: var(--status-ok-bg);
+  color: var(--status-ok-text);
+}
+
+.zone-panel-status.tone-idle {
+  background: var(--surface-inset);
+  color: var(--text-secondary);
+}
+
+.zone-panel-metric-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.zone-panel-metric-box {
+  display: grid;
+  gap: 6px;
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid var(--surface-border);
+  background: var(--surface-inset);
+}
+
+.zone-panel-metric-box span,
+.zone-panel-section-label,
+.zone-panel-section-head span {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+}
+
+.zone-panel-metric-box strong {
+  font-size: 1.2rem;
+  color: var(--text-primary);
+}
+
+.zone-panel-stream-card p {
+  margin: 0;
+  color: var(--text-primary);
+  line-height: 1.72;
+}
+
+.zone-panel-cursor {
+  display: inline-block;
+  width: 0.65ch;
+  height: 1em;
+  margin-left: 4px;
+  background: color-mix(in srgb, var(--accent-strong) 70%, transparent);
+  border-radius: 999px;
+  vertical-align: text-bottom;
+  animation: zone-panel-blink 1.05s steps(1) infinite;
+}
+
+.zone-panel-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.zone-panel-section h4,
+.zone-panel-section-block h4 {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 1rem;
+  color: var(--text-primary);
+}
+
+.zone-panel-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.zone-asset-list,
+.zone-incident-list {
+  display: grid;
+  gap: 8px;
+}
+
+.zone-asset-card,
+.zone-incident-card {
+  border-radius: var(--radius-md);
+  border: 1px solid var(--surface-border);
+  background: var(--surface-inset);
+  padding: 11px 12px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.zone-asset-card strong,
+.zone-incident-card strong {
+  display: block;
+  color: var(--text-primary);
+}
+
+.zone-asset-card p,
+.zone-incident-card p {
+  margin: 4px 0 0;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.zone-empty-copy {
+  margin: 0;
+  color: var(--text-secondary);
+}
+
+.zone-panel-ai-summary {
+  gap: 16px;
+}
+
+.zone-panel-structured-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.zone-panel-section-block {
+  display: grid;
+  gap: 10px;
+}
+
+.zone-panel-section-block p {
+  margin: 0;
+  color: var(--text-primary);
+  line-height: 1.68;
+}
+
+.zone-panel-remediation-list {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 8px;
+  color: var(--text-primary);
+  line-height: 1.65;
+}
+
+@keyframes zone-panel-blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+@media (max-width: 1120px) {
+  .portmap-summary-grid,
+  .zone-panel-metric-row,
+  .zone-panel-structured-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .portmap-action-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .portmap-summary-grid,
+  .zone-panel-metric-row,
+  .zone-panel-structured-metrics,
+  .zone-panel-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .map-container {
+    padding: 16px;
+  }
+
+  .zone-tooltip {
+    position: static;
+    width: 100%;
+    margin-top: 12px;
+  }
+
+  .portmap-action-buttons {
+    grid-template-columns: 1fr;
+  }
+
+  .zone-summary-panel {
+    width: 100vw;
+  }
+}

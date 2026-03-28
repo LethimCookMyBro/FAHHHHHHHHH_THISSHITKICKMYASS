@@ -30,9 +30,14 @@ def get_llm():
 # ── Pure utilities ──
 
 def client_ip(request) -> str:
-    forwarded_for = request.headers.get("x-forwarded-for", "")
-    if forwarded_for:
-        return forwarded_for.split(",")[0].strip()
+    trust_proxy_headers = to_bool(os.getenv("TRUST_PROXY_HEADERS"))
+    if trust_proxy_headers:
+        forwarded_for = request.headers.get("x-forwarded-for", "")
+        if forwarded_for:
+            return forwarded_for.split(",")[0].strip()
+        real_ip = (request.headers.get("x-real-ip") or "").strip()
+        if real_ip:
+            return real_ip
     if request.client and request.client.host:
         return request.client.host
     return "unknown"
@@ -79,17 +84,33 @@ def sanitize_json(obj: Any) -> Any:
 # ── Security helpers ──
 
 def get_app_env(config=None) -> str:
-    fallback = getattr(config, "APP_ENV", "development") if config else "development"
-    env = (os.getenv("APP_ENV", fallback) or "development").strip().lower()
+    fallback = getattr(config, "APP_ENV", "production") if config else "production"
+    env = (os.getenv("APP_ENV") or fallback or "production").strip().lower()
     if env not in {"development", "production"}:
-        logger.warning("Unknown APP_ENV '%s'; defaulting to 'development'", env)
-        return "development"
+        logger.warning("Unknown APP_ENV '%s'; defaulting to 'production'", env)
+        return "production"
     return env
 
 
 def is_weak_jwt_secret(secret: Optional[str]) -> bool:
     value = (secret or "").strip()
-    return not value or value == "dev-secret" or is_placeholder(value)
+    normalized = value.lower()
+    weak_markers = (
+        "dev-secret",
+        "change-me",
+        "changeme",
+        "replace-with",
+        "placeholder",
+        "your-secret",
+        "set-me",
+        "example",
+    )
+    return (
+        not value
+        or len(value) < 32
+        or is_placeholder(value)
+        or any(marker in normalized for marker in weak_markers)
+    )
 
 
 def validate_runtime_security_config(app_env: str) -> None:

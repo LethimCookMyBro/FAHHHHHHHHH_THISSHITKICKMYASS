@@ -25,7 +25,7 @@ DEFAULT_KNOWLEDGE_DIR_CANDIDATES = (
 
 
 def _app_env() -> str:
-    return (os.getenv("APP_ENV", "development") or "development").strip().lower()
+    return (os.getenv("APP_ENV") or "production").strip().lower()
 
 
 def _as_bool(value: str, default: bool = False) -> bool:

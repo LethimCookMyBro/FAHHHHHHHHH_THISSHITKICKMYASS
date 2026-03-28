@@ -24,15 +24,21 @@ def _row_to_dict(cur, row):
     cols = [d[0] for d in cur.description]
     return dict(zip(cols, row))
 
+
+def normalize_email(email: Optional[str]) -> str:
+    return str(email or "").strip().lower()
+
 def create_user(email: str, password_hash: str, full_name: Optional[str] = None) -> Dict[str, Any]:
     db_pool = get_db_pool()
     conn = db_pool.getconn()
     had_error = False
+    normalized_email = normalize_email(email)
+    normalized_full_name = (full_name or "").strip() or None
     try:
         with conn.cursor() as cur:
             cur.execute(
                 "INSERT INTO users (email, password_hash, full_name) VALUES (%s, %s, %s) RETURNING id, email, full_name, is_active, role, created_at;",
-                (email, password_hash, full_name)
+                (normalized_email, password_hash, normalized_full_name)
             )
             row = cur.fetchone()
             conn.commit()
@@ -47,10 +53,82 @@ def get_user_by_email(email: str) -> Optional[Dict[str, Any]]:
     db_pool = get_db_pool()
     conn = db_pool.getconn()
     had_error = False
+    normalized_email = normalize_email(email)
     try:
         with conn.cursor() as cur:
-            cur.execute("SELECT id, email, password_hash, full_name, is_active, role FROM users WHERE email = %s;", (email,))
+            cur.execute(
+                """
+                SELECT id, email, password_hash, full_name, is_active, role
+                FROM users
+                WHERE lower(email) = %s
+                ORDER BY id ASC
+                LIMIT 1;
+                """,
+                (normalized_email,),
+            )
             row = cur.fetchone()
+            return _row_to_dict(cur, row)
+    except Exception:
+        had_error = True
+        raise
+    finally:
+        _release_connection(db_pool, conn, had_error=had_error)
+
+
+def ensure_user_credentials(
+    email: str,
+    password_hash: str,
+    full_name: Optional[str] = None,
+) -> Dict[str, Any]:
+    db_pool = get_db_pool()
+    conn = db_pool.getconn()
+    had_error = False
+    normalized_email = normalize_email(email)
+    normalized_full_name = (full_name or "").strip() or None
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT id
+                FROM users
+                WHERE lower(email) = %s
+                ORDER BY id ASC
+                LIMIT 1;
+                """,
+                (normalized_email,),
+            )
+            existing = cur.fetchone()
+
+            if existing:
+                cur.execute(
+                    """
+                    UPDATE users
+                    SET email = %s,
+                        password_hash = %s,
+                        full_name = COALESCE(%s, full_name),
+                        is_active = TRUE
+                    WHERE id = %s
+                    RETURNING id, email, full_name, is_active, role, created_at;
+                    """,
+                    (
+                        normalized_email,
+                        password_hash,
+                        normalized_full_name,
+                        existing[0],
+                    ),
+                )
+            else:
+                cur.execute(
+                    """
+                    INSERT INTO users (email, password_hash, full_name, role, is_active)
+                    VALUES (%s, %s, %s, 'operator', TRUE)
+                    RETURNING id, email, full_name, is_active, role, created_at;
+                    """,
+                    (normalized_email, password_hash, normalized_full_name),
+                )
+
+            row = cur.fetchone()
+            conn.commit()
             return _row_to_dict(cur, row)
     except Exception:
         had_error = True

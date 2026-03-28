@@ -32,7 +32,6 @@ async def list_machines(
         "timestamp": snapshot.get("timestamp") or _now_iso(),
     }
 
-
 @router.get("/machines/{machine_id}")
 async def get_machine(
     machine_id: int,
@@ -50,7 +49,6 @@ async def get_machine(
             return _normalize_machine(machine)
 
     raise HTTPException(status_code=404, detail=f"Machine {machine_id} not found")
-
 
 @router.get("/dashboard")
 async def dashboard_data(

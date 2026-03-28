@@ -1,97 +1,128 @@
 import { useMemo } from "react";
-import { usePlcLiveDataContext } from "../../../plc/PlcLiveDataContext";
-import { sortMachineQueue } from "../helpers";
+import { useT } from "../../../../utils/i18n";
+import { useOpsSyncContext } from "../../OpsSyncContext";
 
 const CONNECTION_LABELS = {
-  live: "Live stream",
-  reconnecting: "Reconnecting",
-  rest: "REST fallback",
-  connecting: "Connecting",
+  live: "common.liveStream",
+  reconnecting: "sidebar.reconnecting",
+  rest: "sidebar.restFallback",
+  connecting: "sidebar.connecting",
 };
 
 const toPercent = (value) =>
   `${Math.round(Math.max(0, Math.min(100, Number(value) || 0)))}%`;
+
 const oneDecimal = (value) => {
   const numeric = Number(value);
   return Number.isFinite(numeric) ? numeric.toFixed(1) : "-";
 };
+const humanizeToken = (value, fallback) => {
+  const normalized = String(value || "").trim();
+  if (!normalized) return fallback;
+  return normalized
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+};
+
+const toArray = (value) => (Array.isArray(value) ? value : []);
+
+const countMachineStates = (machines) =>
+  machines.reduce(
+    (counts, machine) => {
+      const state = machine.machineState || "idle";
+      counts[state] = (counts[state] || 0) + 1;
+      return counts;
+    },
+    {
+      error: 0,
+      idle: 0,
+      running: 0,
+      stopped: 0,
+      warning: 0,
+    },
+  );
 
 export default function useDashboardViewModel() {
-  const { dashboard, derived, connectionState, error } =
-    usePlcLiveDataContext();
+  const { t } = useT();
+  const {
+    derived,
+    connectionState,
+    error: opsError,
+    liveError,
+    loading: opsLoading,
+    machines,
+    alarms,
+    recentAlarms,
+    recentActions,
+  } = useOpsSyncContext();
 
   const connectionLabel =
-    CONNECTION_LABELS[connectionState] || CONNECTION_LABELS.connecting;
+    t(CONNECTION_LABELS[connectionState] || CONNECTION_LABELS.connecting);
 
-  const machineQueue = useMemo(() => {
-    const machines = Array.isArray(dashboard?.machines)
-      ? dashboard.machines
-      : [];
-    return sortMachineQueue(machines);
-  }, [dashboard?.machines]);
+  const machineQueue = useMemo(() => toArray(machines), [machines]);
+
+  const machineStateCounts = useMemo(
+    () => countMachineStates(machineQueue),
+    [machineQueue],
+  );
+  const runningMachineCount = machineStateCounts.running;
+  const totalMachineCount = machineQueue.length;
 
   const criticalAlarmCount = useMemo(() => {
-    const alarms = Array.isArray(dashboard?.recent_alarms)
-      ? dashboard.recent_alarms
-      : [];
     return alarms.filter(
       (alarm) => alarm?.status === "active" && alarm?.severity === "critical",
     ).length;
-  }, [dashboard?.recent_alarms]);
+  }, [alarms]);
 
-  const warningMachineCount = useMemo(
-    () =>
-      machineQueue.filter((machine) => machine.machineState === "warning")
-        .length,
-    [machineQueue],
-  );
+  const warningMachineCount = machineStateCounts.warning;
 
   const topTiles = useMemo(
     () => [
       {
         key: "running",
-        label: "Running machines",
-        value: `${derived.runningCount}/${derived.machineCount}`,
-        hint: "Current active production assets",
+        label: t("dashboard.runningMachines"),
+        value: `${runningMachineCount}/${totalMachineCount}`,
+        hint: t("dashboard.runningMachinesHint"),
         tone: "success",
-        actionHint: "Check idle queue if capacity is low",
+        actionHint: t("dashboard.runningMachinesAction"),
       },
       {
         key: "critical",
-        label: "Critical alarms",
+        label: t("dashboard.criticalAlarms"),
         value: criticalAlarmCount,
-        hint: "Active high-risk incidents",
+        hint: t("dashboard.criticalAlarmsHint"),
         tone: criticalAlarmCount > 0 ? "error" : "info",
         actionHint:
           criticalAlarmCount > 0
-            ? "Open Alarm Center now"
-            : "No critical intervention needed",
+            ? t("dashboard.criticalAlarmsAction")
+            : t("dashboard.criticalAlarmsIdleAction"),
       },
       {
         key: "warning",
-        label: "Warning machines",
+        label: t("dashboard.warningMachines"),
         value: warningMachineCount,
-        hint: "Sensor drift or soft threshold warnings",
+        hint: t("dashboard.warningMachinesHint"),
         tone: warningMachineCount > 0 ? "warning" : "info",
         actionHint:
           warningMachineCount > 0
-            ? "Review trending and setpoints"
-            : "All sensor ranges stable",
+            ? t("dashboard.warningMachinesAction")
+            : t("dashboard.warningMachinesIdleAction"),
       },
       {
         key: "availability",
-        label: "Availability",
+        label: t("dashboard.availability"),
         value: toPercent(derived.oee.availability),
-        hint: "Operational uptime index",
+        hint: t("dashboard.availabilityHint"),
         tone: "info",
-        actionHint: "Target >= 85%",
+        actionHint: t("dashboard.availabilityAction"),
       },
     ],
     [
       criticalAlarmCount,
-      derived.machineCount,
       derived.oee.availability,
-      derived.runningCount,
+      runningMachineCount,
+      t,
+      totalMachineCount,
       warningMachineCount,
     ],
   );
@@ -99,22 +130,22 @@ export default function useDashboardViewModel() {
   const oeeRows = useMemo(
     () => [
       {
-        label: "Overall",
+        label: t("dashboard.overall"),
         value: Number(derived.oee.overall || 0),
         text: toPercent(derived.oee.overall),
       },
       {
-        label: "Availability",
+        label: t("dashboard.availability"),
         value: Number(derived.oee.availability || 0),
         text: toPercent(derived.oee.availability),
       },
       {
-        label: "Performance",
+        label: t("dashboard.performance"),
         value: Number(derived.oee.performance || 0),
         text: toPercent(derived.oee.performance),
       },
       {
-        label: "Quality",
+        label: t("dashboard.quality"),
         value: Number(derived.oee.quality || 0),
         text: toPercent(derived.oee.quality),
       },
@@ -124,6 +155,7 @@ export default function useDashboardViewModel() {
       derived.oee.overall,
       derived.oee.performance,
       derived.oee.quality,
+      t,
     ],
   );
 
@@ -132,40 +164,100 @@ export default function useDashboardViewModel() {
       machineQueue.map((machine, index) => ({
         id: machine.id ?? `${machine.name}-${index}`,
         priority: index + 1,
-        name: machine.name || "Unknown",
+        name: machine.name || t("common.unknown"),
         model: machine.model || "-",
-        state: machine.machineState,
+        location: machine.location || "",
+        state: machine.machineState || "idle",
+        errorCode: machine.error_code || machine.active_error?.error_code || "",
         temp: `${oneDecimal(machine.temp)} C`,
         current: `${oneDecimal(machine.current)} A`,
         vibration: `${oneDecimal(machine.vibration)} G`,
-        nextAction: machine.nextAction,
+        nextAction: machine.nextAction || t("dashboard.machineActionRunning"),
       })),
-    [machineQueue],
+    [machineQueue, t],
   );
 
+  const alertRows = useMemo(
+    () =>
+      recentAlarms
+        .slice(0, 4)
+        .map((alarm, index) => ({
+          id: alarm.id ?? `alarm-${index}`,
+          machine: alarm.machine_name || t("alarms.unknownMachine"),
+          code: alarm.error_code || t("common.noCode"),
+          message: alarm.message || t("alarms.triggeredWithoutDescription"),
+          severity: alarm.severity || "warning",
+          status: alarm.status || "active",
+          timestamp: alarm.created_at || alarm.timestamp || null,
+        })),
+    [recentAlarms, t],
+  );
+
+  const actionRows = useMemo(
+    () =>
+      recentActions
+        .slice(0, 4)
+        .map((action, index) => ({
+          id: action.id ?? `action-${index}`,
+          title: humanizeToken(action.action_type, t("actions.actionRecordCaptured")),
+          detail:
+            action.error_code && action.issue_type
+              ? `${action.error_code} - ${action.issue_type}`
+              : action.error_code || action.issue_type || t("status.planned"),
+          status: action.execution_status || "planned",
+          severity: action.severity || "warning",
+          timestamp: action.executed_at || action.created_at || null,
+          result:
+            action.recommendation ||
+            action.execution_result?.message ||
+            action.message ||
+            action.diagnosis ||
+            "",
+        })),
+    [recentActions, t],
+  );
+
+  const utilizationRate = useMemo(() => {
+    if (totalMachineCount <= 0) return 0;
+    return Math.round((runningMachineCount / totalMachineCount) * 100);
+  }, [runningMachineCount, totalMachineCount]);
+
+  const focusMessage = useMemo(() => {
+    if (criticalAlarmCount > 0) {
+      return t("dashboard.focusCritical");
+    }
+    if (warningMachineCount > 0) {
+      return t("dashboard.focusWarning");
+    }
+    if (runningMachineCount === 0) {
+      return t("dashboard.focusNoAssets");
+    }
+    return t("dashboard.focusStable");
+  }, [criticalAlarmCount, runningMachineCount, t, warningMachineCount]);
+
   const loading =
-    connectionState === "connecting" && derived.machineCount === 0;
+    opsLoading || (connectionState === "connecting" && totalMachineCount === 0);
 
   return {
     connectionState,
     connectionLabel,
     loading,
-    error,
+    error: opsError || liveError,
     history: Array.isArray(derived.history) ? derived.history : [],
     topTiles,
     oeeRows,
     machineRows,
+    alertRows,
+    actionRows,
+    utilizationRate,
+    focusMessage,
     plantSummary: {
-      total: derived.machineCount,
-      running: derived.runningCount,
-      idle: machineQueue.filter((machine) => machine.machineState === "idle")
-        .length,
-      stopped: machineQueue.filter(
-        (machine) => machine.machineState === "stopped",
-      ).length,
+      total: totalMachineCount,
+      running: runningMachineCount,
+      idle: machineStateCounts.idle,
+      stopped: machineStateCounts.stopped,
       warning: warningMachineCount,
-      error: machineQueue.filter((machine) => machine.machineState === "error")
-        .length,
+      error: machineStateCounts.error,
       criticalAlarms: criticalAlarmCount,
       oee: toPercent(derived.oee.overall),
     },

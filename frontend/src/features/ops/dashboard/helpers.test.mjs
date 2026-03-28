@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import {
+  extractInstructionSteps,
   isWarningState,
   resolveMachineState,
   sortMachineQueue,
@@ -22,6 +23,17 @@ assert.deepEqual(
   queue.map((item) => item.id),
   [2, 4, 3, 1],
   "Queue should be ordered by urgency: error > warning > idle > running",
+);
+
+assert.deepEqual(
+  extractInstructionSteps(
+    "1. Open the GX Works project used for this PLC. 2. Review parameter settings related to the affected module/function. 3. Correct the configuration mismatch or invalid assignment.",
+  ),
+  [
+    "Open the GX Works project used for this PLC",
+    "Review parameter settings related to the affected module/function",
+    "Correct the configuration mismatch or invalid assignment",
+  ],
 );
 
 console.log("ops dashboard helpers: all assertions passed");

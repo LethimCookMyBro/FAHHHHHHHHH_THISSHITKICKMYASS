@@ -1,8 +1,10 @@
 const express = require("express");
 const path = require("path");
+const compression = require("compression");
 const { createProxyMiddleware } = require("http-proxy-middleware");
 
 const app = express();
+app.use(compression());
 const port = Number(process.env.PORT || 5173);
 
 const rawApiTarget =
@@ -12,7 +14,9 @@ const rawApiTarget =
   "";
 const apiTarget = rawApiTarget || "http://127.0.0.1:5000";
 const proxyTimeoutMs = Number(process.env.API_PROXY_TIMEOUT_MS || 180000);
-const proxySocketTimeoutMs = Number(process.env.API_SOCKET_TIMEOUT_MS || 180000);
+const proxySocketTimeoutMs = Number(
+  process.env.API_SOCKET_TIMEOUT_MS || 180000,
+);
 
 const isPlaceholder = (value) => {
   const text = String(value || "").trim();
@@ -89,14 +93,17 @@ app.use(
     secure: false,
     xfwd: true,
     proxyTimeout: Number.isFinite(proxyTimeoutMs) ? proxyTimeoutMs : 180000,
-    timeout: Number.isFinite(proxySocketTimeoutMs) ? proxySocketTimeoutMs : 180000,
+    timeout: Number.isFinite(proxySocketTimeoutMs)
+      ? proxySocketTimeoutMs
+      : 180000,
     logger: console,
     on: {
       error(err, req, res) {
         if (res.headersSent) return;
         const detail = String(err?.message || err);
         const code = String(err?.code || "").toUpperCase();
-        const isTimeout = code === "ETIMEDOUT" || /timed?\s*out|timeout/i.test(detail);
+        const isTimeout =
+          code === "ETIMEDOUT" || /timed?\s*out|timeout/i.test(detail);
         sendJson(res, isTimeout ? 504 : 502, {
           message: isTimeout
             ? "API proxy timeout while waiting for backend"
@@ -113,10 +120,11 @@ app.use(
 
 app.use(express.static(distDir));
 app.get("*", (_req, res) => res.sendFile(indexFile));
-
+ 
 app.listen(port, "0.0.0.0", () => {
   console.log(`[frontend] listening on 0.0.0.0:${port}`);
   console.log(`[frontend] serving: ${distDir}`);
   console.log(`[frontend] proxy /api -> ${apiTarget}`);
   console.log(`[frontend] proxy timeout -> ${proxyTimeoutMs}ms`);
+  console.log(`[frontend] proxy socket timeout -> ${proxySocketTimeoutMs}ms`);
 });

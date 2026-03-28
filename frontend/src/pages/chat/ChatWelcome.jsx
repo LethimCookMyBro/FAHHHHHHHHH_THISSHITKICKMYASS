@@ -1,54 +1,61 @@
-import { Bot, Zap, Search, Shield } from "lucide-react";
+import { Bot, Search, Zap } from "lucide-react";
+import { useT } from "../../utils/i18n";
 
-const promptIcons = [Search, Zap, Shield, Bot];
+const promptIcons = [Search, Zap, Bot];
 
 export default function ChatWelcome({ user, onPromptSelect, composer }) {
-  const firstName = user?.full_name ? user.full_name.split(" ")[0] : "Operator";
+  const { t } = useT();
+  const firstName = user?.full_name
+    ? user.full_name.split(" ")[0]
+    : t("chat.defaultUser");
 
   const prompts = [
-    "Explain error code F800H and first field checks",
-    "How to configure CC-Link IE Field network",
-    "Give safe recovery steps for communication timeout",
-    "Summarize root cause for serial communication alarm",
+    t("chat.promptExplainF800h"),
+    t("chat.promptCcLink"),
+    t("chat.promptRecoveryTimeout"),
+    t("chat.promptSummarizeSerial"),
   ];
+  const visiblePrompts = prompts.slice(0, 2);
 
   return (
     <div className="chat-welcome">
       <div className="chat-hero fade-in-up">
-        <section className="flex flex-col items-center text-center pb-6">
+        <section className="chat-center-stage">
           <div className="chat-hero-badge">
             <Bot size={14} />
-            <span>Knowledge Assistant</span>
+            <span>{t("chat.welcomeBadge")}</span>
           </div>
 
-          <h2 className="chat-hero-title mt-6">Welcome, {firstName}</h2>
-          <p className="chat-hero-sub max-w-lg">
-            Ask for PLC diagnostics, root cause analysis, action planning, and
-            safe execution guidance.
-          </p>
+          <h2 className="chat-hero-title">
+            {t("chat.welcomeTitle", { name: firstName })}
+          </h2>
+          <p className="chat-hero-sub">{t("chat.welcomeSub")}</p>
+
+          <section className="chat-hero-card chat-hero-composer">
+            {composer}
+          </section>
         </section>
 
-        <section className="chat-hero-card glass-panel-strong glass-noise">
-          {composer}
-        </section>
-
-        <section className="prompt-grid">
-          {prompts.map((prompt, index) => {
-            const Icon = promptIcons[index] || Zap;
-            return (
-              <button
-                key={prompt}
-                type="button"
-                className="prompt-card glass-panel-lite glass-interactive"
-                onClick={() => onPromptSelect(prompt)}
-              >
-                <span className="prompt-card-icon">
-                  <Icon size={15} />
-                </span>
-                <span>{prompt}</span>
-              </button>
-            );
-          })}
+        <section className="chat-prompt-stage">
+          <div className="prompt-grid">
+            {visiblePrompts.map((prompt, index) => {
+              const Icon = promptIcons[index] || Zap;
+              return (
+                <button
+                  key={prompt}
+                  type="button"
+                  className="prompt-card glass-panel-lite glass-interactive"
+                  style={{ "--prompt-index": index }}
+                  onClick={() => onPromptSelect(prompt)}
+                >
+                  <span className="prompt-card-icon">
+                    <Icon size={15} />
+                  </span>
+                  <span>{prompt}</span>
+                </button>
+              );
+            })}
+          </div>
         </section>
       </div>
     </div>

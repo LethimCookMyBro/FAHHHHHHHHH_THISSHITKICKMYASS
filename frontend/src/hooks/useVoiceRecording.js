@@ -5,8 +5,13 @@
 
 import { useState, useRef } from "react";
 import { chatAPI, getApiErrorMessage } from "../utils/api";
+import { useT } from "../utils/i18n";
 
-export function useVoiceRecording(onTranscriptionComplete, language = "th") {
+const STT_HINT_PROMPT =
+  "Industrial automation troubleshooting. Mitsubishi PLC, CC-Link IE Field Network, Modbus TCP, inverter, servo, ladder logic, alarm code, communication timeout, parameter error, safety gate, register R100 and R102, GX Works.";
+
+export function useVoiceRecording(onTranscriptionComplete, language = "en") {
+  const { t } = useT();
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
 
@@ -16,8 +21,30 @@ export function useVoiceRecording(onTranscriptionComplete, language = "th") {
 
   const startRecording = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream);
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          channelCount: 1,
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
+      });
+
+      const mimeTypeCandidates = [
+        "audio/webm;codecs=opus",
+        "audio/webm",
+        "audio/mp4",
+      ];
+      const supportedMimeType = mimeTypeCandidates.find(
+        (value) =>
+          typeof MediaRecorder.isTypeSupported === "function" &&
+          MediaRecorder.isTypeSupported(value),
+      );
+
+      const mediaRecorder = new MediaRecorder(stream, {
+        ...(supportedMimeType ? { mimeType: supportedMimeType } : {}),
+        audioBitsPerSecond: 128000,
+      });
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
 
@@ -29,8 +56,9 @@ export function useVoiceRecording(onTranscriptionComplete, language = "th") {
 
       mediaRecorder.onstop = async () => {
         setIsTranscribing(true);
+        const resolvedMimeType = mediaRecorder.mimeType || "audio/webm";
         const audioBlob = new Blob(audioChunksRef.current, {
-          type: "audio/webm",
+          type: resolvedMimeType,
         });
 
         abortControllerRef.current = new AbortController();
@@ -40,6 +68,7 @@ export function useVoiceRecording(onTranscriptionComplete, language = "th") {
             audioBlob,
             abortControllerRef.current.signal,
             language,
+            STT_HINT_PROMPT,
           );
           if (res.data.text) {
             onTranscriptionComplete?.(res.data.text);
@@ -50,7 +79,7 @@ export function useVoiceRecording(onTranscriptionComplete, language = "th") {
             alert(
               getApiErrorMessage(
                 error,
-                "Failed to transcribe audio. Please try again.",
+                t("chat.transcriptionFailed"),
               ),
             );
           }
@@ -67,7 +96,7 @@ export function useVoiceRecording(onTranscriptionComplete, language = "th") {
       setIsRecording(true);
     } catch (error) {
       console.error("Microphone access error:", error);
-      alert("Could not access microphone. Please check permissions.");
+      alert(t("chat.microphoneAccessFailed"));
     }
   };
 

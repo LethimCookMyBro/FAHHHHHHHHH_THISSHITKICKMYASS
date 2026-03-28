@@ -36,9 +36,7 @@ const actionDetailMarkdownComponents = {
     <ol className="message-md-list message-md-list-ol">{children}</ol>
   ),
   li: ({ children }) => <li className="message-md-li">{children}</li>,
-  strong: ({ children }) => (
-    <strong style={{ fontWeight: 600 }}>{children}</strong>
-  ),
+  strong: ({ children }) => <strong style={{ fontWeight: 600 }}>{children}</strong>,
   a: ({ href, children }) => (
     <a
       href={href}
@@ -66,33 +64,23 @@ const actionDetailMarkdownComponents = {
 const SOURCE_CONFIG = {
   ai: {
     icon: Sparkles,
-    colorClass: "text-purple-400",
-    borderClass: "group-hover:border-purple-400/20",
-    ringClass: "border-purple-400/30",
+    color: "var(--accent)",
   },
   system: {
     icon: Cpu,
-    colorClass: "text-[color:var(--primary)]",
-    borderClass: "group-hover:border-[color:var(--primary)]/20",
-    ringClass: "border-[color:var(--primary)]/30",
+    color: "var(--text-secondary)",
   },
   operator: {
     icon: User,
-    colorClass: "text-amber-500",
-    borderClass: "group-hover:border-amber-500/20",
-    ringClass: "border-amber-500/30",
+    color: "var(--warning)",
   },
   task: {
     icon: Database,
-    colorClass: "text-slate-400",
-    borderClass: "group-hover:border-slate-600",
-    ringClass: "border-slate-600/30",
+    color: "var(--ok)",
   },
   failure: {
     icon: AlertCircle,
-    colorClass: "text-red-500",
-    borderClass: "group-hover:border-red-500/20",
-    ringClass: "border-red-500/30",
+    color: "var(--error)",
   },
 };
 
@@ -129,17 +117,18 @@ export default function ActionTimeline({ rows, expandedId, onToggleExpand }) {
   }
 
   return (
-    <div className="action-timeline relative pl-4">
-      <div className="absolute left-[34px] top-6 bottom-0 w-[2px] bg-slate-800 z-0 hidden md:block"></div>
+    <div className="action-timeline">
+      <div className="timeline-spine" />
 
-      {rows.map((row) => {
+      {rows.map((row, index) => {
         const expanded = expandedId === row.id;
         const isFailed = row.execution_status === "failed";
 
         let configKey = row.source?.toLowerCase();
         if (isFailed) configKey = "failure";
-        else if (row.action_type === "backup" || row.action_type === "task")
+        else if (row.action_type === "backup" || row.action_type === "task") {
           configKey = "task";
+        }
 
         const config = SOURCE_CONFIG[configKey] || SOURCE_CONFIG.system;
         const SourceIcon = config.icon;
@@ -147,45 +136,27 @@ export default function ActionTimeline({ rows, expandedId, onToggleExpand }) {
         return (
           <article
             key={row.id}
-            className="timeline-item flex gap-4 md:gap-6 relative z-10 mb-6 group"
+            className="timeline-item"
+            style={{ "--timeline-delay": `${index * 0.05}s` }}
           >
-            {/* Timeline Line */}
-            <div className="flex flex-col items-center">
-              <div
-                className={`w-12 h-12 md:w-14 md:h-14 rounded-full bg-[color:var(--surface-800)] border-4 border-slate-950 flex items-center justify-center shrink-0 shadow-lg relative transition-colors ${config.borderClass}`}
-              >
-                <span
-                  className={`absolute inset-0 rounded-full border ${config.ringClass}`}
-                ></span>
-                <SourceIcon
-                  size={20}
-                  className={config.colorClass}
-                  strokeWidth={2.5}
-                />
-              </div>
+            <div className="timeline-node" style={{ color: config.color }}>
+              <SourceIcon size={19} strokeWidth={2.2} />
             </div>
 
-            {/* Content */}
-            <div className="flex-1 min-w-0 bg-[color:var(--surface-800)] rounded-xl border border-slate-700/40 shadow-xl overflow-hidden group-hover:border-slate-600 transition-colors">
+            <div className="timeline-content">
               <button
                 type="button"
                 className={`timeline-head ${expanded ? "is-expanded" : ""}`}
                 onClick={() => onToggleExpand(expanded ? null : row.id)}
               >
                 <div className="timeline-head-main">
-                  <span className="timeline-type">
-                    {row.action_type || "action"}
-                  </span>
+                  <span className="timeline-type">{row.action_type || "action"}</span>
                   <span className="timeline-machine">{row.machineText}</span>
                 </div>
                 <div className="timeline-head-right">
                   <StatusPill status={row.execution_status || "planned"} />
                   <span className="timeline-time">{row.createdText}</span>
-                  {expanded ? (
-                    <ChevronUp size={14} />
-                  ) : (
-                    <ChevronDown size={14} />
-                  )}
+                  {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                 </div>
               </button>
 
@@ -193,15 +164,11 @@ export default function ActionTimeline({ rows, expandedId, onToggleExpand }) {
                 <div className="timeline-body">
                   <div className="timeline-detail-grid">
                     <div className="timeline-detail-block">
-                      <h4 className="timeline-detail-label">
-                        {t("actions.decisionReason")}
-                      </h4>
+                      <h4 className="timeline-detail-label">{t("actions.decisionReason")}</h4>
                       <p className="timeline-detail-text">{row.reasonText}</p>
                     </div>
                     <div className="timeline-detail-block">
-                      <h4 className="timeline-detail-label">
-                        {t("actions.result")}
-                      </h4>
+                      <h4 className="timeline-detail-label">{t("actions.result")}</h4>
                       <p className="timeline-detail-text">
                         {row.execution_result?.message ||
                           row.execution_status ||
@@ -209,9 +176,7 @@ export default function ActionTimeline({ rows, expandedId, onToggleExpand }) {
                       </p>
                     </div>
                     <div className="timeline-detail-block">
-                      <h4 className="timeline-detail-label">
-                        {t("actions.diagnosisLabel")}
-                      </h4>
+                      <h4 className="timeline-detail-label">{t("actions.diagnosisLabel")}</h4>
                       <MarkdownDetail
                         text={row.diagnosis}
                         emptyText={t("actions.noDiagnosis")}

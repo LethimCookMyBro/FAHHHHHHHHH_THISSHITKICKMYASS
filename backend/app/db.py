@@ -46,7 +46,8 @@ def init_db_pool(database_url: str) -> BlockingThreadedConnectionPool:
         if not database_url:
             raise RuntimeError(
                 "Resolved DATABASE_URL is empty. "
-                "Set DATABASE_URL or provide PGHOST/PGPORT/PGUSER/PGPASSWORD/PGDATABASE."
+                "Set DATABASE_URL or provide PGHOST/PGPORT/PGUSER/PGPASSWORD/PGDATABASE "
+                "or POSTGRES_HOST/POSTGRES_PORT/POSTGRES_USER/POSTGRES_PASSWORD/POSTGRES_DB."
             )
 
         minconn = int(os.getenv("DB_POOL_MIN", "1"))
@@ -223,6 +224,35 @@ def ensure_schema(db_pool: BlockingThreadedConnectionPool) -> None:
                 """
                 CREATE INDEX IF NOT EXISTS idx_refresh_tokens_token_hash
                 ON public.refresh_tokens(token_hash);
+                """,
+                # Older local DBs may contain duplicate token hashes from before
+                # the uniqueness constraint existed. Normalize them before
+                # creating the unique index so startup migrations stay idempotent.
+                """
+                WITH duplicate_refresh_tokens AS (
+                    SELECT
+                      token_hash,
+                      MIN(id) AS keeper_id,
+                      BOOL_OR(COALESCE(revoked, FALSE)) AS should_revoke,
+                      MIN(expires_at) FILTER (WHERE expires_at IS NOT NULL) AS earliest_expires_at,
+                      MIN(created_at) FILTER (WHERE created_at IS NOT NULL) AS earliest_created_at
+                    FROM public.refresh_tokens
+                    GROUP BY token_hash
+                    HAVING COUNT(*) > 1
+                ),
+                normalized_keeper AS (
+                    UPDATE public.refresh_tokens rt
+                    SET revoked = dup.should_revoke,
+                        expires_at = COALESCE(dup.earliest_expires_at, rt.expires_at),
+                        created_at = COALESCE(dup.earliest_created_at, rt.created_at)
+                    FROM duplicate_refresh_tokens dup
+                    WHERE rt.id = dup.keeper_id
+                    RETURNING rt.id
+                )
+                DELETE FROM public.refresh_tokens rt
+                USING duplicate_refresh_tokens dup
+                WHERE rt.token_hash = dup.token_hash
+                  AND rt.id <> dup.keeper_id;
                 """,
                 """
                 CREATE UNIQUE INDEX IF NOT EXISTS uq_refresh_tokens_token_hash

@@ -1,0 +1,165 @@
+.ops-kpi-page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+.kpi-card {
+  background: var(--bg-card);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  box-shadow: var(--shadow-card);
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.kpi-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-panel);
+}
+
+.kpi-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.kpi-title-block {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-secondary);
+}
+
+.kpi-title-block h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.kpi-current-value {
+  font-size: 2.5rem;
+  font-weight: 800;
+  font-family: var(--font-mono);
+  color: var(--text-primary);
+  line-height: 1;
+}
+
+.kpi-target {
+  font-size: 0.85rem;
+  color: var(--text-tertiary);
+  margin-top: 4px;
+}
+
+/* Simple CSS Sparkline replacing complex charting libs for MVP */
+.sparkline-container {
+  height: 40px;
+  width: 100%;
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  padding-top: 10px;
+}
+
+.spark-bar {
+  flex: 1;
+  background: var(--line-strong);
+  border-radius: 2px 2px 0 0;
+  transition: height 0.3s ease;
+  min-height: 4px;
+}
+
+.spark-bar.good {
+  background: color-mix(in srgb, var(--success) 60%, transparent);
+}
+.spark-bar.warn {
+  background: color-mix(in srgb, var(--warning) 60%, transparent);
+}
+.spark-bar.bad {
+  background: color-mix(in srgb, var(--error) 60%, transparent);
+}
+
+.optimize-btn {
+  background: var(--surface-base);
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition:
+    color 0.2s ease,
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+  width: 100%;
+  margin-top: auto;
+}
+
+.optimize-btn:hover:not(:disabled) {
+  background: var(--accent);
+  color: var(--text-on-accent);
+}
+
+.optimize-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  border-color: var(--line-strong);
+  color: var(--text-secondary);
+}
+
+/* Panel specific overrides */
+.optimization-panel {
+  border-left-color: var(--accent-strong);
+}
+
+.loss-waterfall {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 16px 0;
+  padding: 16px;
+  background: var(--surface-base);
+  border-radius: 6px;
+  border: 1px solid var(--line-soft);
+}
+
+.loss-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+}
+
+.loss-row .loss-val {
+  color: var(--error);
+  font-weight: bold;
+}
+
+.projected-gain {
+  display: inline-block;
+  background: color-mix(in srgb, var(--success) 15%, transparent);
+  color: var(--success);
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-weight: bold;
+  font-size: 1.1rem;
+  margin-top: 12px;
+}

@@ -41,14 +41,32 @@ export async function createPlan(alarm, diagnosis) {
     issue_type: diagnosis?.issue_type || "",
     sensors: alarm.raw_data?.sensors || {},
   });
-  return response?.data || {};
+  const payload = response?.data || {};
+  return {
+    ...payload,
+    execution_status: payload.execution_status || payload.status || "",
+    plan:
+      payload.plan && typeof payload.plan === "object" && !Array.isArray(payload.plan)
+        ? payload.plan
+        : {},
+  };
 }
 
 export async function approvePlan(planActionId) {
   const response = await api.post(`/api/plc/actions/${planActionId}/approve`, {
     reason: "Approved from Incident Center",
   });
-  return response?.data || {};
+  const payload = response?.data || {};
+  return {
+    ...payload,
+    execution_status: payload.execution_status || payload.status || "",
+    execution_result:
+      payload.execution_result &&
+      typeof payload.execution_result === "object" &&
+      !Array.isArray(payload.execution_result)
+        ? payload.execution_result
+        : payload.result || {},
+  };
 }
 
 export async function acknowledgeAlarm(alarmId) {

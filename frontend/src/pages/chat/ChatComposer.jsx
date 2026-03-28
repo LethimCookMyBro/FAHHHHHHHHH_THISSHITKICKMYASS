@@ -1,5 +1,6 @@
 import { memo } from "react";
 import { LoaderCircle, Mic, MicOff, Send } from "lucide-react";
+import { useT } from "../../utils/i18n";
 
 function ChatComposer({
   centered = false,
@@ -15,10 +16,12 @@ function ChatComposer({
   stopRecording,
   cancelTranscription,
 }) {
+  const { t } = useT();
+
   return (
     <form
       onSubmit={onSubmit}
-      className={`chat-composer-form ${centered ? "max-w-[920px]" : ""}`}
+      className={`chat-composer-form ${centered ? "is-centered" : ""}`}
     >
       <div className="chat-composer-shell glass-panel-strong glass-noise">
         <textarea
@@ -29,10 +32,10 @@ function ChatComposer({
           onKeyDown={onKeyDown}
           placeholder={
             isRecording
-              ? "Listening..."
+              ? t("chat.listening")
               : isTranscribing
-                ? "Transcribing..."
-                : "Ask about PLC diagnostics, alarm root cause, or recovery actions..."
+                ? t("chat.transcribing")
+                : t("chat.composerPlaceholder")
           }
           className="composer-textarea"
           disabled={isLoading || isRecording || isTranscribing}
@@ -49,13 +52,13 @@ function ChatComposer({
               else startRecording();
             }}
             disabled={isLoading}
-            className={`chat-icon-btn glass-interactive ${isRecording ? "recording" : ""}`}
+            className={`chat-icon-btn chat-voice-btn glass-interactive ${isRecording ? "recording" : ""}`}
             title={
               isTranscribing
-                ? "Cancel transcription"
+                ? t("chat.cancelTranscription")
                 : isRecording
-                  ? "Stop recording"
-                  : "Start voice input"
+                  ? t("chat.stopRecording")
+                  : t("chat.startVoiceInput")
             }
           >
             {isTranscribing ? (
@@ -73,7 +76,7 @@ function ChatComposer({
               isLoading || !input.trim() || isRecording || isTranscribing
             }
             className="chat-send-btn glass-interactive"
-            title="Send"
+            title={t("chat.send")}
           >
             {isLoading ? (
               <LoaderCircle size={17} className="animate-spin" />

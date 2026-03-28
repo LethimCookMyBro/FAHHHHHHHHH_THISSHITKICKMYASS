@@ -1,22 +1,33 @@
+from __future__ import annotations
+
 import os
 import re
 import json
 import logging
 from typing import List, Any, Dict, Optional, Set
-from langchain_core.documents import Document
-from langchain_text_splitters import RecursiveCharacterTextSplitter
-
-try:
-    import torch
-except Exception:  # pragma: no cover
-    torch = None
 
 # Singleton embedder instance
 _embedder = None
+_torch_module = None
+_torch_checked = False
+
+
+def _get_torch():
+    global _torch_module, _torch_checked
+    if not _torch_checked:
+        _torch_checked = True
+        try:
+            import torch as _torch  # type: ignore
+
+            _torch_module = _torch
+        except Exception:  # pragma: no cover
+            _torch_module = None
+    return _torch_module
 
 
 def _resolve_embed_device() -> str:
     requested = (os.getenv("EMBED_DEVICE", "auto") or "auto").strip().lower()
+    torch = _get_torch()
 
     if requested == "cpu":
         return "cpu"
@@ -493,6 +504,8 @@ def create_pdf_chunks(
     all_chunks = []
     filtered_count = 0
     kv_pattern = re.compile(r'^(?P<key>[A-Za-z0-9\(\)\/\s\.,-]{5,80}?)\s{2,}(?P<value>.+?)$', re.MULTILINE)
+    from langchain_core.documents import Document
+    from langchain_text_splitters import RecursiveCharacterTextSplitter
     
     # Configurable chunk settings
     text_splitter = RecursiveCharacterTextSplitter(
@@ -616,6 +629,8 @@ def create_json_qa_chunks(
     extra_metadata: Optional[Dict[str, Any]] = None,
 ) -> List[Document]:
     """Create chunks from JSON QA file"""
+    from langchain_core.documents import Document
+
     chunks = []
     file_label = get_file_label(file_path)
     try:

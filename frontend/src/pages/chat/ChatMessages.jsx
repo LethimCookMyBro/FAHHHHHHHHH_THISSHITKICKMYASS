@@ -1,6 +1,7 @@
 import { memo } from "react";
 import ReactMarkdown from "react-markdown";
 import { Bot, Check, Copy, CornerDownLeft, FileText } from "lucide-react";
+import { useT } from "../../utils/i18n";
 import {
   looksLikeDiagnosticMarkdown,
   markdownComponents,
@@ -13,6 +14,7 @@ function ChatMessages({
   messagesContainerRef,
   activeMessages,
   pendingMessage,
+  streamingAssistant,
   activeChat,
   autoStickToBottom,
   isLoading,
@@ -22,135 +24,191 @@ function ChatMessages({
   onOpenSourceDocument,
   apiError,
 }) {
+  const { t, locale } = useT();
+  const preparedStreamingText = streamingAssistant?.text
+    ? prepareMarkdownText(streamingAssistant.text)
+    : "";
+  const hasStreamingText = Boolean(streamingAssistant?.text);
+
   return (
     <div
       ref={messagesContainerRef}
       className={`chat-message-scroll ${apiError ? "pt-4" : ""}`}
       data-stick-bottom={autoStickToBottom ? "1" : "0"}
     >
-      <div className="chat-message-stack">
-        {activeMessages.map((message, index) => {
-          const processingTime = Number(message?.processingTime);
-          const hasProcessingTime = Number.isFinite(processingTime) && processingTime > 0;
-          const isUser = message.sender === "user";
-          const preparedAssistantText = !isUser ? prepareMarkdownText(message.text) : "";
-          const isDiagnosticAssistantText =
-            !isUser && looksLikeDiagnosticMarkdown(preparedAssistantText);
+      <div className="chat-message-frame">
+        <div className="chat-message-stack">
+          {activeMessages.map((message, index) => {
+            const processingTime = Number(message?.processingTime);
+            const hasProcessingTime =
+              Number.isFinite(processingTime) && processingTime > 0;
+            const isUser = message.sender === "user";
+            const preparedAssistantText = !isUser
+              ? prepareMarkdownText(message.text)
+              : "";
+            const isDiagnosticAssistantText =
+              !isUser && looksLikeDiagnosticMarkdown(preparedAssistantText);
 
-          return (
-            <div
-              key={message?.id ?? index}
-              className={`msg-row ${isUser ? "user" : "assistant"} fade-in-up`}
-            >
-              {!isUser ? (
-                <span className="msg-avatar">
-                  <Bot size={14} />
-                </span>
-              ) : null}
+            return (
+              <div
+                key={message?.id ?? index}
+                className={`msg-row ${isUser ? "user" : "assistant"} fade-in-up`}
+              >
+                {!isUser ? (
+                  <span className="msg-avatar">
+                    <Bot size={14} />
+                  </span>
+                ) : null}
 
-              <div className={`flex flex-col ${isUser ? "items-end" : "items-start"}`}>
                 <div
-                  className={`msg-bubble ${
-                    isUser ? "user" : "assistant"
-                  } ${message.status === "failed" ? "failed" : ""} ${
-                    isDiagnosticAssistantText ? "is-diagnostic" : ""
-                  }`}
+                  className={`flex flex-col ${isUser ? "items-end" : "items-start"}`}
                 >
-                  {!isUser ? (
-                    <div className="message-markdown">
-                      <ReactMarkdown components={markdownComponents}>
-                        {preparedAssistantText}
-                      </ReactMarkdown>
-                    </div>
-                  ) : (
-                    message.text
-                  )}
-                </div>
+                  <div
+                    className={`msg-bubble ${
+                      isUser ? "user" : "assistant"
+                    } ${message.status === "failed" ? "failed" : ""} ${
+                      isDiagnosticAssistantText ? "is-diagnostic" : ""
+                    }`}
+                  >
+                    {!isUser ? (
+                      <div className="message-markdown">
+                        <ReactMarkdown components={markdownComponents}>
+                          {preparedAssistantText}
+                        </ReactMarkdown>
+                      </div>
+                    ) : (
+                      message.text
+                    )}
+                  </div>
 
-                {!isUser && hasProcessingTime ? (
-                  <div className="msg-meta">
-                    <span>{processingTime.toFixed(2)}s</span>
-                    {message.ragas?.scores?.faithfulness != null ? (
+                  {!isUser && hasProcessingTime ? (
+                    <div className="msg-meta">
                       <span>
-                        Faithfulness {(message.ragas.scores.faithfulness * 100).toFixed(0)}%
+                        {processingTime.toFixed(2)}
+                        {t("chat.secondsShort")}
                       </span>
+                      {message.ragas?.scores?.faithfulness != null ? (
+                        <span>
+                          {t("chat.faithfulness")}{" "}
+                          {(message.ragas.scores.faithfulness * 100).toFixed(0)}%
+                        </span>
+                      ) : null}
+                    </div>
+                  ) : null}
+
+                  {!isUser && toArray(message.sources).length > 0 ? (
+                    <div className="source-chip-wrap">
+                      {toArray(message.sources).map((sourceItem, sourceIndex) => {
+                        const label = formatSourceItemLabel(sourceItem);
+                        if (!label) return null;
+
+                        return (
+                          <button
+                            type="button"
+                            key={`${message.id || index}-src-${sourceIndex}`}
+                            className="source-chip glass-interactive"
+                            title={t("chat.openSource")}
+                            onClick={() => onOpenSourceDocument(sourceItem)}
+                          >
+                            <FileText size={12} />
+                            {label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : null}
+
+                  <div className="msg-meta">
+                    {message.timestamp ? (
+                      <span>{formatTime(message.timestamp, locale)}</span>
                     ) : null}
+
+                    <div className="msg-tools">
+                      <button
+                        type="button"
+                        onClick={() => onCopyMessage(message.text, index)}
+                        className="msg-tool-btn glass-interactive"
+                        title={t("chat.copy")}
+                      >
+                        {copiedId === index ? (
+                          <Check size={12} />
+                        ) : (
+                          <Copy size={12} />
+                        )}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => onReuseMessage(message.text)}
+                        className="msg-tool-btn glass-interactive"
+                        title={t("chat.reuse")}
+                      >
+                        <CornerDownLeft size={12} />
+                      </button>
+                    </div>
                   </div>
-                ) : null}
 
-                {!isUser && toArray(message.sources).length > 0 ? (
-                  <div className="source-chip-wrap">
-                    {toArray(message.sources).map((sourceItem, sourceIndex) => {
-                      const label = formatSourceItemLabel(sourceItem);
-                      if (!label) return null;
+                  {isUser && message.status === "failed" ? (
+                    <span className="text-[11px] text-[color:var(--error)] mt-1">
+                      {t("chat.sendFailed")}
+                    </span>
+                  ) : null}
+                </div>
+              </div>
+            );
+          })}
 
-                      return (
-                        <button
-                          type="button"
-                          key={`${message.id || index}-src-${sourceIndex}`}
-                          className="source-chip glass-interactive"
-                          title="Open source document"
-                          onClick={() => onOpenSourceDocument(sourceItem)}
-                        >
-                          <FileText size={12} />
-                          {label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                ) : null}
-
-                <div className="msg-meta">
-                  {message.timestamp ? <span>{formatTime(message.timestamp)}</span> : null}
-
-                  <div className="msg-tools">
-                    <button
-                      type="button"
-                      onClick={() => onCopyMessage(message.text, index)}
-                      className="msg-tool-btn glass-interactive"
-                      title="Copy"
-                    >
-                      {copiedId === index ? <Check size={12} /> : <Copy size={12} />}
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => onReuseMessage(message.text)}
-                      className="msg-tool-btn glass-interactive"
-                      title="Reuse"
-                    >
-                      <CornerDownLeft size={12} />
-                    </button>
-                  </div>
+          {pendingMessage && !activeChat ? (
+            <div className="msg-row user fade-in-up">
+              <div className="flex flex-col items-end">
+                <div
+                  className={`msg-bubble user ${pendingMessage.status === "failed" ? "failed" : ""}`}
+                >
+                  {pendingMessage.text}
                 </div>
 
-                {isUser && message.status === "failed" ? (
+                {pendingMessage?.status === "failed" ? (
                   <span className="text-[11px] text-[color:var(--error)] mt-1">
-                    Message failed to send. Edit and resend.
+                    {t("chat.sendFailed")}
                   </span>
                 ) : null}
               </div>
             </div>
-          );
-        })}
+          ) : null}
 
-        {pendingMessage && !activeChat ? (
-          <div className="msg-row user fade-in-up">
-            <div className="flex flex-col items-end">
-              <div className={`msg-bubble user ${pendingMessage.status === "failed" ? "failed" : ""}`}>
-                {pendingMessage.text}
+          {streamingAssistant ? (
+            <div className="msg-row assistant fade-in-up">
+              <span className="msg-avatar typing-avatar">
+                <Bot size={14} />
+              </span>
+
+              <div className="flex flex-col items-start">
+                <div className="msg-bubble assistant is-streaming">
+                  {hasStreamingText ? (
+                    <div className="message-markdown">
+                      <ReactMarkdown components={markdownComponents}>
+                        {preparedStreamingText}
+                      </ReactMarkdown>
+                    </div>
+                  ) : (
+                    <div
+                      className="typing-bubble"
+                      aria-label={t("chat.assistantThinking")}
+                    >
+                      <span className="typing-dot" />
+                      <span className="typing-dot" />
+                      <span className="typing-dot" />
+                    </div>
+                  )}
+
+                  <span className="message-stream-cursor" aria-hidden="true" />
+                </div>
               </div>
-
-              {pendingMessage?.status === "failed" ? (
-                <span className="text-[11px] text-[color:var(--error)] mt-1">
-                  Message failed to send. Edit and resend.
-                </span>
-              ) : null}
             </div>
-          </div>
-        ) : null}
+          ) : null}
 
-        {isLoading ? <ThinkingIndicator /> : null}
+          {isLoading && !streamingAssistant ? <ThinkingIndicator /> : null}
+        </div>
       </div>
     </div>
   );

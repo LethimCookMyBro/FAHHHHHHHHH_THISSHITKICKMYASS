@@ -1,5 +1,5 @@
-import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
-import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
+/* eslint-disable react-refresh/only-export-components */
+import { Suspense, lazy } from "react";
 import { ListChecks, Wrench, AlertTriangle, FileSearch } from "lucide-react";
 import { toArray } from "./utils";
 import featureFlags from "../../utils/featureFlags";
@@ -10,33 +10,39 @@ export {
   prepareMarkdownText,
 } from "../../utils/markdownFormatting";
 
+const CodeHighlighterLazy = lazy(() => import("./CodeHighlighter"));
+
+const renderPlainCodeBlock = (children) => (
+  <pre className="message-code-block">
+    <code className="message-code-content">{children}</code>
+  </pre>
+);
+
+const AsyncSyntaxHighlighter = ({ language, children, ...props }) => (
+  <Suspense fallback={renderPlainCodeBlock(children)}>
+    <CodeHighlighterLazy language={language} {...props}>
+      {children}
+    </CodeHighlighterLazy>
+  </Suspense>
+);
+
 export const markdownComponents = {
   code({ inline, className, children, ...props }) {
-    const match = /language-(\w+)/.exec(className || "");
+    const match = /language-([a-z0-9_+#-]+)/i.exec(className || "");
     const codeText = String(children).replace(/\n$/, "");
     const shouldRenderHighlighted =
       !featureFlags.disableChatSyntaxHighlight && !inline && match;
 
     if (shouldRenderHighlighted) {
       return (
-        <SyntaxHighlighter
-          style={oneDark}
-          language={match[1]}
-          PreTag="div"
-          className="rounded-lg text-sm my-2"
-          {...props}
-        >
+        <AsyncSyntaxHighlighter language={match[1]} {...props}>
           {codeText}
-        </SyntaxHighlighter>
+        </AsyncSyntaxHighlighter>
       );
     }
 
     if (!inline) {
-      return (
-        <pre className="message-code-block">
-          <code className="message-code-content">{codeText}</code>
-        </pre>
-      );
+      return renderPlainCodeBlock(codeText);
     }
 
     return (

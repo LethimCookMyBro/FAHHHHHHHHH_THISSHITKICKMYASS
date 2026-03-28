@@ -14,6 +14,8 @@ from app.db_helpers import (
     find_refresh_token,
     get_user_ui_preferences,
     get_user_by_email,
+    get_user_by_id,
+    normalize_email,
     revoke_refresh_token_by_hash,
     save_refresh_token,
     update_user_ui_preferences,
@@ -23,7 +25,9 @@ from app.security import (
     REFRESH_COOKIE_NAME,
     clear_auth_cookies,
     create_csrf_token,
+    get_cookie_security_settings,
     get_current_user,
+    get_optional_current_user,
     require_roles,
     set_auth_cookies,
 )
@@ -73,10 +77,12 @@ def _sanitize_ui_preferences_patch(payload: UiPreferencesPatchIn) -> dict:
 
 @router.post("/register")
 def register(payload: RegisterIn):
+    email = normalize_email(payload.email)
+    full_name = (payload.full_name or "").strip() or None
     try:
-        existing = get_user_by_email(payload.email)
+        existing = get_user_by_email(email)
     except Exception:
-        logger.exception("Failed checking existing user for email=%s", payload.email)
+        logger.exception("Failed checking existing user for email=%s", email)
         raise _auth_service_unavailable()
 
     if existing:
@@ -85,22 +91,23 @@ def register(payload: RegisterIn):
     pwd_hash = hash_password(payload.password)
     try:
         user = create_user(
-            email=payload.email,
+            email=email,
             password_hash=pwd_hash,
-            full_name=payload.full_name,
+            full_name=full_name,
         )
     except Exception:
-        logger.exception("Failed to create user for email=%s", payload.email)
+        logger.exception("Failed to create user for email=%s", email)
         raise _auth_service_unavailable()
     return {"id": user["id"], "email": user["email"]}
 
 
 @router.post("/login")
 def login(payload: LoginIn, response: Response, request: Request):
+    email = normalize_email(payload.email)
     try:
-        user = get_user_by_email(payload.email)
+        user = get_user_by_email(email)
     except Exception:
-        logger.exception("Failed loading user for login email=%s", payload.email)
+        logger.exception("Failed loading user for login email=%s", email)
         raise _auth_service_unavailable()
     password_ok = False
     if user:
@@ -110,7 +117,8 @@ def login(payload: LoginIn, response: Response, request: Request):
             # Treat malformed/legacy password hashes as invalid credentials.
             password_ok = False
 
-    if not user or not password_ok:
+    if not user or not user.get("is_active") or not password_ok:
+        logger.info("Rejected login for email=%s", email)
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     access = create_access_token(subject=str(user["id"]))
@@ -171,6 +179,18 @@ def refresh(request: Request, response: Response):
         raise HTTPException(status_code=401, detail="Refresh token expired")
 
     user_id = int(record["user_id"])
+    try:
+        user = get_user_by_id(user_id)
+    except Exception:
+        logger.exception("Failed to load user during refresh for user_id=%s", user_id)
+        raise _auth_service_unavailable()
+    if not user or not user.get("is_active"):
+        try:
+            revoke_refresh_token_by_hash(token)
+        except Exception:
+            logger.exception("Failed revoking refresh token for inactive user_id=%s", user_id)
+        raise HTTPException(status_code=401, detail="Refresh token revoked or not found")
+
     access = create_access_token(subject=str(user_id))
     new_refresh = create_refresh_token(subject=str(user_id))
     csrf = create_csrf_token()
@@ -214,13 +234,14 @@ def get_csrf_token(request: Request, response: Response):
     token = (request.cookies.get(CSRF_COOKIE_NAME) or "").strip()
     if not token:
         token = create_csrf_token()
+        cookie_settings = get_cookie_security_settings()
         # Keep existing access/refresh cookies unchanged while setting CSRF.
         response.set_cookie(
             key=CSRF_COOKIE_NAME,
             value=token,
             httponly=False,
-            secure=(os.getenv("APP_ENV", "development").strip().lower() == "production"),
-            samesite="strict" if os.getenv("APP_ENV", "development").strip().lower() == "production" else "lax",
+            secure=bool(cookie_settings["secure"]),
+            samesite=str(cookie_settings["samesite"]),
             max_age=int(os.getenv("REFRESH_TOKEN_EXPIRE_SECONDS", "1209600")),
             path="/",
         )
@@ -233,7 +254,10 @@ def create_ws_ticket(current_user=Depends(require_roles("viewer"))):
 
 
 @router.get("/me")
-def me(current_user=Depends(get_current_user)):
+def me(current_user=Depends(get_optional_current_user)):
+    if not current_user:
+        return None
+
     try:
         ui_preferences = get_user_ui_preferences(int(current_user["id"]))
     except Exception:

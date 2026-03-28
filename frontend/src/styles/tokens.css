@@ -1,141 +1,240 @@
 :root {
-  --font-heading: "Barlow Semi Condensed", "Segoe UI", sans-serif;
-  --font-body: "IBM Plex Sans", "Segoe UI", sans-serif;
-  --font-mono: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
-
-  --bg-primary: #0f141d;
-  --bg-secondary: #141b26;
-  --bg-card: #182130;
-  --bg-elevated: #1d2738;
-  --bg-sidebar-top: #101823;
-  --bg-sidebar-bottom: #0d141e;
-
-  --accent: #3b82f6;
-  --success: #22c55e;
-  --warning: #eab308;
-  --error: #ef4444;
+  --bg: #f0f2f5;
+  --surface: #ffffff;
+  --surface2: #f7f8fa;
+  --border: rgba(0, 0, 0, 0.08);
+  --text-primary: #0d0d0d;
+  --text-muted: rgba(0, 0, 0, 0.45);
+  --accent: #2563eb;
+  --accent-glow: rgba(37, 99, 235, 0.18);
+  --accent-soft: color-mix(in srgb, var(--accent) 12%, var(--surface));
   --critical: #dc2626;
-  --info: #38bdf8;
+  --warn: #d97706;
+  --ok: #16a34a;
+  --badge-bg: color-mix(in srgb, var(--critical) 12%, var(--surface));
+  --sidebar-bg: #e9edf2;
+  --sidebar-active: color-mix(in srgb, var(--accent) 12%, var(--surface));
 
-  --text-primary: #f1f5f9;
-  --text-secondary: #cbd5e1;
-  --text-muted: #94a3b8;
+  --font-sans: "DM Sans", sans-serif;
+  --font-heading: "Syne", sans-serif;
+  --font-body: "DM Sans", sans-serif;
+  --font-mono: "DM Mono", monospace;
 
-  --line-soft: rgba(148, 163, 184, 0.22);
-  --line-strong: rgba(148, 163, 184, 0.36);
-  --shadow-card: 0 6px 16px rgba(6, 10, 16, 0.24);
-  --shadow-elevated: 0 12px 28px rgba(6, 10, 16, 0.32);
+  --text-secondary: color-mix(in srgb, var(--text-primary) 68%, transparent);
+  --text-tertiary: color-mix(in srgb, var(--text-primary) 44%, transparent);
+  --text-inverse: #f7f7f7;
+  --text-on-accent: #f7f8fb;
 
-  --glass-bg: rgba(23, 34, 52, 0.62);
-  --glass-bg-strong: rgba(17, 26, 42, 0.78);
-  --glass-border: rgba(148, 163, 184, 0.28);
-  --glass-highlight: rgba(222, 238, 255, 0.24);
-  --glass-shadow:
-    0 16px 32px rgba(3, 8, 18, 0.28), inset 0 1px 0 rgba(228, 238, 252, 0.16);
-  --glass-blur: 12px;
-  --glass-sat: 1.15;
-  --glass-noise-opacity: 0.06;
+  --surface-base: var(--bg);
+  --surface-card: var(--surface);
+  --surface-border: var(--border);
+  --surface-border-subtle: color-mix(in srgb, var(--border) 58%, transparent);
+  --bg-primary: var(--bg);
+  --bg-secondary: var(--surface2);
+  --bg-card: var(--surface);
+  --bg-elevated: var(--surface2);
+  --surface-900: var(--surface2);
+  --surface-800: var(--surface);
+  --surface-700: color-mix(in srgb, var(--text-primary) 10%, var(--surface2));
+  --surface-600: color-mix(in srgb, var(--text-primary) 16%, var(--surface2));
+  --surface-overlay: color-mix(in srgb, var(--surface) 90%, transparent);
+  --surface-overlay-strong: color-mix(in srgb, var(--surface) 96%, transparent);
+  --surface-panel:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--surface) 98%, transparent) 0%,
+      color-mix(in srgb, var(--surface2) 95%, transparent) 100%
+    );
+  --surface-panel-muted:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--surface2) 92%, transparent) 0%,
+      color-mix(in srgb, var(--surface) 90%, transparent) 100%
+    );
+  --surface-spotlight:
+    radial-gradient(
+      circle at top right,
+      color-mix(in srgb, var(--accent) 10%, transparent) 0%,
+      transparent 36%
+    ),
+    var(--surface-card);
+  --surface-spotlight-strong:
+    radial-gradient(
+      circle at top center,
+      color-mix(in srgb, var(--accent) 13%, transparent) 0%,
+      transparent 24%
+    ),
+    radial-gradient(
+      circle at bottom left,
+      color-mix(in srgb, var(--accent) 6%, transparent) 0%,
+      transparent 30%
+    ),
+    var(--surface-card);
+  --surface-inset: color-mix(in srgb, var(--surface2) 84%, var(--surface));
+  --surface-code: color-mix(in srgb, var(--surface2) 74%, var(--surface));
+  --surface-canvas: color-mix(in srgb, var(--surface2) 90%, #dbe6f2 10%);
+  --surface-canvas-grid: color-mix(in srgb, var(--accent) 11%, var(--border));
 
-  --radius-sm: 8px;
-  --radius-md: 10px;
-  --radius-lg: 14px;
+  --color-primary: var(--accent);
+  --color-primary-hover: color-mix(in srgb, var(--accent) 86%, black 14%);
+  --color-primary-50: color-mix(in srgb, var(--accent) 12%, var(--surface));
+  --accent-strong: var(--color-primary-hover);
 
-  --transition-fast: 0.15s ease;
-  --transition-normal: 0.22s ease;
+  --status-critical-text: var(--critical);
+  --status-critical-bg: color-mix(in srgb, var(--critical) 10%, var(--surface));
+  --status-critical-border: color-mix(in srgb, var(--critical) 28%, transparent);
+  --status-warning-text: var(--warn);
+  --status-warning-bg: color-mix(in srgb, var(--warn) 12%, var(--surface));
+  --status-warning-border: color-mix(in srgb, var(--warn) 30%, transparent);
+  --status-ok-text: var(--ok);
+  --status-ok-bg: color-mix(in srgb, var(--ok) 11%, var(--surface));
+  --status-ok-border: color-mix(in srgb, var(--ok) 28%, transparent);
+  --status-info-text: var(--accent);
+  --status-info-bg: color-mix(in srgb, var(--accent) 10%, var(--surface));
+  --status-info-border: color-mix(in srgb, var(--accent) 24%, transparent);
+  --status-error-text: var(--critical);
+  --status-error-bg: color-mix(in srgb, var(--critical) 10%, var(--surface));
+  --status-error-border: color-mix(in srgb, var(--critical) 24%, transparent);
 
-  --scrollbar-thumb: rgba(100, 116, 139, 0.36);
-  --scrollbar-thumb-hover: rgba(100, 116, 139, 0.6);
+  --primary: var(--accent);
+  --primary-light: color-mix(in srgb, var(--accent) 52%, var(--surface));
+  --primary-glow: var(--accent-glow);
 
-  /* ── Neon status palette (industrial HMI) ── */
-  --neon-green: #00ff9d;
-  --neon-red: #ff3366;
-  --neon-amber: #ffcc00;
-  --neon-blue: #2196f3;
+  --line-soft: var(--border);
+  --line-strong: color-mix(in srgb, var(--text-primary) 14%, transparent);
 
-  /* ── Charcoal surface layers ── */
-  --surface-900: #0b0e14;
-  --surface-800: #151b26;
-  --surface-700: #232d3f;
-  --surface-600: #344055;
+  --shadow-soft: 0 8px 18px rgba(15, 23, 42, 0.05);
+  --shadow-card: 0 16px 36px rgba(15, 23, 42, 0.06);
+  --shadow-panel: 0 20px 44px rgba(15, 23, 42, 0.08);
+  --shadow-dropdown: 0 18px 40px rgba(15, 23, 42, 0.12);
+  --shadow-brand: 0 12px 24px rgba(15, 23, 42, 0.1);
+  --shadow-hover: 0 14px 28px var(--accent-glow);
 
-  /* ── Primary alias ── */
-  --primary: #216abe;
-  --primary-glow: rgba(33, 106, 190, 0.6);
+  --glass-bg: color-mix(in srgb, var(--surface) 94%, transparent);
+  --glass-bg-strong: color-mix(in srgb, var(--surface) 97%, transparent);
+  --glass-border: var(--border);
+  --glass-highlight: color-mix(in srgb, var(--surface2) 84%, transparent);
+  --glass-shadow: var(--shadow-card);
+  --glass-blur: 10px;
+  --glass-sat: 1;
+  --glass-noise-opacity: 0;
 
-  /* ── Card glow shadow ── */
-  --shadow-card-glow:
-    0 0 0 1px rgba(255, 255, 255, 0.05), 0 4px 6px -1px rgba(0, 0, 0, 0.5);
-  --shadow-neon-green: 0 0 8px rgba(0, 255, 157, 0.4);
-  --shadow-neon-red: 0 0 8px rgba(255, 51, 102, 0.4);
-  --shadow-neon-blue:
-    0 0 10px rgba(33, 150, 243, 0.5), 0 0 20px rgba(33, 150, 243, 0.3);
+  --motion-fast: 0.2s;
+  --motion-base: 0.28s;
+  --motion-slow: 0.48s;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-fast: var(--motion-fast) var(--ease-smooth);
+  --transition-normal: var(--motion-base) var(--ease-smooth);
+
+  --scrollbar-thumb: color-mix(in srgb, var(--text-primary) 14%, transparent);
+  --scrollbar-thumb-hover: color-mix(in srgb, var(--text-primary) 22%, transparent);
+
+  --success: var(--ok);
+  --warning: var(--warn);
+  --error: var(--critical);
+  --info: var(--accent);
+  --neon-green: var(--ok);
+  --neon-red: var(--critical);
+  --neon-amber: var(--warn);
+  --neon-blue: var(--accent);
+  --critical-soft: color-mix(in srgb, var(--critical) 12%, var(--surface));
+  --warn-soft: color-mix(in srgb, var(--warn) 14%, var(--surface));
+  --ok-soft: color-mix(in srgb, var(--ok) 12%, var(--surface));
+
+  --chart-grid: rgba(0, 0, 0, 0.06);
+  --chart-reference: rgba(0, 0, 0, 0.16);
+  --chart-accent-alt: color-mix(in srgb, var(--accent) 42%, var(--surface2));
+  --chart-topology-edge: color-mix(in srgb, var(--accent) 60%, transparent);
+  --chart-topology-hmi: color-mix(in srgb, var(--warn) 60%, transparent);
+  --chart-topology-zone: color-mix(in srgb, var(--ok) 52%, transparent);
+  --chart-topology-history: color-mix(in srgb, var(--critical) 54%, transparent);
+  --chart-topology-core: color-mix(in srgb, var(--accent) 16%, transparent);
+  --chart-topology-core-ring: color-mix(in srgb, var(--accent) 28%, transparent);
+  --page-ambient:
+    radial-gradient(
+      circle at top right,
+      color-mix(in srgb, var(--accent) 9%, transparent) 0%,
+      transparent 24%
+    ),
+    radial-gradient(
+      circle at bottom left,
+      color-mix(in srgb, var(--surface2) 76%, transparent) 0%,
+      transparent 32%
+    ),
+    var(--bg);
 }
 
-html[data-theme="light"] {
-  --bg-primary: #f0f4f8;
-  --bg-secondary: #f8fafc;
-  --bg-card: #ffffff;
-  --bg-elevated: #f0f4f8;
-  --bg-sidebar-top: #e8eef6;
-  --bg-sidebar-bottom: #dce4f0;
+[data-theme="dark"] {
+  --bg: #0c0c0c;
+  --surface: #161616;
+  --surface2: #1c1c1c;
+  --border: rgba(255, 255, 255, 0.06);
+  --text-primary: #e8e8e8;
+  --text-muted: rgba(255, 255, 255, 0.42);
+  --accent: #f59e0b;
+  --accent-glow: rgba(245, 158, 11, 0.18);
+  --accent-soft: color-mix(in srgb, var(--accent) 14%, var(--surface));
+  --critical: #f87171;
+  --warn: #fbbf24;
+  --ok: #4ade80;
+  --badge-bg: color-mix(in srgb, var(--critical) 18%, var(--surface2));
+  --sidebar-bg: #111111;
+  --sidebar-active: color-mix(in srgb, var(--accent) 16%, var(--surface2));
 
-  --accent: #2563eb;
-  --success: #16a34a;
-  --warning: #ca8a04;
-  --error: #dc2626;
-  --critical: #b91c1c;
-  --info: #0369a1;
+  --text-secondary: color-mix(in srgb, var(--text-primary) 70%, transparent);
+  --text-tertiary: color-mix(in srgb, var(--text-primary) 46%, transparent);
+  --text-inverse: #f0eee8;
+  --text-on-accent: #18120a;
 
-  --text-primary: #0f172a;
-  --text-secondary: #1e293b;
-  --text-muted: #475569;
+  --color-primary-hover: color-mix(in srgb, var(--accent) 84%, black 16%);
+  --color-primary-50: color-mix(in srgb, var(--accent) 12%, var(--surface2));
+  --surface-overlay: color-mix(in srgb, var(--surface) 92%, transparent);
+  --surface-overlay-strong: color-mix(in srgb, var(--surface) 98%, transparent);
+  --surface-canvas: color-mix(in srgb, var(--surface2) 78%, #0f1114 22%);
 
-  --line-soft: rgba(15, 23, 42, 0.14);
-  --line-strong: rgba(15, 23, 42, 0.24);
-  --shadow-card:
-    0 2px 8px rgba(15, 23, 42, 0.08), 0 4px 16px rgba(15, 23, 42, 0.05);
-  --shadow-elevated:
-    0 4px 12px rgba(15, 23, 42, 0.1), 0 8px 24px rgba(15, 23, 42, 0.08);
+  --shadow-soft: 0 8px 18px rgba(0, 0, 0, 0.24);
+  --shadow-card: 0 16px 36px rgba(0, 0, 0, 0.3);
+  --shadow-panel: 0 20px 44px rgba(0, 0, 0, 0.34);
+  --shadow-dropdown: 0 18px 40px rgba(0, 0, 0, 0.42);
+  --shadow-brand: 0 12px 24px rgba(0, 0, 0, 0.3);
 
-  --glass-bg: rgba(255, 255, 255, 0.92);
-  --glass-bg-strong: rgba(255, 255, 255, 0.96);
-  --glass-border: rgba(15, 23, 42, 0.15);
-  --glass-highlight: rgba(255, 255, 255, 0.7);
-  --glass-shadow:
-    0 1px 3px rgba(15, 23, 42, 0.06), 0 4px 16px rgba(15, 23, 42, 0.08),
-    inset 0 1px 0 rgba(255, 255, 255, 0.8);
-  --glass-blur: 14px;
-  --glass-sat: 1.2;
-  --glass-noise-opacity: 0.03;
+  --chart-grid: rgba(255, 255, 255, 0.05);
+  --chart-reference: rgba(255, 255, 255, 0.16);
+  --chart-accent-alt: color-mix(in srgb, var(--accent) 54%, var(--surface2));
+  --chart-topology-edge: color-mix(in srgb, var(--accent) 72%, transparent);
+  --chart-topology-hmi: color-mix(in srgb, var(--warn) 72%, transparent);
+  --chart-topology-zone: color-mix(in srgb, var(--ok) 68%, transparent);
+  --chart-topology-history: color-mix(in srgb, var(--critical) 68%, transparent);
+  --chart-topology-core: color-mix(in srgb, var(--accent) 12%, transparent);
+  --chart-topology-core-ring: color-mix(in srgb, var(--accent) 24%, transparent);
+  --page-ambient:
+    radial-gradient(circle at top right, rgba(245, 158, 11, 0.1) 0%, transparent 24%),
+    radial-gradient(circle at 16% 22%, rgba(125, 211, 252, 0.04) 0%, transparent 18%),
+    linear-gradient(180deg, #090909 0%, #0c0c0c 100%);
+}
+
+:root {
+  --text-display: 2.15rem;
+  --text-heading: 1.125rem;
+  --text-subheading: 0.875rem;
+  --text-body: 0.875rem;
+  --text-caption: 0.75rem;
+  --text-code: 0.8125rem;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
 
   --radius-sm: 8px;
-  --radius-md: 10px;
-  --radius-lg: 14px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-full: 9999px;
 
-  --scrollbar-thumb: rgba(15, 23, 42, 0.18);
-  --scrollbar-thumb-hover: rgba(15, 23, 42, 0.32);
-
-  /* ── Light mode surface layers ── */
-  --surface-900: #f0f4f8;
-  --surface-800: #ffffff;
-  --surface-700: #e2e8f0;
-  --surface-600: #cbd5e1;
-
-  /* ── Light mode primary ── */
-  --primary: #2563eb;
-  --primary-glow: rgba(37, 99, 235, 0.4);
-
-  /* ── Light mode neon (toned down for light backgrounds) ── */
-  --neon-green: #059669;
-  --neon-red: #dc2626;
-  --neon-amber: #d97706;
-  --neon-blue: #2563eb;
-
-  /* ── Light mode shadows ── */
-  --shadow-card-glow:
-    0 0 0 1px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.08);
-  --shadow-neon-green: 0 0 6px rgba(5, 150, 105, 0.2);
-  --shadow-neon-red: 0 0 6px rgba(220, 38, 38, 0.2);
-  --shadow-neon-blue:
-    0 0 8px rgba(37, 99, 235, 0.2), 0 0 16px rgba(37, 99, 235, 0.1);
+  --background-dark: var(--bg);
+  --surface-dark: var(--surface);
 }

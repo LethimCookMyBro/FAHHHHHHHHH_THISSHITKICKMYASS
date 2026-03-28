@@ -16,12 +16,19 @@ const DIAGNOSTIC_SECTION_LABELS = [
 const DIAGNOSTIC_CONTENT_HINT_RE =
   /(root cause analysis|issue type|recommended actions|prerequisites\s*\/?\s*notes|troubleshooting|common failure patterns|likely diagnostic checks)/i;
 
-const escapeRegExp = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-const LEGACY_DIAG_HEADING_RE = /^#{2,}\s*(root cause analysis|issue type|recommended actions|safety warnings|estimated repair time)\s*$/im;
-const TARGET_TEMPLATE_HEADING_RE = /^#{2,}\s*(prerequisites\s*\/?\s*notes|steps|troubleshooting)\s*$/im;
+const escapeRegExp = (value) =>
+  String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const LEGACY_DIAG_HEADING_RE =
+  /^#{2,}\s*(root cause analysis|issue type|recommended actions|safety warnings|estimated repair time)\s*$/im;
+
+const TARGET_TEMPLATE_HEADING_RE =
+  /^#{2,}\s*(prerequisites\s*\/?\s*notes|steps|troubleshooting)\s*$/im;
+const FLAT_NUMBERED_LIST_RE = /\d+\.\s+(.+?)(?=(?:\s+\d+\.\s+)|$)/g;
 
 export const fixMarkdownTable = (text) => {
   if (!text?.includes("|")) return text;
+
   return text
     .split("\n")
     .map((line) => {
@@ -34,7 +41,11 @@ export const fixMarkdownTable = (text) => {
         .filter((part) => part && !/^-+$/.test(part));
 
       if (parts.length < 2) return line;
-      if (parts.every((part) => part.length < 30 && /^[A-Z][a-zA-Z\s()]*$/.test(part))) {
+      if (
+        parts.every(
+          (part) => part.length < 30 && /^[A-Z][a-zA-Z\s()]*$/.test(part),
+        )
+      ) {
         return null;
       }
 
@@ -43,8 +54,8 @@ export const fixMarkdownTable = (text) => {
         .map((part) => {
           const colonIndex = part.indexOf(":");
           return colonIndex > 0 && colonIndex < 50
-            ? `• **${part.slice(0, colonIndex).trim()}**: ${part.slice(colonIndex + 1).trim()}`
-            : `• ${part}`;
+            ? `- **${part.slice(0, colonIndex).trim()}**: ${part.slice(colonIndex + 1).trim()}`
+            : `- ${part}`;
         });
 
       return bullets.length ? bullets.join("\n") : line;
@@ -85,7 +96,10 @@ export const normalizeDiagnosticMarkdown = (text) => {
       /^Common failure patterns\s*:?\s*$/gim,
       "#### Common failure patterns",
     )
-    .replace(/^Likely diagnostic checks\s*:?\s*$/gim, "#### Likely diagnostic checks")
+    .replace(
+      /^Likely diagnostic checks\s*:?\s*$/gim,
+      "#### Likely diagnostic checks",
+    )
     .replace(/^Relevant LEDs\s*:?\s*$/gim, "#### Relevant LEDs");
 
   normalized = normalized
@@ -94,8 +108,8 @@ export const normalizeDiagnosticMarkdown = (text) => {
     .replace(/([.!?])\s+([1-9]\.\s+)/g, "$1\n$2");
 
   normalized = normalized
-    .replace(/\s*•\s+/g, "\n- ")
-    .replace(/^\-\s+/gm, "- ");
+    .replace(/\n-\s+/g, "\n- ")
+    .replace(/^-+\s+/gm, "- ");
 
   normalized = normalized
     .replace(/\n{3,}/g, "\n\n")
@@ -134,7 +148,7 @@ const toBulletLines = (text, prefix) =>
     .map((line) => line.trim())
     .filter(Boolean)
     .map((line) => {
-      if (/^[-*•]\s+/.test(line)) return `- ${line.replace(/^[-*•]\s+/, "")}`;
+      if (/^[-*]\s+/.test(line)) return `- ${line.replace(/^[-*]\s+/, "")}`;
       if (/^\d+[.)]\s+/.test(line)) return `- ${line}`;
       return prefix ? `- ${prefix}${line}` : `- ${line}`;
     });
@@ -148,9 +162,7 @@ const toStepLines = (text) => {
   if (!lines.length) return [];
 
   const normalized = lines.map((line) =>
-    line
-      .replace(/^[-*•]\s+/, "")
-      .replace(/^\d+[.)]\s+/, ""),
+    line.replace(/^[-*]\s+/, "").replace(/^\d+[.)]\s+/, ""),
   );
 
   return normalized.map((line, idx) => `${idx + 1}. ${line}`);
@@ -161,15 +173,23 @@ const buildFallbackTroubleshootingBullets = (issueTypeText) => {
   const bullets = [];
 
   if (issue.includes("hardware")) {
-    bullets.push("Common failure patterns: trip repeats after reset, overheating module, loose connector.");
+    bullets.push(
+      "Common failure patterns: trip repeats after reset, overheating module, loose connector.",
+    );
   } else if (issue.includes("software")) {
-    bullets.push("Common failure patterns: parameter mismatch, I/O assignment mismatch, startup configuration error.");
+    bullets.push(
+      "Common failure patterns: parameter mismatch, I/O assignment mismatch, startup configuration error.",
+    );
   } else {
-    bullets.push("Common failure patterns: repeated fault after reset, fault after recent configuration change.");
+    bullets.push(
+      "Common failure patterns: repeated fault after reset, fault after recent configuration change.",
+    );
   }
 
   bullets.push("Relevant LEDs: RUN/ERR/LINK (or module-specific error LED).");
-  bullets.push("Likely diagnostic checks: verify each step one by one and confirm the original symptom clears.");
+  bullets.push(
+    "Likely diagnostic checks: verify each step one by one and confirm the original symptom clears.",
+  );
   return bullets;
 };
 
@@ -212,8 +232,26 @@ export const reshapeLegacyDiagnosticTemplate = (text) => {
   ].join("\n");
 };
 
+export const normalizeFlatNumberedList = (text) => {
+  const value = String(text || "").replace(/\r\n?/g, "\n").trim();
+  if (!value || value.includes("\n1. ")) return value;
+
+  const matches = [...value.matchAll(FLAT_NUMBERED_LIST_RE)];
+  if (matches.length < 2) {
+    return value;
+  }
+
+  return matches
+    .map(([, step], index) => `${index + 1}. ${step.trim().replace(/\.$/, "")}`)
+    .join("\n");
+};
+
 export const prepareMarkdownText = (text) =>
-  reshapeLegacyDiagnosticTemplate(normalizeDiagnosticMarkdown(fixMarkdownTable(text)));
+  normalizeFlatNumberedList(
+    reshapeLegacyDiagnosticTemplate(
+      normalizeDiagnosticMarkdown(fixMarkdownTable(text)),
+    ),
+  );
 
 export const looksLikeDiagnosticMarkdown = (text) =>
   DIAGNOSTIC_CONTENT_HINT_RE.test(String(text || ""));

@@ -4,6 +4,7 @@ import logging
 import re
 from typing import List, Any, Tuple, Optional
 
+from psycopg2 import sql
 from pydantic import Field
 from langchain_core.retrievers import BaseRetriever
 from langchain_core.documents import Document
@@ -174,8 +175,11 @@ class PostgresVectorRetriever(BaseRetriever):
 
         keyword_limit = _env_int("HYBRID_KEYWORD_LIMIT", 20)
         likes = [f"%{term}%" for term in keyword_terms]
-        match_clause = " OR ".join(["lower(content) LIKE %s"] * len(likes))
-        sql = f"""
+        match_clause = sql.SQL(" OR ").join(
+            sql.SQL("lower(content) LIKE %s") for _ in likes
+        )
+        query_sql = sql.SQL(
+            """
             SELECT content, metadata, embedding <-> %s AS distance
             FROM documents
             WHERE collection = %s
@@ -183,10 +187,11 @@ class PostgresVectorRetriever(BaseRetriever):
             ORDER BY embedding <-> %s
             LIMIT %s
         """
+        ).format(match_clause=match_clause)
         params: List[Any] = [query_vector, self.collection]
         params.extend(likes)
         params.extend([query_vector, keyword_limit])
-        cur.execute(sql, params)
+        cur.execute(query_sql, params)
         return cur.fetchall()
 
     def _get_relevant_documents(self, query: str) -> List[Document]:
@@ -354,3 +359,88 @@ class NoRerankRetriever(BaseRetriever):
     def _get_relevant_documents(self, query: str) -> List[Document]:
         docs = list(self.prefetched_docs) if self.prefetched_docs is not None else (self.base_retriever.invoke(query) or [])
         return docs[: self.top_n]
+
+
+# ===============================
+# Cross-encoder Reranker (High Accuracy)
+# ===============================
+
+_cross_encoder_instance = None
+_cross_encoder_load_failed = False
+
+
+def _get_cross_encoder():
+    """Get or create singleton CrossEncoder instance for high-accuracy reranking."""
+    global _cross_encoder_instance, _cross_encoder_load_failed
+    if _cross_encoder_load_failed:
+        return None
+    if _cross_encoder_instance is not None:
+        return _cross_encoder_instance
+    try:
+        from sentence_transformers import CrossEncoder as _CE
+        model_name = os.getenv(
+            "CROSS_ENCODER_MODEL",
+            "cross-encoder/ms-marco-MiniLM-L-6-v2",
+        )
+        cache_dir = os.getenv("MODEL_CACHE", "/data/models")
+        _cross_encoder_instance = _CE(model_name, max_length=512, cache_folder=cache_dir)
+        logging.info("[CrossEncoder] Initialized: %s", model_name)
+        return _cross_encoder_instance
+    except Exception as exc:
+        _cross_encoder_load_failed = True
+        logging.warning("⚠️ CrossEncoder load failed, will use base scores: %s", exc)
+        return None
+
+
+class CrossEncoderRerankRetriever(BaseRetriever):
+    """
+    Second-stage reranker using Cross-encoder for maximum accuracy.
+
+    Cross-encoders evaluate (query, document) pairs jointly, producing far more
+    accurate relevance scores than bi-encoder approaches (Flashrank).  This class
+    is designed to sit *after* a first-stage retriever (e.g. Flashrank) and re-score
+    the top candidates.
+
+    - Loads the model lazily as a singleton (one-time cost).
+    - Falls back to base retriever scores if the model fails to load.
+    - Configurable via env: CROSS_ENCODER_MODEL, USE_CROSS_ENCODER.
+    """
+    base_retriever: BaseRetriever = Field(...)
+    top_n: int = Field(default_factory=lambda: _env_int("CROSS_ENCODER_TOPN", 8))
+    prefetched_docs: Optional[List[Document]] = Field(default=None)
+
+    def _get_relevant_documents(self, query: str) -> List[Document]:
+        candidates = (
+            list(self.prefetched_docs)
+            if self.prefetched_docs is not None
+            else (self.base_retriever.invoke(query) or [])
+        )
+        if not candidates:
+            return []
+
+        cross_encoder = _get_cross_encoder()
+        if cross_encoder is None:
+            # Fallback: pass through base scores
+            for doc in candidates:
+                if "cross_encoder_score" not in (doc.metadata or {}):
+                    doc.metadata["cross_encoder_score"] = doc.metadata.get("score", 0.0)
+            return candidates[: self.top_n]
+
+        # Build (query, passage) pairs for cross-encoder scoring
+        pairs = [(query, doc.page_content or "") for doc in candidates]
+        try:
+            scores = cross_encoder.predict(pairs, show_progress_bar=False)
+        except Exception as exc:
+            logging.warning("⚠️ CrossEncoder predict failed: %s", exc)
+            return candidates[: self.top_n]
+
+        # Attach cross-encoder score and sort descending
+        scored = list(zip(scores, candidates))
+        scored.sort(key=lambda x: float(x[0]), reverse=True)
+
+        results = []
+        for score, doc in scored[: self.top_n]:
+            doc.metadata["cross_encoder_score"] = float(score)
+            doc.metadata["score"] = float(score)
+            results.append(doc)
+        return results

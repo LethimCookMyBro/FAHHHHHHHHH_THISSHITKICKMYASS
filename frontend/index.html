@@ -12,10 +12,19 @@
     <link rel="apple-touch-icon" href="/panya-logo.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Noto+Sans+Thai:wght@400;500;600;700&family=Sora:wght@500;600;700&display=swap"
-      rel="stylesheet"
-    />
+    <script>
+      (() => {
+        let theme = "light";
+        try {
+          theme = localStorage.getItem("theme") === "dark" ? "dark" : "light";
+        } catch {
+          theme = "light";
+        }
+        document.documentElement.dataset.theme = theme;
+        document.documentElement.style.colorScheme =
+          theme === "dark" ? "dark" : "light";
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

@@ -2,7 +2,7 @@ import json
 from typing import Any, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from .security import require_roles
-from .plc.connector import get_connector
+from .plc.connector import HybridPLCConnector, SimulatorConnector, get_connector
 from .plc.contracts import _normalize_action, _now_iso, _safe_json
 from .plc.action_policy import POLICY_VERSION, propose_safe_action_plan
 from .plc.diagnostic import diagnose_error
@@ -66,6 +66,14 @@ def _load_action_by_id(pool, action_id: int) -> Optional[dict[str, Any]]:
             return dict(zip(columns, row))
     finally:
         pool.putconn(conn)
+
+
+def _connector_supports_live_execution(connector: Any) -> bool:
+    if isinstance(connector, SimulatorConnector):
+        return True
+    if isinstance(connector, HybridPLCConnector):
+        return connector.active_mode == "simulator"
+    return False
 
 
 @router.get("/actions")
@@ -365,16 +373,26 @@ async def approve_action(
     if action is None:
         raise HTTPException(status_code=404, detail="Action not found")
 
+    current_status = str(action.get("execution_status") or "").strip().lower()
+    if current_status in {"executed", "simulated", "failed"}:
+        raise HTTPException(
+            status_code=409,
+            detail="Action has already been approved or executed",
+        )
+
     action_payload = _safe_json(action.get("action_payload"), {})
     if not isinstance(action_payload, dict) or not action_payload:
         raise HTTPException(status_code=400, detail="Action payload is empty or invalid")
 
-    execution_enabled = _feature_enabled("FEATURE_AUTOFIX_EXECUTION", False)
-    dry_run = payload.dry_run if payload.dry_run is not None else (not execution_enabled)
-
     connector = get_connector()
     if not connector.is_connected:
         await connector.connect()
+
+    execution_enabled = _feature_enabled(
+        "FEATURE_AUTOFIX_EXECUTION",
+        _connector_supports_live_execution(connector),
+    )
+    dry_run = payload.dry_run if payload.dry_run is not None else (not execution_enabled)
 
     exec_payload = dict(action_payload)
     exec_payload["dry_run"] = dry_run
@@ -396,6 +414,7 @@ async def approve_action(
         }
     )
 
+    alarm_status = None
     conn = pool.getconn()
     try:
         with conn.cursor() as cur:
@@ -432,9 +451,13 @@ async def approve_action(
                         resolved_at = NOW(),
                         diagnosed_at = COALESCE(diagnosed_at, NOW())
                     WHERE id = %s
+                    RETURNING status
                     """,
                     [alarm_id],
                 )
+                updated_alarm = cur.fetchone()
+                if updated_alarm:
+                    alarm_status = updated_alarm[0]
 
         conn.commit()
     except Exception:
@@ -443,4 +466,12 @@ async def approve_action(
     finally:
         pool.putconn(conn)
 
-    return {"status": execution_status, "result": result}
+    return {
+        "status": execution_status,
+        "execution_status": execution_status,
+        "result": result,
+        "execution_result": result,
+        "dry_run": dry_run,
+        "alarm_id": action.get("alarm_id"),
+        "alarm_status": alarm_status,
+    }

@@ -144,7 +144,7 @@ Provide a structured field-tech response in this exact markdown format (and noth
 - Add concrete checks/items under each bullet (no empty placeholders)
 
 Do not include separate sections named "Issue Type" or "Recommended Actions" because the UI shows issue type separately.
-Answer in the language that matches the error documentation. Be specific to Mitsubishi {model} series.
+Answer in English only, even when source documentation includes other languages. Be specific to Mitsubishi {model} series.
 """
 
 

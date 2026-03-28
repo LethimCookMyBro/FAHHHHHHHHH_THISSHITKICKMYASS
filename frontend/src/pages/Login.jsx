@@ -4,12 +4,25 @@ import { getApiErrorMessage } from "../utils/api";
 import { useT } from "../utils/i18n";
 import { GlassSurface } from "../components/ui";
 
+const LOCALHOST_HOSTNAMES = new Set(["localhost", "127.0.0.1"]);
+const metaEnv = import.meta.env || {};
+const LOCAL_DEMO_CREDENTIALS = {
+  email: String(metaEnv.VITE_DEV_DEMO_EMAIL || "").trim(),
+  password: String(metaEnv.VITE_DEV_DEMO_PASSWORD || ""),
+};
+
 function Login({ onLogin, onGoRegister }) {
   const { t } = useT();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const hasLocalDemoCredentials =
+    LOCAL_DEMO_CREDENTIALS.email && LOCAL_DEMO_CREDENTIALS.password;
+  const canUseLocalDemo =
+    typeof window !== "undefined" &&
+    LOCALHOST_HOSTNAMES.has(window.location.hostname) &&
+    hasLocalDemoCredentials;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -19,7 +32,7 @@ function Login({ onLogin, onGoRegister }) {
     try {
       await onLogin({ email, password });
     } catch (err) {
-      setError(getApiErrorMessage(err, "Invalid credentials"));
+      setError(getApiErrorMessage(err, t("auth.invalidCredentials")));
     } finally {
       setLoading(false);
     }
@@ -45,10 +58,10 @@ function Login({ onLogin, onGoRegister }) {
               <Sparkles className="w-5 h-5 text-cyan-400" />
             </div>
           </div>
-          <h1 className="text-3xl font-bold text-[color:var(--text-primary)] tracking-tight">
+          <h1 className="auth-brand-title text-3xl font-bold tracking-tight">
             {t("brand.title")}
           </h1>
-          <p className="text-sm text-[color:var(--text-secondary)] mt-1 font-medium">
+          <p className="auth-brand-subtitle text-sm mt-1 font-medium">
             {t("brand.subtitle")}
           </p>
         </div>
@@ -65,7 +78,7 @@ function Login({ onLogin, onGoRegister }) {
           saturation={1.18}
           backgroundOpacity={0.14}
         >
-          <h2 className="text-xl font-semibold mb-6 text-center text-[color:var(--text-primary)]">
+          <h2 className="auth-card-title text-xl font-semibold mb-6 text-center">
             {t("auth.welcomeBack")}
           </h2>
 
@@ -75,20 +88,40 @@ function Login({ onLogin, onGoRegister }) {
             </div>
           )}
 
+          {canUseLocalDemo ? (
+            <div className="mb-4 rounded-xl border border-cyan-400/20 bg-cyan-500/10 px-4 py-3 text-left text-sm text-cyan-100">
+              <p className="font-medium text-cyan-200">{t("auth.localDemoAccount")}</p>
+              <p className="mt-1 text-cyan-100/90">
+                {LOCAL_DEMO_CREDENTIALS.email} / {LOCAL_DEMO_CREDENTIALS.password}
+              </p>
+              <button
+                type="button"
+                className="mt-3 text-cyan-300 transition-colors hover:text-cyan-200 hover:underline"
+                onClick={() => {
+                  setEmail(LOCAL_DEMO_CREDENTIALS.email);
+                  setPassword(LOCAL_DEMO_CREDENTIALS.password);
+                  setError("");
+                }}
+              >
+                {t("auth.useDemoCredentials")}
+              </button>
+            </div>
+          ) : null}
+
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-[color:var(--text-secondary)] mb-1.5">
+              <label className="auth-label block text-sm font-medium mb-1.5">
                 {t("auth.email")}
               </label>
               <div className="relative">
                 <Mail
                   size={16}
-                  className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500"
+                  className="auth-icon absolute left-3.5 top-1/2 -translate-y-1/2"
                 />
                 <input
                   type="email"
-                  placeholder="you@company.com"
-                  className="auth-input w-full pl-10 pr-4 py-2.5 rounded-xl focus:outline-none text-[color:var(--text-primary)] placeholder-[color:var(--text-muted)]"
+                  placeholder={t("auth.emailPlaceholder")}
+                  className="auth-input w-full pl-10 pr-4 py-2.5 rounded-xl focus:outline-none text-white placeholder-[color:var(--text-muted)]"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
@@ -97,18 +130,18 @@ function Login({ onLogin, onGoRegister }) {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-[color:var(--text-secondary)] mb-1.5">
+              <label className="auth-label block text-sm font-medium mb-1.5">
                 {t("auth.password")}
               </label>
               <div className="relative">
                 <Lock
                   size={16}
-                  className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500"
+                  className="auth-icon absolute left-3.5 top-1/2 -translate-y-1/2"
                 />
                 <input
                   type="password"
-                  placeholder="••••••••"
-                  className="auth-input w-full pl-10 pr-4 py-2.5 rounded-xl focus:outline-none text-[color:var(--text-primary)] placeholder-[color:var(--text-muted)]"
+                  placeholder={t("auth.passwordPlaceholder")}
+                  className="auth-input w-full pl-10 pr-4 py-2.5 rounded-xl focus:outline-none text-white placeholder-[color:var(--text-muted)]"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
@@ -120,7 +153,7 @@ function Login({ onLogin, onGoRegister }) {
           <button
             type="submit"
             disabled={loading}
-            className="w-full mt-6 bg-gradient-to-r from-blue-500 to-cyan-500 text-white py-2.5 rounded-xl hover:from-blue-600 hover:to-cyan-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-semibold shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 flex items-center justify-center gap-2 glass-interactive"
+            className="auth-button w-full mt-6 text-white py-2.5 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all font-semibold flex items-center justify-center gap-2 glass-interactive"
           >
             {loading ? (
               <>
@@ -132,19 +165,19 @@ function Login({ onLogin, onGoRegister }) {
             )}
           </button>
 
-          <p className="mt-6 text-sm text-center text-[color:var(--text-secondary)]">
+          <p className="auth-body mt-6 text-sm text-center">
             {t("auth.noAccount")}{" "}
             <button
               type="button"
               onClick={onGoRegister}
-              className="text-cyan-400 hover:text-cyan-300 font-medium hover:underline transition-colors"
+              className="auth-link font-medium hover:underline transition-colors"
             >
               {t("auth.createOne")}
             </button>
           </p>
         </GlassSurface>
 
-        <p className="text-center text-[11px] text-[color:var(--text-muted)] mt-6">
+        <p className="auth-footer text-center text-[11px] mt-6">
           {t("auth.powered")}
         </p>
       </div>

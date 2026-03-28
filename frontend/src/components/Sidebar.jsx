@@ -1,57 +1,53 @@
-import { useEffect, useState, useMemo } from "react";
-import { NavLink, useLocation, useNavigate } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { NavLink, useLocation } from "react-router-dom";
 import {
-  LayoutDashboard,
-  AlertTriangle,
+  Activity,
+  PieChart,
+  Map,
+  Briefcase,
+  Lightbulb,
   MessageSquare,
-  ClipboardList,
-  ChevronLeft,
-  ChevronRight,
-  Factory,
+  ChevronsLeft,
+  ChevronsRight,
   Globe,
   LogOut,
-  Moon,
-  Sun,
-  Wifi,
 } from "lucide-react";
 import { useT } from "../utils/i18n";
+import useMediaQuery from "../hooks/useMediaQuery";
+import useConnectionLabel from "../hooks/useConnectionLabel";
 
 const NAV_ITEMS = [
-  { to: "/", key: "nav.dashboard", icon: LayoutDashboard, end: true },
-  { to: "/alarms", key: "nav.incidents", icon: AlertTriangle },
+  { to: "/", key: "nav.overview", icon: PieChart, end: true },
+  { to: "/overview", key: "nav.portMap", icon: Map },
+  { to: "/equipment", key: "nav.equipment", icon: Briefcase },
+  { to: "/alarms", key: "nav.alerts", icon: Lightbulb },
   { to: "/chat", key: "nav.chat", icon: MessageSquare },
-  { to: "/actions", key: "nav.actions", icon: ClipboardList },
 ];
-
-const CONNECTION_KEY = {
-  live: "sidebar.live",
-  reconnecting: "sidebar.reconnecting",
-  rest: "sidebar.restFallback",
-  connecting: "sidebar.connecting",
-};
-
-const getInitials = (name) => {
-  const value = String(name || "Operator").trim();
-  if (!value) return "OP";
-  const parts = value.split(/\s+/).filter(Boolean);
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
-};
 
 export default function Sidebar({
   alarmCount = 0,
   onLogout,
-  theme = "dark",
-  onToggleTheme,
   connectionState = "connecting",
   userName = "Operator",
   userRole = "",
+  mobileOpen = false,
+  onMobileOpenChange,
 }) {
   const [collapsed, setCollapsed] = useState(false);
-  const [clock, setClock] = useState("");
   const location = useLocation();
-  const navigate = useNavigate();
+  const isMobile = useMediaQuery("(max-width: 980px)");
+  const isTablet = useMediaQuery("(min-width: 768px) and (max-width: 1220px)");
   const { t, locale, setLocale } = useT();
+  const { label: connectionLabel } = useConnectionLabel(connectionState);
+  const userInitials = useMemo(() => {
+    const source = String(userName || "Operator").trim();
+    if (!source) return "OP";
+    return source
+      .split(/\s+/)
+      .slice(0, 2)
+      .map((part) => part.charAt(0).toUpperCase())
+      .join("");
+  }, [userName]);
 
   const activeNavIndex = useMemo(() => {
     const path = location.pathname;
@@ -62,190 +58,163 @@ export default function Sidebar({
   }, [location.pathname]);
 
   useEffect(() => {
-    const tick = () => {
-      setClock(
-        new Date().toLocaleTimeString(locale === "th" ? "th-TH" : "en-GB", {
-          hour: "2-digit",
-          minute: "2-digit",
-          second: "2-digit",
-        }),
-      );
+    if (!isMobile) return undefined;
+
+    const onKeyDown = (event) => {
+      if (event.key === "Escape") {
+        onMobileOpenChange?.(false);
+      }
     };
 
-    tick();
-    const id = window.setInterval(tick, 1000);
-    return () => window.clearInterval(id);
-  }, [locale]);
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [isMobile, onMobileOpenChange]);
 
-  const isLive = connectionState === "live";
-  const connectionLabel = t(
-    CONNECTION_KEY[connectionState] || CONNECTION_KEY.connecting,
-  );
-  const isRoot = location.pathname === "/";
+  useEffect(() => {
+    if (isMobile) {
+      setCollapsed(false);
+      return;
+    }
+    if (isTablet) {
+      setCollapsed(false);
+    }
+  }, [isMobile, isTablet]);
 
   return (
-    <aside className={`nexus-sidebar ${collapsed ? "is-collapsed" : ""}`}>
-      {/* ── Brand ── */}
-      <div className="nexus-sidebar-brand">
-        <div className="nexus-brand-row">
-          <span className="nexus-brand-logo">
-            <Factory size={18} />
-          </span>
-          <div className="hide-on-collapsed min-w-0">
-            <p className="nexus-brand-title">{t("brand.title")}</p>
-            <p className="nexus-brand-sub">{t("brand.subtitle")}</p>
-          </div>
-        </div>
-      </div>
+    <>
+      {isMobile && mobileOpen ? (
+        <button
+          type="button"
+          aria-label="Close sidebar"
+          className="nexus-sidebar-backdrop"
+          onClick={() => onMobileOpenChange?.(false)}
+        />
+      ) : null}
 
-      {/* ── Status Card ── */}
-      {collapsed ? (
-        <div className="nexus-status-mini" title={connectionLabel}>
-          <span className="nexus-status-dot-wrap">
-            {isLive ? (
-              <>
-                <span className="nexus-status-ping" />
-                <span className="nexus-status-dot is-live" />
-              </>
-            ) : (
-              <span className="nexus-status-dot" />
-            )}
-          </span>
-        </div>
-      ) : (
-        <div className="nexus-status-card">
-          <div className="nexus-status-row">
-            <span className="nexus-status-dot-wrap">
-              {isLive ? (
-                <>
-                  <span className="nexus-status-ping" />
-                  <span className="nexus-status-dot is-live" />
-                </>
-              ) : (
-                <span className="nexus-status-dot" />
-              )}
+      <aside
+        className={`nexus-sidebar ${collapsed ? "is-collapsed" : ""} ${isMobile ? "is-mobile" : ""} ${mobileOpen ? "is-mobile-open" : ""}`}
+      >
+        <div className="nexus-sidebar-brand" style={{ paddingBottom: "24px" }}>
+          <div className="nexus-brand-row">
+            <span className="nexus-brand-logo">
+              <img
+                src="/favicon.svg"
+                alt={t("brand.title")}
+                className="nexus-brand-logo-image"
+              />
             </span>
-            <span className="hide-on-collapsed nexus-status-label">
-              {connectionLabel}
-            </span>
-            <Wifi size={14} className="hide-on-collapsed nexus-status-wifi" />
-          </div>
-          <div className="hide-on-collapsed nexus-status-meta">
-            <span className="nexus-mono">{clock}</span>
-          </div>
-        </div>
-      )}
-
-      {/* ── Navigation ── */}
-      {/* ── Search Bar ── */}
-      {!collapsed && (
-        <div className="nexus-sidebar-search">
-          <div className="nexus-search-wrap">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="nexus-search-icon"
-            >
-              <circle cx="11" cy="11" r="8"></circle>
-              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-            </svg>
-            <input
-              type="text"
-              placeholder={t("nav.search") || "Search 205 drivers"}
-              className="nexus-search-input"
-            />
-          </div>
-        </div>
-      )}
-
-      {/* ── Navigation ── */}
-      <nav className="nexus-nav-list">
-        {NAV_ITEMS.map(({ to, key, icon: Icon, end }) => (
-          <NavLink
-            key={key}
-            to={to}
-            end={end}
-            className={({ isActive }) => {
-              const active = end ? location.pathname === "/" : isActive;
-              return `nexus-nav-link ${active ? "is-active" : ""}`;
-            }}
-          >
-            <Icon size={18} />
-            <span className="hide-on-collapsed">{t(key)}</span>
-            {key === "nav.incidents" && alarmCount > 0 ? (
-              <span className="nexus-alarm-pill hide-on-collapsed">
-                {alarmCount}
-              </span>
-            ) : null}
-          </NavLink>
-        ))}
-      </nav>
-
-      {/* ── Bottom Section ── */}
-      <div className="nexus-sidebar-bottom">
-        {/* User */}
-        {!collapsed ? (
-          <div className="nexus-user-card">
-            <div className="nexus-user-row">
-              <span className="nexus-user-avatar">{getInitials(userName)}</span>
-              <div className="hide-on-collapsed min-w-0">
-                <p className="nexus-user-name">{userName}</p>
-                {userRole ? (
-                  <p className="nexus-user-role">{userRole}</p>
-                ) : null}
-              </div>
+            <div className="hide-on-collapsed min-w-0">
+              <p className="nexus-brand-title">{t("brand.title")}</p>
+              <p className="nexus-brand-sub">{t("brand.subtitle")}</p>
             </div>
+          </div>
+        </div>
+
+        {!collapsed ? (
+          <div className="nexus-status-card">
+            <div className="nexus-status-row">
+              <span className="nexus-status-dot-wrap">
+                <span
+                  className={`nexus-status-ping ${connectionState === "live" ? "is-live" : ""}`}
+                />
+                <span
+                  className={`nexus-status-dot ${connectionState === "live" ? "is-live" : ""}`}
+                />
+              </span>
+              <span className="nexus-status-label">{connectionLabel}</span>
+              <Activity size={14} className="nexus-status-wifi" />
+            </div>
+            <p className="nexus-status-meta">
+              {alarmCount > 0
+                ? `${alarmCount} ${t("nav.alerts")}`
+                : t("common.liveStream")}
+            </p>
           </div>
         ) : null}
 
-        {/* Controls */}
-        <div className="nexus-controls">
-          <button
-            type="button"
-            className="nexus-ctrl-btn"
-            onClick={() => setLocale(locale === "th" ? "en" : "th")}
-            title={locale === "th" ? "Switch to English" : "เปลี่ยนเป็นไทย"}
-          >
-            <Globe size={16} />
-          </button>
+        {!collapsed ? (
+          <p className="nexus-nav-section">{t("nav.navigation")}</p>
+        ) : null}
 
-          <button
-            type="button"
-            className="nexus-ctrl-btn"
-            onClick={onToggleTheme}
-            title={
-              theme === "dark" ? t("sidebar.lightMode") : t("sidebar.darkMode")
-            }
-          >
-            {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
-          </button>
+        <nav className="nexus-nav-list">
+          {NAV_ITEMS.map(({ to, key, icon: Icon, end }, navIndex) => (
+            <NavLink
+              key={key}
+              to={to}
+              end={end}
+              style={{ "--nav-index": navIndex }}
+              className={({ isActive }) => {
+                const active = end ? location.pathname === "/" : isActive;
+                return `nexus-nav-link ${active ? "is-active" : ""}`;
+              }}
+              onClick={() => {
+                if (isMobile) onMobileOpenChange?.(false);
+              }}
+            >
+              {activeNavIndex === navIndex ? (
+                <span className="nexus-nav-active-bg" />
+              ) : null}
 
-          <button
-            type="button"
-            className="nexus-ctrl-btn"
-            onClick={() => setCollapsed((current) => !current)}
-            title={collapsed ? t("sidebar.expand") : t("sidebar.collapse")}
-          >
-            {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
-          </button>
+              <span className="nexus-nav-icon">
+                <Icon size={18} />
+              </span>
+              <span className="hide-on-collapsed nexus-nav-text">{t(key)}</span>
+              {key === "nav.alerts" && alarmCount > 0 ? (
+                <span className="nexus-alarm-pill hide-on-collapsed">
+                  {alarmCount}
+                </span>
+              ) : null}
+            </NavLink>
+          ))}
+        </nav>
 
-          <button
-            type="button"
-            className="nexus-ctrl-btn nexus-ctrl-logout"
-            onClick={onLogout}
-            title={t("sidebar.logout")}
-          >
-            <LogOut size={16} />
-          </button>
+        <div className="nexus-sidebar-bottom">
+          <div className="nexus-user-card">
+            <div className="nexus-user-row">
+              <span className="nexus-user-avatar">{userInitials}</span>
+              <div className="hide-on-collapsed">
+                <p className="nexus-user-name">{userName}</p>
+                <p className="nexus-user-role">
+                  {userRole || t("topbar.operator")}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="nexus-controls">
+            <button
+              type="button"
+              className="nexus-ctrl-btn"
+              onClick={() => setLocale(locale === "th" ? "en" : "th")}
+              title={
+                locale === "th"
+                  ? t("sidebar.switchToEnglish")
+                  : t("sidebar.switchToThai")
+              }
+            >
+              <Globe size={16} />
+            </button>
+
+            <button
+              type="button"
+              className="nexus-ctrl-btn hide-on-mobile"
+              onClick={() => setCollapsed((current) => !current)}
+              title={collapsed ? t("sidebar.expand") : t("sidebar.collapse")}
+            >
+              {collapsed ? <ChevronsRight size={16} /> : <ChevronsLeft size={16} />}
+            </button>
+
+            <button
+              type="button"
+              className="nexus-ctrl-btn nexus-ctrl-logout"
+              onClick={onLogout}
+              title={t("sidebar.logout")}
+            >
+              <LogOut size={16} />
+            </button>
+          </div>
         </div>
-      </div>
-    </aside>
+      </aside>
+    </>
   );
 }

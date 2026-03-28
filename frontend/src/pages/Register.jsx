@@ -2,8 +2,10 @@ import { useState } from "react";
 import { LoaderCircle, Mail, Lock, User, Sparkles } from "lucide-react";
 import { authAPI, getApiErrorMessage } from "../utils/api";
 import { GlassSurface } from "../components/ui";
+import { useT } from "../utils/i18n";
 
 export default function Register({ onRegisterSuccess, onBackToLogin }) {
+  const { t } = useT();
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -19,7 +21,7 @@ export default function Register({ onRegisterSuccess, onBackToLogin }) {
       await authAPI.register(fullName, email, password);
       onRegisterSuccess();
     } catch (err) {
-      setError(getApiErrorMessage(err, "Register failed"));
+      setError(getApiErrorMessage(err, t("auth.registerFailed")));
     } finally {
       setLoading(false);
     }
@@ -47,11 +49,11 @@ export default function Register({ onRegisterSuccess, onBackToLogin }) {
               <Sparkles className="w-5 h-5 text-cyan-400" />
             </div>
           </div>
-          <h1 className="text-3xl font-bold text-[color:var(--text-primary)] tracking-tight">
-            Panya
+          <h1 className="auth-brand-title text-3xl font-bold tracking-tight">
+            {t("brand.title")}
           </h1>
-          <p className="text-sm text-[color:var(--text-secondary)] mt-1 font-medium">
-            Create your account
+          <p className="auth-brand-subtitle text-sm mt-1 font-medium">
+            {t("auth.createAccountSubtitle")}
           </p>
         </div>
 
@@ -68,8 +70,8 @@ export default function Register({ onRegisterSuccess, onBackToLogin }) {
           saturation={1.18}
           backgroundOpacity={0.14}
         >
-          <h2 className="text-xl font-semibold mb-6 text-center text-[color:var(--text-primary)]">
-            Get started
+          <h2 className="auth-card-title text-xl font-semibold mb-6 text-center">
+            {t("auth.getStarted")}
           </h2>
 
           {error && (
@@ -80,18 +82,18 @@ export default function Register({ onRegisterSuccess, onBackToLogin }) {
 
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-[color:var(--text-secondary)] mb-1.5">
-                Username
+              <label className="auth-label block text-sm font-medium mb-1.5">
+                {t("auth.username")}
               </label>
               <div className="relative">
                 <User
                   size={16}
-                  className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500"
+                  className="auth-icon absolute left-3.5 top-1/2 -translate-y-1/2"
                 />
                 <input
                   type="text"
-                  placeholder="Your Username"
-                  className="auth-input w-full pl-10 pr-4 py-2.5 rounded-xl focus:outline-none text-[color:var(--text-primary)] placeholder-[color:var(--text-muted)]"
+                  placeholder={t("auth.usernamePlaceholder")}
+                  className="auth-input w-full pl-10 pr-4 py-2.5 rounded-xl focus:outline-none text-white placeholder-[color:var(--text-muted)]"
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                   required
@@ -100,18 +102,18 @@ export default function Register({ onRegisterSuccess, onBackToLogin }) {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-[color:var(--text-secondary)] mb-1.5">
-                Email
+              <label className="auth-label block text-sm font-medium mb-1.5">
+                {t("auth.email")}
               </label>
               <div className="relative">
                 <Mail
                   size={16}
-                  className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500"
+                  className="auth-icon absolute left-3.5 top-1/2 -translate-y-1/2"
                 />
                 <input
                   type="email"
-                  placeholder="you@company.com"
-                  className="auth-input w-full pl-10 pr-4 py-2.5 rounded-xl focus:outline-none text-[color:var(--text-primary)] placeholder-[color:var(--text-muted)]"
+                  placeholder={t("auth.emailPlaceholder")}
+                  className="auth-input w-full pl-10 pr-4 py-2.5 rounded-xl focus:outline-none text-white placeholder-[color:var(--text-muted)]"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
@@ -120,18 +122,18 @@ export default function Register({ onRegisterSuccess, onBackToLogin }) {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-[color:var(--text-secondary)] mb-1.5">
-                Password
+              <label className="auth-label block text-sm font-medium mb-1.5">
+                {t("auth.password")}
               </label>
               <div className="relative">
                 <Lock
                   size={16}
-                  className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500"
+                  className="auth-icon absolute left-3.5 top-1/2 -translate-y-1/2"
                 />
                 <input
                   type="password"
-                  placeholder="••••••••"
-                  className="auth-input w-full pl-10 pr-4 py-2.5 rounded-xl focus:outline-none text-[color:var(--text-primary)] placeholder-[color:var(--text-muted)]"
+                  placeholder={t("auth.passwordPlaceholder")}
+                  className="auth-input w-full pl-10 pr-4 py-2.5 rounded-xl focus:outline-none text-white placeholder-[color:var(--text-muted)]"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
@@ -143,32 +145,32 @@ export default function Register({ onRegisterSuccess, onBackToLogin }) {
           <button
             type="submit"
             disabled={loading}
-            className="w-full mt-6 bg-gradient-to-r from-blue-500 to-cyan-500 text-white py-2.5 rounded-xl hover:from-blue-600 hover:to-cyan-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-semibold shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 flex items-center justify-center gap-2 glass-interactive"
+            className="auth-button w-full mt-6 text-white py-2.5 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all font-semibold flex items-center justify-center gap-2 glass-interactive"
           >
             {loading ? (
               <>
                 <LoaderCircle size={18} className="animate-spin" />
-                Creating account...
+                {t("auth.creatingAccount")}
               </>
             ) : (
-              "Create account"
+              t("auth.createAccount")
             )}
           </button>
 
-          <p className="mt-6 text-sm text-center text-[color:var(--text-secondary)]">
-            Already have an account?{" "}
+          <p className="auth-body mt-6 text-sm text-center">
+            {t("auth.alreadyHaveAccount")}{" "}
             <button
               type="button"
-              className="text-cyan-400 hover:text-cyan-300 font-medium hover:underline transition-colors"
+              className="auth-link font-medium hover:underline transition-colors"
               onClick={onBackToLogin}
             >
-              Sign in
+              {t("auth.signIn")}
             </button>
           </p>
         </GlassSurface>
 
-        <p className="text-center text-[11px] text-[color:var(--text-muted)] mt-6">
-          Powered by Panya • Industrial Automation
+        <p className="auth-footer text-center text-[11px] mt-6">
+          {t("auth.powered")}
         </p>
       </div>
     </div>

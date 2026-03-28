@@ -34,12 +34,20 @@ def _normalize_alarm_input(alarm: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     }
 
 
-def persist_plc_alarms(db_pool, alarms: Iterable[Dict[str, Any]]) -> int:
+def _normalize_alarm_batch(alarms: Iterable[Dict[str, Any]]) -> list[Dict[str, Any]]:
     normalized = []
     for item in alarms:
         record = _normalize_alarm_input(item)
         if record is not None:
             normalized.append(record)
+    return normalized
+
+
+def persist_plc_alarms(db_pool, alarms: Iterable[Dict[str, Any]]) -> int:
+    if db_pool is None:
+        return 0
+
+    normalized = _normalize_alarm_batch(alarms)
 
     if not normalized:
         return 0
@@ -93,6 +101,8 @@ async def plc_alarm_ingestion_loop(
 ) -> None:
     interval = max(0.5, float(poll_interval_seconds))
     logger.info("[PLC Ingest] Started background alarm ingestion loop (interval=%.2fs)", interval)
+    if db_pool is None:
+        logger.info("[PLC Ingest] Database unavailable; alarm persistence disabled")
 
     while not stop_event.is_set():
         try:
@@ -113,4 +123,3 @@ async def plc_alarm_ingestion_loop(
             continue
 
     logger.info("[PLC Ingest] Stopped")
-

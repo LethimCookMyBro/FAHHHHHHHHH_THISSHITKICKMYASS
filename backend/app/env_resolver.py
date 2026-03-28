@@ -18,6 +18,13 @@ _PLACEHOLDER_PATTERNS = (
 )
 
 _PG_REQUIRED_KEYS = ("PGHOST", "PGPORT", "PGUSER", "PGPASSWORD", "PGDATABASE")
+_POSTGRES_REQUIRED_KEYS = (
+    "POSTGRES_HOST",
+    "POSTGRES_PORT",
+    "POSTGRES_USER",
+    "POSTGRES_PASSWORD",
+    "POSTGRES_DB",
+)
 
 
 def is_placeholder(value: Optional[str]) -> bool:
@@ -29,32 +36,70 @@ def is_placeholder(value: Optional[str]) -> bool:
     return any(pattern.match(text) for pattern in _PLACEHOLDER_PATTERNS)
 
 
-def _missing_required_pg_env() -> List[str]:
+def _missing_required_env(keys: Tuple[str, ...]) -> List[str]:
     missing = []
-    for key in _PG_REQUIRED_KEYS:
+    for key in keys:
         if is_placeholder(os.getenv(key)):
             missing.append(key)
     return missing
 
 
-def build_database_url_from_pg_env() -> Optional[str]:
-    missing = _missing_required_pg_env()
+def _build_database_url_from_keys(
+    *,
+    host_key: str,
+    port_key: str,
+    user_key: str,
+    password_key: str,
+    database_key: str,
+    sslmode_key: str,
+) -> Optional[str]:
+    missing = _missing_required_env(
+        (
+            host_key,
+            port_key,
+            user_key,
+            password_key,
+            database_key,
+        )
+    )
     if missing:
         return None
 
-    host = os.getenv("PGHOST", "").strip()
-    port = os.getenv("PGPORT", "").strip()
-    user = quote(os.getenv("PGUSER", "").strip(), safe="")
-    password = quote(os.getenv("PGPASSWORD", "").strip(), safe="")
-    database = quote(os.getenv("PGDATABASE", "").strip(), safe="")
+    host = os.getenv(host_key, "").strip()
+    port = os.getenv(port_key, "").strip()
+    user = quote(os.getenv(user_key, "").strip(), safe="")
+    password = quote(os.getenv(password_key, "").strip(), safe="")
+    database = quote(os.getenv(database_key, "").strip(), safe="")
 
     dsn = f"postgresql://{user}:{password}@{host}:{port}/{database}"
 
-    sslmode = os.getenv("PGSSLMODE")
+    sslmode = os.getenv(sslmode_key)
     if sslmode and not is_placeholder(sslmode):
         dsn += f"?sslmode={quote(sslmode.strip(), safe='')}"
 
     return dsn
+
+
+def build_database_url_from_pg_env() -> Optional[str]:
+    return _build_database_url_from_keys(
+        host_key="PGHOST",
+        port_key="PGPORT",
+        user_key="PGUSER",
+        password_key="PGPASSWORD",
+        database_key="PGDATABASE",
+        sslmode_key="PGSSLMODE",
+    )
+
+
+def build_database_url_from_postgres_env() -> Optional[str]:
+    return _build_database_url_from_keys(
+        host_key="POSTGRES_HOST",
+        port_key="POSTGRES_PORT",
+        user_key="POSTGRES_USER",
+        password_key="POSTGRES_PASSWORD",
+        database_key="POSTGRES_DB",
+        sslmode_key="POSTGRES_SSLMODE",
+    )
 
 
 def resolve_database_url() -> Tuple[str, str]:
@@ -66,7 +111,12 @@ def resolve_database_url() -> Tuple[str, str]:
     if fallback:
         return fallback, "PG_ENV"
 
-    missing = _missing_required_pg_env()
+    fallback = build_database_url_from_postgres_env()
+    if fallback:
+        return fallback, "POSTGRES_ENV"
+
+    missing = _missing_required_env(_PG_REQUIRED_KEYS)
+    missing.extend(_missing_required_env(_POSTGRES_REQUIRED_KEYS))
     invalid_detail = ""
     if database_url.strip():
         invalid_detail = (
@@ -76,8 +126,10 @@ def resolve_database_url() -> Tuple[str, str]:
     raise RuntimeError(
         invalid_detail
         + "Unable to resolve database connection string. "
-        + "Set DATABASE_URL to a real DSN or provide all PG vars: "
+        + "Set DATABASE_URL to a real DSN or provide all PG vars/POSTGRES vars: "
         + ", ".join(_PG_REQUIRED_KEYS)
+        + " or "
+        + ", ".join(_POSTGRES_REQUIRED_KEYS)
         + f". Missing/invalid: {', '.join(missing)}"
     )
 

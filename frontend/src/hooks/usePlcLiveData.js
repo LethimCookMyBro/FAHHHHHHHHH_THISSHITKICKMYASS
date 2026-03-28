@@ -8,6 +8,16 @@ const WS_BASE_URL =
   "/api/plc/ws";
 
 const EMPTY_DASHBOARD = normalizeDashboardPayload({});
+const EMPTY_OEE = Object.freeze({
+  overall: 0,
+  availability: 0,
+  performance: 0,
+  quality: 0,
+});
+const MAX_REST_FAILURES = 3;
+const MAX_WS_RECONNECT_ATTEMPTS = 4;
+const REST_BACKOFF_MS = 60_000;
+const WS_AUTH_REJECTION_CODES = new Set([1002, 1008]);
 
 const asNonNegativeInt = (value, fallback = 0) => {
   const parsed = Number.parseInt(String(value ?? ""), 10);
@@ -33,10 +43,63 @@ const buildSnapshotKey = (dashboard = {}) => {
   ].join("::");
 };
 
-/* Max consecutive REST failures before pausing polling */
-const MAX_REST_FAILURES = 3;
-/* How long to pause polling (ms) after too many failures */
-const REST_BACKOFF_MS = 60_000;
+const clearTimer = (timerRef) => {
+  if (!timerRef.current) return;
+  window.clearTimeout(timerRef.current);
+  timerRef.current = null;
+};
+
+const releaseSocket = (socket) => {
+  if (!socket) return;
+  socket.onopen = null;
+  socket.onmessage = null;
+  socket.onerror = null;
+  socket.onclose = null;
+  if (socket.readyState === WebSocket.OPEN) {
+    socket.close(1000, "cleanup");
+  }
+};
+
+const hasActiveSocket = (socket) =>
+  !!socket &&
+  (socket.readyState === WebSocket.OPEN ||
+    socket.readyState === WebSocket.CONNECTING);
+
+const getReconnectDelayMs = (attempts) =>
+  Math.min(30_000, 2_000 * 2 ** (attempts - 1));
+
+const mergeStreamCollections = (normalized, current) => ({
+  ...normalized,
+  recent_alarms:
+    normalized.recent_alarms.length > 0
+      ? normalized.recent_alarms
+      : current.recent_alarms,
+  recent_actions:
+    normalized.recent_actions.length > 0
+      ? normalized.recent_actions
+      : current.recent_actions,
+});
+
+const deriveLiveMetrics = (dashboard) => {
+  const machines = Array.isArray(dashboard?.machines) ? dashboard.machines : [];
+  const activeAlarms = Array.isArray(dashboard?.recent_alarms)
+    ? dashboard.recent_alarms.filter((alarm) => alarm?.status === "active")
+    : [];
+  const runningCount = machines.filter(
+    (machine) => machine.status === "running",
+  ).length;
+
+  return {
+    machineCount: machines.length,
+    runningCount,
+    alarmCount:
+      activeAlarms.length > 0
+        ? activeAlarms.length
+        : machines.filter((machine) => machine.status === "error").length,
+    oee: dashboard?.oee || EMPTY_OEE,
+    history: dashboard?.oee_history || [],
+  };
+};
 
 export function usePlcLiveData({
   refreshIntervalMs = 15000,
@@ -70,17 +133,7 @@ export function usePlcLiveData({
   const commitDashboard = useCallback((normalized, source, snapshotKey) => {
     setDashboard((current) => {
       if (source === "ws") {
-        return {
-          ...normalized,
-          recent_alarms:
-            normalized.recent_alarms.length > 0
-              ? normalized.recent_alarms
-              : current.recent_alarms,
-          recent_actions:
-            normalized.recent_actions.length > 0
-              ? normalized.recent_actions
-              : current.recent_actions,
-        };
+        return mergeStreamCollections(normalized, current);
       }
       return normalized;
     });
@@ -128,12 +181,27 @@ export function usePlcLiveData({
     [commitDashboard, flushQueuedDashboard, resolvedThrottleMs],
   );
 
-  /* --- Stable refs so effects don't re-run when callbacks change --- */
   const mergeDashboardRef = useRef(mergeDashboard);
   mergeDashboardRef.current = mergeDashboard;
 
+  const cleanupRealtimeResources = useCallback(() => {
+    clearTimer(reconnectRef);
+    clearTimer(throttleTimerRef);
+    clearTimer(restBackoffTimerRef);
+    queuedUpdateRef.current = null;
+
+    const socket = wsRef.current;
+    wsRef.current = null;
+    releaseSocket(socket);
+  }, []);
+
+  const disableWebsocketForSession = useCallback((message) => {
+    wsDisabledForSessionRef.current = true;
+    setConnectionState("rest");
+    setError(message);
+  }, []);
+
   const refreshSnapshot = useCallback(async () => {
-    /* Skip if we're in backoff after too many failures */
     if (restBackoffTimerRef.current) return;
 
     try {
@@ -146,7 +214,7 @@ export function usePlcLiveData({
       restFailuresRef.current += 1;
 
       if (restFailuresRef.current >= MAX_REST_FAILURES) {
-        setError("Backend unreachable — polling paused. Will retry in 60s.");
+        setError("Backend unreachable - polling paused. Will retry in 60s.");
         restBackoffTimerRef.current = window.setTimeout(() => {
           restBackoffTimerRef.current = null;
           restFailuresRef.current = 0;
@@ -157,7 +225,6 @@ export function usePlcLiveData({
     }
   }, []);
 
-  /* --- WebSocket connection effect --- */
   useEffect(() => {
     let closedByUnmount = false;
 
@@ -168,36 +235,13 @@ export function usePlcLiveData({
       setError("");
       return () => {
         closedByUnmount = true;
-        if (reconnectRef.current) window.clearTimeout(reconnectRef.current);
-        if (throttleTimerRef.current) {
-          window.clearTimeout(throttleTimerRef.current);
-          throttleTimerRef.current = null;
-        }
-        queuedUpdateRef.current = null;
-        const socket = wsRef.current;
-        wsRef.current = null;
-        if (socket) {
-          socket.onopen = null;
-          socket.onmessage = null;
-          socket.onerror = null;
-          socket.onclose = null;
-          if (socket.readyState === WebSocket.OPEN) {
-            socket.close(1000, "cleanup");
-          }
-        }
+        cleanupRealtimeResources();
       };
     }
 
     const connect = async () => {
-      if (closedByUnmount) return;
-      if (wsDisabledForSessionRef.current) return;
-      if (
-        wsRef.current &&
-        (wsRef.current.readyState === WebSocket.OPEN ||
-          wsRef.current.readyState === WebSocket.CONNECTING)
-      ) {
-        return;
-      }
+      if (closedByUnmount || wsDisabledForSessionRef.current) return;
+      if (hasActiveSocket(wsRef.current)) return;
 
       setConnectionState((prev) => (prev === "live" ? prev : "connecting"));
 
@@ -206,26 +250,24 @@ export function usePlcLiveData({
         const ticketRes = await api.post("/api/auth/ws-ticket");
         const ticket = ticketRes?.data?.ticket;
         if (!ticket) {
-          wsDisabledForSessionRef.current = true;
-          setConnectionState("rest");
-          setError(
+          disableWebsocketForSession(
             "Live PLC stream ticket unavailable. Running in REST fallback mode.",
           );
           return;
         }
         wsUrl = `${WS_BASE_URL}?ticket=${encodeURIComponent(ticket)}`;
       } catch {
-        wsDisabledForSessionRef.current = true;
-        setConnectionState("rest");
-        setError("Live PLC stream auth failed. Running in REST fallback mode.");
+        disableWebsocketForSession(
+          "Live PLC stream auth failed. Running in REST fallback mode.",
+        );
         return;
       }
 
-      const ws = new WebSocket(wsUrl);
-      wsRef.current = ws;
+      const socket = new WebSocket(wsUrl);
+      wsRef.current = socket;
       let opened = false;
 
-      ws.onopen = () => {
+      socket.onopen = () => {
         if (closedByUnmount) return;
         opened = true;
         reconnectAttemptsRef.current = 0;
@@ -233,7 +275,7 @@ export function usePlcLiveData({
         setError("");
       };
 
-      ws.onmessage = (event) => {
+      socket.onmessage = (event) => {
         if (closedByUnmount) return;
         try {
           const payload = JSON.parse(event.data);
@@ -245,34 +287,32 @@ export function usePlcLiveData({
         }
       };
 
-      ws.onerror = () => {
+      socket.onerror = () => {
         if (closedByUnmount) return;
         setConnectionState("reconnecting");
         setError("PLC stream connection issue");
       };
 
-      ws.onclose = (event) => {
-        if (wsRef.current === ws) {
+      socket.onclose = (event) => {
+        if (wsRef.current === socket) {
           wsRef.current = null;
         }
         if (closedByUnmount) return;
 
         const closeCode = Number(event?.code || 1006);
-        const authRelatedClose = closeCode === 1008 || closeCode === 1002;
-        if (!opened && authRelatedClose) {
-          wsDisabledForSessionRef.current = true;
-          setConnectionState("rest");
-          setError("Live stream auth/origin rejected. Using REST fallback.");
+        if (!opened && WS_AUTH_REJECTION_CODES.has(closeCode)) {
+          disableWebsocketForSession(
+            "Live stream auth/origin rejected. Using REST fallback.",
+          );
           return;
         }
 
         reconnectAttemptsRef.current += 1;
         const attempts = reconnectAttemptsRef.current;
 
-        /* After 4 attempts, fall back to REST and wait 2 minutes before retrying WS */
-        if (attempts >= 4) {
+        if (attempts >= MAX_WS_RECONNECT_ATTEMPTS) {
           setConnectionState("rest");
-          setError("Live stream unavailable — using REST fallback.");
+          setError("Live stream unavailable - using REST fallback.");
           reconnectRef.current = window.setTimeout(() => {
             reconnectAttemptsRef.current = 0;
             void connect();
@@ -280,11 +320,10 @@ export function usePlcLiveData({
           return;
         }
 
-        const delay = Math.min(30000, 2000 * 2 ** (attempts - 1));
         setConnectionState("reconnecting");
         reconnectRef.current = window.setTimeout(() => {
           void connect();
-        }, delay);
+        }, getReconnectDelayMs(attempts));
       };
     };
 
@@ -292,64 +331,26 @@ export function usePlcLiveData({
 
     return () => {
       closedByUnmount = true;
-      if (reconnectRef.current) window.clearTimeout(reconnectRef.current);
-      if (throttleTimerRef.current) {
-        window.clearTimeout(throttleTimerRef.current);
-        throttleTimerRef.current = null;
-      }
-      if (restBackoffTimerRef.current) {
-        window.clearTimeout(restBackoffTimerRef.current);
-        restBackoffTimerRef.current = null;
-      }
-      queuedUpdateRef.current = null;
-      const socket = wsRef.current;
-      wsRef.current = null;
-      if (socket) {
-        socket.onopen = null;
-        socket.onmessage = null;
-        socket.onerror = null;
-        socket.onclose = null;
-        if (socket.readyState === WebSocket.OPEN) {
-          socket.close(1000, "cleanup");
-        }
-      }
+      cleanupRealtimeResources();
     };
-    // Stable deps only — no callback deps that change on every render
-  }, [enableWebsocket, refreshSnapshot]);
+  }, [
+    cleanupRealtimeResources,
+    disableWebsocketForSession,
+    enableWebsocket,
+    refreshSnapshot,
+  ]);
 
-  /* --- REST polling interval --- */
   useEffect(() => {
     if (!refreshIntervalMs || refreshIntervalMs <= 0) return undefined;
 
-    const id = window.setInterval(() => {
+    const intervalId = window.setInterval(() => {
       refreshSnapshot();
     }, refreshIntervalMs);
 
-    return () => window.clearInterval(id);
+    return () => window.clearInterval(intervalId);
   }, [refreshIntervalMs, refreshSnapshot]);
 
-  const derived = useMemo(() => {
-    const machines = dashboard.machines || [];
-    const runningCount = machines.filter(
-      (machine) => machine.status === "running",
-    ).length;
-    const alarmCount = machines.filter(
-      (machine) => machine.status === "error",
-    ).length;
-
-    return {
-      machineCount: machines.length,
-      runningCount,
-      alarmCount,
-      oee: dashboard.oee || {
-        overall: 0,
-        availability: 0,
-        performance: 0,
-        quality: 0,
-      },
-      history: dashboard.oee_history || [],
-    };
-  }, [dashboard]);
+  const derived = useMemo(() => deriveLiveMetrics(dashboard), [dashboard]);
 
   return {
     dashboard,

@@ -1,21 +1,108 @@
-const BULLET_LINE_RE = /^\s*(?:[-*•]|\d+[.)])\s+/;
+const BULLET_LINE_RE = /^\s*(?:[-*]|\d+[.)])\s+/;
 const SECTION_HEADER_RE = /^\s*\[[A-Z][A-Z0-9 _/.-]{2,}\]\s*$/;
 const KEY_VALUE_LINE_RE = /^([A-Za-z][^:]{1,60}):\s+(.+)$/;
+const EMPTY_ASSISTANT_REPLY =
+  "- I couldn't generate a response right now. Please try again.";
+const RELATIVE_TIME_LOCALE = {
+  en: "en",
+  th: "th-TH",
+};
+const CLOCK_LOCALE = {
+  en: "en-GB",
+  th: "th-TH",
+};
+const RESPONSE_TEXT_PATHS = [
+  ["reply"],
+  ["answer"],
+  ["message"],
+  ["response"],
+  ["content"],
+];
+const SESSION_ID_PATHS = [
+  ["session_id"],
+  ["sessionId"],
+  ["id"],
+  ["chat_id"],
+  ["chatId"],
+  ["session", "id"],
+  ["session", "session_id"],
+  ["chat", "id"],
+  ["chat", "session_id"],
+  ["meta", "session_id"],
+];
 
-export const formatTimeAgo = (ts) => {
-  if (!ts) return "";
-  const diff = Math.floor((Date.now() - new Date(ts)) / 1000);
-  if (diff < 60) return "just now";
-  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-  if (diff < 172800) return "yesterday";
-  if (diff < 604800) return `${Math.floor(diff / 86400)}d ago`;
-  return new Date(ts).toLocaleDateString();
+const resolveLocale = (locale, dictionary, fallback = "en") =>
+  dictionary[locale] || dictionary[fallback];
+
+const getNestedValue = (value, path) => {
+  let current = value;
+  for (const segment of path) {
+    if (!current || typeof current !== "object") return undefined;
+    current = current[segment];
+  }
+  return current;
 };
 
-export const formatTime = (ts) =>
+const pickFirstString = (sources, paths) => {
+  for (const source of sources) {
+    for (const path of paths) {
+      const candidate = getNestedValue(source, path);
+      if (typeof candidate === "string" && candidate.trim()) {
+        return candidate;
+      }
+    }
+  }
+  return "";
+};
+
+const pickFirstChatId = (sources, paths) => {
+  for (const source of sources) {
+    for (const path of paths) {
+      const normalizedId = normalizeChatId(getNestedValue(source, path));
+      if (normalizedId != null) {
+        return normalizedId;
+      }
+    }
+  }
+  return null;
+};
+
+const createFallbackMessageId = (message) =>
+  `${message?.created_at || Date.now()}-${message?.role || "msg"}-${Math.random().toString(36).slice(2, 8)}`;
+
+export const formatTimeAgo = (ts, locale = "en") => {
+  if (!ts) return "";
+
+  const timestamp = Date.parse(ts);
+  if (Number.isNaN(timestamp)) return "";
+
+  const resolvedLocale = resolveLocale(locale, RELATIVE_TIME_LOCALE);
+  const formatter = new Intl.RelativeTimeFormat(resolvedLocale, {
+    numeric: "auto",
+  });
+  const diffSeconds = Math.round((timestamp - Date.now()) / 1000);
+  const absSeconds = Math.abs(diffSeconds);
+
+  if (absSeconds < 60) {
+    return formatter.format(diffSeconds, "second");
+  }
+  if (absSeconds < 3600) {
+    return formatter.format(Math.round(diffSeconds / 60), "minute");
+  }
+  if (absSeconds < 86400) {
+    return formatter.format(Math.round(diffSeconds / 3600), "hour");
+  }
+  if (absSeconds < 604800) {
+    return formatter.format(Math.round(diffSeconds / 86400), "day");
+  }
+  return new Date(timestamp).toLocaleDateString(
+    resolveLocale(locale, CLOCK_LOCALE),
+  );
+};
+
+export const formatTime = (ts, locale = "en") =>
   ts
-    ? new Date(ts).toLocaleTimeString([], {
+    ? new Date(ts).toLocaleTimeString(resolveLocale(locale, CLOCK_LOCALE), {
         hour: "2-digit",
         minute: "2-digit",
       })
@@ -87,7 +174,7 @@ export const formatSourceItemLabel = (item) => {
   if (!item || typeof item !== "object") return "";
   const source = String(item.source || "").trim();
   if (!source) return "";
-  return item.page > 0 ? `${source} • p.${item.page}` : source;
+  return item.page > 0 ? `${source} (p.${item.page})` : source;
 };
 
 const normalizePatternLinesToBullets = (text) => {
@@ -105,12 +192,6 @@ const normalizePatternLinesToBullets = (text) => {
     if (SECTION_HEADER_RE.test(line)) {
       const label = line.replace(/^\[/, "").replace(/\]$/, "").trim();
       result.push(`- **${label}**`);
-      converted += 1;
-      continue;
-    }
-
-    if (/^\s*•\s+/.test(line)) {
-      result.push(line.replace(/^\s*•\s+/, "- "));
       converted += 1;
       continue;
     }
@@ -136,63 +217,25 @@ const normalizePatternLinesToBullets = (text) => {
 export const formatAssistantText = (rawText) => {
   const cleaned = stripTrailingSourcesBlock(rawText || "");
   if (!cleaned) {
-    return "- I couldn't generate a response right now. Please try again.";
+    return EMPTY_ASSISTANT_REPLY;
   }
 
   const normalizedPattern = normalizePatternLinesToBullets(cleaned);
-  return normalizedPattern || "- I couldn't generate a response right now. Please try again.";
+  return normalizedPattern || EMPTY_ASSISTANT_REPLY;
 };
 
 export const getReplyText = (payload) => {
   const normalizedPayload = unwrapResponsePayload(payload);
-  const candidates = [
-    normalizedPayload?.reply,
-    normalizedPayload?.answer,
-    normalizedPayload?.message,
-    normalizedPayload?.response,
-    normalizedPayload?.content,
-    payload?.reply,
-    payload?.answer,
-    payload?.message,
-    payload?.response,
-    payload?.content,
-  ];
-  const text = candidates.find(
-    (candidate) => typeof candidate === "string" && candidate.trim(),
+  const text = pickFirstString(
+    [normalizedPayload, payload],
+    RESPONSE_TEXT_PATHS,
   );
   return formatAssistantText(text || "");
 };
 
 export const getResponseSessionId = (payload) => {
   const normalizedPayload = unwrapResponsePayload(payload);
-  const candidates = [
-    normalizedPayload?.session_id,
-    normalizedPayload?.sessionId,
-    normalizedPayload?.id,
-    normalizedPayload?.chat_id,
-    normalizedPayload?.chatId,
-    normalizedPayload?.session?.id,
-    normalizedPayload?.session?.session_id,
-    normalizedPayload?.chat?.id,
-    normalizedPayload?.chat?.session_id,
-    normalizedPayload?.meta?.session_id,
-    payload?.session_id,
-    payload?.sessionId,
-    payload?.id,
-    payload?.chat_id,
-    payload?.chatId,
-    payload?.session?.id,
-    payload?.session?.session_id,
-    payload?.chat?.id,
-    payload?.chat?.session_id,
-    payload?.meta?.session_id,
-  ];
-
-  for (const candidate of candidates) {
-    const id = normalizeChatId(candidate);
-    if (id != null) return id;
-  }
-  return null;
+  return pickFirstChatId([normalizedPayload, payload], SESSION_ID_PATHS);
 };
 
 export const findFallbackSessionId = (payload, userText) => {
@@ -234,20 +277,17 @@ export const mapSessionsFromPayload = (payload) =>
     .filter((s) => s.id != null);
 
 export const mapMessagesFromPayload = (payload) =>
-  pickListPayload(payload, ["items", "messages"]).map((m) => ({
-    id:
-      m?.id ??
-      m?.message_id ??
-      `${m?.created_at || Date.now()}-${m?.role || "msg"}-${Math.random().toString(36).slice(2, 8)}`,
+  pickListPayload(payload, ["items", "messages"]).map((message) => ({
+    id: message?.id ?? message?.message_id ?? createFallbackMessageId(message),
     text:
-      m?.role === "assistant"
-        ? formatAssistantText(m?.content || "")
-        : m?.content || "",
-    sender: m?.role === "user" ? "user" : "bot",
-    timestamp: m?.created_at,
-    processingTime: m?.metadata?.processing_time,
-    ragas: m?.metadata?.ragas,
-    sources: normalizeSourceItems(m?.metadata?.sources),
+      message?.role === "assistant"
+        ? formatAssistantText(message?.content || "")
+        : message?.content || "",
+    sender: message?.role === "user" ? "user" : "bot",
+    timestamp: message?.created_at,
+    processingTime: message?.metadata?.processing_time,
+    ragas: message?.metadata?.ragas,
+    sources: normalizeSourceItems(message?.metadata?.sources),
     status: "sent",
   }));
 

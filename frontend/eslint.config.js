@@ -34,6 +34,19 @@ export default [
         'warn',
         { allowConstantExport: true },
       ],
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: "CallExpression[callee.name='fetch']",
+          message: 'Use src/utils/api.js helpers instead of raw fetch.',
+        },
+      ],
+    },
+  },
+  {
+    files: ['src/utils/api.js'],
+    rules: {
+      'no-restricted-syntax': 'off',
     },
   },
 ]

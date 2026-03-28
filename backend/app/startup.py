@@ -9,7 +9,9 @@ import logging
 import requests
 from fastapi import FastAPI
 
-from app.utils import to_bool
+from app.auth import hash_password
+from app.db_helpers import ensure_user_credentials
+from app.utils import get_app_env, set_llm, to_bool
 from app.embed_logic import get_embedder
 from app.seed import (
     auto_embed_knowledge_if_empty,
@@ -76,9 +78,58 @@ def test_database_connection(db_pool) -> bool:
             db_pool.putconn(conn)
 
 
+def ensure_development_auth_user() -> None:
+    """Provision an opt-in local login for development-only environments."""
+    if get_app_env() != "development":
+        return
+
+    bootstrap_enabled = to_bool(os.getenv("DEV_BOOTSTRAP_AUTH"))
+    if bootstrap_enabled is not True:
+        return
+
+    email = (os.getenv("DEV_BOOTSTRAP_EMAIL") or "").strip().lower()
+    password = (os.getenv("DEV_BOOTSTRAP_PASSWORD") or "").strip()
+    full_name = (os.getenv("DEV_BOOTSTRAP_FULL_NAME") or "").strip() or None
+
+    if not email or not password:
+        logger.warning(
+            "Skipping development auth bootstrap because DEV_BOOTSTRAP_AUTH=true but credentials are incomplete."
+        )
+        return
+
+    user = ensure_user_credentials(
+        email=email,
+        password_hash=hash_password(password),
+        full_name=full_name,
+    )
+    logger.info("Development auth user ready: email=%s id=%s", user.get("email"), user.get("id"))
+
+
 def run_background_startup_tasks(app: FastAPI, config) -> None:
     """Load heavy optional services without blocking API startup."""
     try:
+        # LLM bootstrap is intentionally deferred to background startup
+        # so API liveness can become available without waiting for heavy imports.
+        if config.GROQ_API_KEY:
+            try:
+                from langchain_groq import ChatGroq
+
+                llm = ChatGroq(
+                    api_key=config.GROQ_API_KEY,
+                    model=config.GROQ_MODEL,
+                    temperature=config.LLM_TEMPERATURE,
+                    max_tokens=config.LLM_MAX_TOKENS,
+                )
+                app.state.llm = llm
+                set_llm(llm)
+                verify_groq_connection(llm, config.GROQ_MODEL)
+                logger.info("✅ LLM initialized: %s (Groq)", config.GROQ_MODEL)
+            except Exception as e:
+                logger.error("❌ Failed to initialize Groq LLM: %s", e)
+                app.state.llm = None
+        else:
+            logger.error("❌ GROQ_API_KEY not set — chat endpoints will fail")
+
         load_embedder_on_demand = to_bool(os.getenv("LOAD_EMBEDDER_ON_DEMAND"))
         if load_embedder_on_demand is None:
             load_embedder_on_demand = False

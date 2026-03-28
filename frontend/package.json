@@ -8,11 +8,12 @@
     "build": "vite build",
     "start": "node server.cjs",
     "lint": "eslint . --report-unused-disable-directives --max-warnings 0",
-    "test:normalizers": "node src/features/plc/normalizers.test.mjs && node src/features/ops/dashboard/helpers.test.mjs && node src/features/ops/alarms/hooks/alarmUtils.test.mjs",
+    "test:normalizers": "node src/features/plc/normalizers.test.mjs && node src/features/ops/dashboard/helpers.test.mjs && node src/features/ops/alarms/hooks/alarmUtils.test.mjs && node src/features/ops/mockZoneChat.test.mjs && node src/features/ops/mockZoneResolution.test.mjs && node src/features/ops/port-map/zoneModel.test.mjs && node src/pages/chat/utils.test.mjs && node src/pages/chat/mockZoneSessions.test.mjs && node src/utils/api.security.test.mjs",
     "preview": "vite preview"
   },
   "dependencies": {
     "axios": "^1.13.2",
+    "compression": "^1.8.1",
     "express": "^4.21.2",
     "framer-motion": "^12.34.0",
     "http-proxy-middleware": "^3.0.3",
@@ -27,7 +28,7 @@
   "devDependencies": {
     "@types/react": "^18.2.66",
     "@types/react-dom": "^18.2.22",
-    "@vitejs/plugin-react": "^5.1.4",
+    "@vitejs/plugin-react": "^4.7.0",
     "autoprefixer": "^10.4.19",
     "baseline-browser-mapping": "^2.10.0",
     "eslint": "^8.57.0",
@@ -36,10 +37,9 @@
     "eslint-plugin-react-refresh": "^0.4.6",
     "postcss": "^8.4.38",
     "tailwindcss": "^3.4.4",
-    "vite": "^7.3.1"
+    "vite": "^5.4.21"
   },
   "overrides": {
-    "minimatch": "^10.2.1",
-    "ajv": "^8.17.1"
+    "minimatch": "^10.2.1"
   }
 }

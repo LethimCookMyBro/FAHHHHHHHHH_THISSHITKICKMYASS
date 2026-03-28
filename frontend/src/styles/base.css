@@ -5,74 +5,64 @@
 html,
 body,
 #root {
+  min-height: 100%;
   height: 100%;
+}
+
+html {
+  background: var(--bg);
 }
 
 body {
   margin: 0;
   font-family: var(--font-body);
-  font-size: 16px;
-  line-height: 1.6;
+  font-size: 14px;
+  line-height: 1.56;
   color: var(--text-primary);
-  background: linear-gradient(
-    165deg,
-    var(--bg-primary) 0%,
-    var(--bg-secondary) 100%
-  );
+  background: var(--bg);
   overflow-x: hidden;
   overscroll-behavior: none;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-.app-ambience {
+html[data-theme-switching="true"] *,
+html[data-theme-switching="true"] *::before,
+html[data-theme-switching="true"] *::after {
+  transition: none !important;
+  animation-duration: 0s !important;
+}
+
+html[data-theme-switching="true"] .glass-surface--svg,
+html[data-theme-switching="true"] .glass-surface--fallback,
+html[data-theme-switching="true"] .glass-panel,
+html[data-theme-switching="true"] .glass-panel-strong,
+html[data-theme-switching="true"] .glass-panel-lite {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.app-ambience,
+.app-shell-ambience {
   min-height: 100%;
   position: relative;
   isolation: isolate;
 }
 
-.app-shell-ambience {
-  position: relative;
-  isolation: isolate;
+.app-ambience::before,
+.app-shell-ambience::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: var(--page-ambient);
 }
 
 .app-ambience > *,
 .app-shell-ambience > * {
   position: relative;
   z-index: 1;
-}
-
-.app-ambience::before,
-.app-shell-ambience::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 0;
-  background: radial-gradient(
-    900px 500px at 8% -8%,
-    color-mix(in srgb, var(--accent) 14%, transparent),
-    transparent 60%
-  );
-}
-
-.app-ambience::after,
-.app-shell-ambience::after {
-  content: "";
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 0;
-  background: radial-gradient(
-    circle at 80% 16%,
-    rgba(255, 255, 255, 0.03),
-    transparent 50%
-  );
-  opacity: 0.7;
-}
-
-html[data-stability-mode="aggressive"] {
-  scroll-behavior: auto;
 }
 
 h1,
@@ -83,7 +73,7 @@ h5,
 h6 {
   margin: 0;
   font-family: var(--font-heading);
-  letter-spacing: 0.015em;
+  letter-spacing: -0.035em;
 }
 
 p {
@@ -96,23 +86,34 @@ a {
 
 button,
 input,
-textarea {
+textarea,
+select {
   font: inherit;
   color: inherit;
 }
 
+button {
+  font-family: var(--font-body);
+}
+
+code,
+pre,
+.code-font {
+  font-family: var(--font-mono);
+}
+
 :focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--accent) 75%, white 8%);
+  outline: 2px solid color-mix(in srgb, var(--accent) 68%, transparent);
   outline-offset: 2px;
 }
 
 ::selection {
-  background: color-mix(in srgb, var(--accent) 35%, transparent);
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
 }
 
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-track {
@@ -121,27 +122,21 @@ textarea {
 
 ::-webkit-scrollbar-thumb {
   border-radius: 999px;
-  background: var(--scrollbar-thumb, rgba(100, 116, 139, 0.32));
-  transition: background 0.2s ease;
+  background: var(--scrollbar-thumb);
+  transition: background var(--transition-fast);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--scrollbar-thumb-hover, rgba(100, 116, 139, 0.58));
+  background: var(--scrollbar-thumb-hover);
 }
 
-/* Firefox scrollbar */
 * {
   scrollbar-width: thin;
-  scrollbar-color: var(--scrollbar-thumb, rgba(100, 116, 139, 0.32)) transparent;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
 }
 
-html[data-stability-mode="aggressive"] .app-ambience::before,
-html[data-stability-mode="aggressive"] .app-shell-ambience::before,
-html[data-stability-mode="aggressive"] .app-ambience::after,
-html[data-stability-mode="aggressive"] .app-shell-ambience::after {
-  background: linear-gradient(
-    160deg,
-    var(--bg-primary) 0%,
-    var(--bg-secondary) 100%
-  );
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
 }

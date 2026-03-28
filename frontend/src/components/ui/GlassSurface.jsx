@@ -81,11 +81,11 @@ export default function GlassSurface({
       <svg viewBox="0 0 ${actualWidth} ${actualHeight}" xmlns="http://www.w3.org/2000/svg">
         <defs>
           <linearGradient id="${redGradId}" x1="100%" y1="0%" x2="0%" y2="0%">
-            <stop offset="0%" stop-color="#0000"/>
+            <stop offset="0%" stop-color="transparent"/>
             <stop offset="100%" stop-color="red"/>
           </linearGradient>
           <linearGradient id="${blueGradId}" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stop-color="#0000"/>
+            <stop offset="0%" stop-color="transparent"/>
             <stop offset="100%" stop-color="blue"/>
           </linearGradient>
         </defs>

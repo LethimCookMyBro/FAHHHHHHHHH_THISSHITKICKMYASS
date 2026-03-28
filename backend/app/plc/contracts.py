@@ -8,6 +8,7 @@ without importing the full FastAPI stack.
 from __future__ import annotations
 
 import json
+from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 
 from .action_policy import POLICY_VERSION
@@ -35,6 +36,15 @@ def _to_float(*values: Any, default: float = 0.0) -> float:
     return float(default)
 
 
+def _to_int(value: Any, default: int = 0) -> int:
+    try:
+        if value is None or value == "":
+            return int(default)
+        return int(value)
+    except Exception:
+        return int(default)
+
+
 def _iso(value: Any) -> Optional[str]:
     if value is None:
         return None
@@ -43,6 +53,10 @@ def _iso(value: Any) -> Optional[str]:
     if hasattr(value, "isoformat"):
         return value.isoformat()
     return str(value)
+
+
+def _now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
 
 
 def _normalize_machine_status(raw_status: Any) -> str:
@@ -72,15 +86,45 @@ def _safe_json(value: Any, fallback: Any) -> Any:
     return fallback
 
 
+def _rounded_metric(*values: Any, default: float = 0.0) -> float:
+    return round(_to_float(*values, default=default), 2)
+
+
+def _machine_metric(machine: Dict[str, Any], sensors: Dict[str, Any], key: str, sensor_key: str) -> float:
+    return _rounded_metric(machine.get(key), sensors.get(sensor_key), default=0.0)
+
+
+def _machine_sensor_snapshot(
+    *,
+    temperature: float,
+    current: float,
+    vibration: float,
+    pressure: float,
+) -> Dict[str, float]:
+    return {
+        "temperature": temperature,
+        "current": current,
+        "vibration": vibration,
+        "pressure": pressure,
+    }
+
+
+def _alarm_message(alarm: Dict[str, Any]) -> str:
+    return alarm.get("message") or alarm.get("error_message") or ""
+
+
+def _action_message(action: Dict[str, Any]) -> str:
+    return action.get("error_message") or action.get("message") or ""
+
+
 def _normalize_machine(machine: Dict[str, Any]) -> Dict[str, Any]:
     sensors = machine.get("sensors") or {}
     raw_status = machine.get("status")
     status = _normalize_machine_status(raw_status)
-
-    temp = _to_float(machine.get("temp"), sensors.get("temperature"), default=0.0)
-    current = _to_float(machine.get("current"), sensors.get("current"), default=0.0)
-    vibration = _to_float(machine.get("vibration"), sensors.get("vibration"), default=0.0)
-    pressure = _to_float(machine.get("pressure"), sensors.get("pressure"), default=0.0)
+    temperature = _machine_metric(machine, sensors, "temp", "temperature")
+    current = _machine_metric(machine, sensors, "current", "current")
+    vibration = _machine_metric(machine, sensors, "vibration", "vibration")
+    pressure = _machine_metric(machine, sensors, "pressure", "pressure")
 
     active_error = machine.get("active_error") or {}
 
@@ -93,18 +137,18 @@ def _normalize_machine(machine: Dict[str, Any]) -> Dict[str, Any]:
         "status": status,
         "status_legacy": str(raw_status or "").upper(),
         "uptime": machine.get("uptime", ""),
-        "production_count": int(machine.get("production_count") or 0),
-        "production_target": int(machine.get("production_target") or 0),
-        "temp": round(temp, 2),
-        "current": round(current, 2),
-        "vibration": round(vibration, 2),
-        "pressure": round(pressure, 2),
-        "sensors": {
-            "temperature": round(temp, 2),
-            "current": round(current, 2),
-            "vibration": round(vibration, 2),
-            "pressure": round(pressure, 2),
-        },
+        "production_count": _to_int(machine.get("production_count")),
+        "production_target": _to_int(machine.get("production_target")),
+        "temp": temperature,
+        "current": current,
+        "vibration": vibration,
+        "pressure": pressure,
+        "sensors": _machine_sensor_snapshot(
+            temperature=temperature,
+            current=current,
+            vibration=vibration,
+            pressure=pressure,
+        ),
         "active_error": active_error,
         "error_code": active_error.get("code") or active_error.get("error_code"),
         "last_heartbeat": machine.get("last_heartbeat"),
@@ -116,6 +160,7 @@ def _normalize_alarm(alarm: Dict[str, Any]) -> Dict[str, Any]:
     status = _normalize_alarm_status(alarm.get("status"))
     resolved_at = _iso(alarm.get("resolved_at"))
     diagnosed_at = _iso(alarm.get("diagnosed_at"))
+    message = _alarm_message(alarm)
 
     if resolved_at:
         status = "resolved"
@@ -125,8 +170,8 @@ def _normalize_alarm(alarm: Dict[str, Any]) -> Dict[str, Any]:
         "machine_id": alarm.get("machine_id") or 0,
         "machine_name": alarm.get("machine_name", ""),
         "error_code": str(alarm.get("error_code") or "").strip(),
-        "message": alarm.get("message") or alarm.get("error_message") or "",
-        "error_message": alarm.get("message") or alarm.get("error_message") or "",
+        "message": message,
+        "error_message": message,
         "severity": str(alarm.get("severity") or "warning").lower(),
         "category": str(alarm.get("category") or "unknown").lower(),
         "status": status,
@@ -144,6 +189,7 @@ def _normalize_action(action: Dict[str, Any]) -> Dict[str, Any]:
     is_hardware = bool(action.get("is_hardware"))
     issue_type = "hardware" if is_hardware else "software"
     execution_status = str(action.get("execution_status") or "planned").lower()
+    message = _action_message(action)
 
     return {
         "id": action.get("id"),
@@ -159,8 +205,8 @@ def _normalize_action(action: Dict[str, Any]) -> Dict[str, Any]:
         "created_at": _iso(action.get("created_at")),
         "executed_at": _iso(action.get("executed_at")),
         "error_code": action.get("error_code") or "",
-        "error_message": action.get("error_message") or action.get("message") or "",
-        "message": action.get("error_message") or action.get("message") or "",
+        "error_message": message,
+        "message": message,
         "severity": action.get("severity") or "warning",
         "action_reason": action.get("action_reason") or "",
         "action_payload": _safe_json(action.get("action_payload"), {}),

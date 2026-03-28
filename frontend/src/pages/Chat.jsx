@@ -1,5 +1,10 @@
-import { useCallback } from "react";
-import { AlertTriangle, Menu, RefreshCw } from "lucide-react";
+import { useCallback, useMemo } from "react";
+import {
+  AlertTriangle,
+  Plus,
+  RefreshCw,
+  Save,
+} from "lucide-react";
 import { useVoiceRecording } from "../hooks/useVoiceRecording";
 import { useT } from "../utils/i18n";
 import { GlassSurface } from "../components/ui";
@@ -8,9 +13,11 @@ import ChatMessages from "./chat/ChatMessages";
 import ChatSidebar from "./chat/ChatSidebar";
 import ChatWelcome from "./chat/ChatWelcome";
 import { useChatManager } from "../hooks/useChatManager";
+import { useConfigureTopbar } from "../layout/AppTopbarContext";
+import { downloadText } from "../utils/exporters";
 
-export default function Chat({ onLogout }) {
-  const { locale } = useT();
+export default function Chat({ hasAppSidebar = false }) {
+  const { t } = useT();
 
   const {
     user,
@@ -18,7 +25,6 @@ export default function Chat({ onLogout }) {
     isRecovering,
     handleRetryConnection,
 
-    chatHistory,
     activeChat,
     activeChatId,
     activeMessages,
@@ -37,6 +43,7 @@ export default function Chat({ onLogout }) {
     inputRef,
     messagesContainerRef,
     pendingMessage,
+    streamingAssistant,
     searchQuery,
     setSearchQuery,
 
@@ -56,10 +63,64 @@ export default function Chat({ onLogout }) {
     startRecording,
     stopRecording,
     cancelTranscription,
-  } = useVoiceRecording((text) => {
-    setInput((prev) => prev + (prev ? " " : "") + text);
-    inputRef.current?.focus();
-  }, locale);
+  } = useVoiceRecording(
+    (text) => {
+      setInput((prev) => prev + (prev ? " " : "") + text);
+      inputRef.current?.focus();
+    },
+    "en",
+  );
+
+  const activeTitle = activeChat
+    ? activeChat.title?.length > 56
+      ? `${activeChat.title.slice(0, 56)}...`
+      : activeChat.title || t("chat.newSession")
+    : t("chat.newSession");
+
+  const exportChatTranscript = useCallback(() => {
+    const lines = activeMessages.map((message) => {
+      const role = message.sender === "user" ? "USER" : "ASSISTANT";
+      const text = String(message.text || "").replace(/\n+/g, " ").trim();
+      return `${role}: ${text}`;
+    });
+
+    downloadText(
+      `chat_${String(activeChatId || "session")}_${new Date().toISOString().slice(0, 10)}`,
+      lines.join("\n\n"),
+    );
+  }, [activeChatId, activeMessages]);
+
+  useConfigureTopbar(
+    {
+      title: activeTitle,
+      subtitle: t("chat.headerSub"),
+      search: {
+        enabled: false,
+      },
+      statusPill: {
+        label: t("chat.ready"),
+        tone: "live",
+      },
+      secondaryAction: {
+        label: t("topbar.exportChat"),
+        icon: Save,
+        onClick: exportChatTranscript,
+        disabled: !activeMessages.length,
+      },
+      primaryAction: {
+        label: t("chat.newChat"),
+        icon: Plus,
+        onClick: handleNewChat,
+      },
+    },
+    [
+      activeMessages.length,
+      activeTitle,
+      exportChatTranscript,
+      handleNewChat,
+      t,
+    ],
+  );
 
   const handleSend = useCallback(
     async (event) => {
@@ -97,29 +158,39 @@ export default function Chat({ onLogout }) {
     [setInput, inputRef],
   );
 
-  const composerProps = {
-    input,
-    inputRef,
-    onInputChange: setInput,
-    onKeyDown: handleComposerKeyDown,
-    onSubmit: handleSend,
-    isLoading,
-    isRecording,
-    isTranscribing,
-    startRecording,
-    stopRecording,
-    cancelTranscription,
-  };
-
-  const activeTitle = activeChat
-    ? activeChat.title?.length > 56
-      ? `${activeChat.title.slice(0, 56)}...`
-      : activeChat.title || "New Session"
-    : "New Session";
+  const composerProps = useMemo(
+    () => ({
+      input,
+      inputRef,
+      onInputChange: setInput,
+      onKeyDown: handleComposerKeyDown,
+      onSubmit: handleSend,
+      isLoading,
+      isRecording,
+      isTranscribing,
+      startRecording,
+      stopRecording,
+      cancelTranscription,
+    }),
+    [
+      cancelTranscription,
+      handleComposerKeyDown,
+      handleSend,
+      input,
+      inputRef,
+      isLoading,
+      isRecording,
+      isTranscribing,
+      setInput,
+      startRecording,
+      stopRecording,
+    ],
+  );
 
   return (
-    <div className="chat-shell-height chat-page">
+    <div className={`chat-shell-height chat-page ${hasAppSidebar ? "has-app-sidebar" : ""}`}>
       <ChatSidebar
+        hasAppSidebar={hasAppSidebar}
         isCompactLayout={isCompactLayout}
         sidebarCollapsed={sidebarCollapsed}
         setSidebarCollapsed={setSidebarCollapsed}
@@ -132,13 +203,12 @@ export default function Chat({ onLogout }) {
         onDeleteChat={handleDelete}
         searchQuery={searchQuery}
         onSearchQueryChange={setSearchQuery}
-        onLogout={onLogout}
         onNewChat={handleNewChat}
       />
 
       <GlassSurface
         as="section"
-        className="chat-main-shell glass-noise"
+        className={`chat-main-shell glass-noise ${hasMessages ? "is-conversation" : "is-welcome"}`}
         borderRadius={18}
         blur={14}
         displace={0.65}
@@ -147,33 +217,6 @@ export default function Chat({ onLogout }) {
         saturation={1.2}
         backgroundOpacity={0.22}
       >
-        <header className="chat-header">
-          <div className="flex items-center gap-3 min-w-0">
-            {isCompactLayout ? (
-              <button
-                type="button"
-                className="control-btn glass-interactive"
-                onClick={() => setSidebarCollapsed(false)}
-                title="Open chat sessions"
-              >
-                <Menu size={15} />
-              </button>
-            ) : null}
-
-            <div className="min-w-0">
-              <p className="chat-header-title">{activeTitle}</p>
-              <p className="chat-header-sub">
-                Operational guidance for PLC troubleshooting and safe actions
-              </p>
-            </div>
-          </div>
-
-          <span className="live-indicator">
-            <span className="live-dot" />
-            Ready
-          </span>
-        </header>
-
         {apiError ? (
           <div className="chat-banner">
             <AlertTriangle
@@ -187,11 +230,8 @@ export default function Chat({ onLogout }) {
               disabled={isRecovering}
               className="action-btn glass-interactive"
             >
-              <RefreshCw
-                size={13}
-                className={isRecovering ? "animate-spin" : ""}
-              />
-              Retry
+              <RefreshCw size={13} className={isRecovering ? "animate-spin" : ""} />
+              {t("chat.retry")}
             </button>
           </div>
         ) : null}
@@ -208,6 +248,7 @@ export default function Chat({ onLogout }) {
               messagesContainerRef={messagesContainerRef}
               activeMessages={activeMessages}
               pendingMessage={pendingMessage}
+              streamingAssistant={streamingAssistant}
               activeChat={activeChat}
               autoStickToBottom={autoStickToBottom}
               isLoading={isLoading}
@@ -219,10 +260,12 @@ export default function Chat({ onLogout }) {
             />
 
             <div className="chat-compose-dock">
-              <ChatComposer centered={false} {...composerProps} />
-              <p className="text-center text-[11px] text-[color:var(--text-muted)] mt-2">
-                Validate critical operations with on-site safety procedures.
-              </p>
+              <div className="chat-compose-dock-inner">
+                <ChatComposer centered={false} {...composerProps} />
+                <p className="text-center text-[11px] text-[color:var(--text-muted)] mt-2">
+                  {t("chat.footerNote")}
+                </p>
+              </div>
             </div>
           </>
         )}

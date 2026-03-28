@@ -1,9 +1,11 @@
 import { useCallback, useState } from "react";
 import { getApiErrorMessage } from "../../../../utils/api";
+import { useT } from "../../../../utils/i18n";
 import { acknowledgeAlarm, approvePlan, createPlan, diagnoseAlarm } from "./alarmApi";
-import { FALLBACK_DIAGNOSIS } from "./alarmUtils";
+import { createFallbackDiagnosis } from "./alarmUtils";
 
 export default function useAlarmActions({ loadAlarms, setError }) {
+  const { t } = useT();
   const [diagnosticsByAlarm, setDiagnosticsByAlarm] = useState({});
   const [plansByAlarm, setPlansByAlarm] = useState({});
   const [resultsByAlarm, setResultsByAlarm] = useState({});
@@ -24,16 +26,30 @@ export default function useAlarmActions({ loadAlarms, setError }) {
       try {
         const diagnosis = await diagnoseAlarm(alarm);
         setDiagnosticsByAlarm((prev) => ({ ...prev, [alarm.id]: diagnosis }));
+        setPlansByAlarm((prev) => {
+          if (!(alarm.id in prev)) return prev;
+          const next = { ...prev };
+          delete next[alarm.id];
+          return next;
+        });
+        setResultsByAlarm((prev) => {
+          if (!(alarm.id in prev)) return prev;
+          const next = { ...prev };
+          delete next[alarm.id];
+          return next;
+        });
+        await loadAlarms();
         return diagnosis;
       } catch (requestError) {
-        setError(getApiErrorMessage(requestError, "Failed to run diagnosis"));
-        setDiagnosticsByAlarm((prev) => ({ ...prev, [alarm.id]: FALLBACK_DIAGNOSIS }));
-        return FALLBACK_DIAGNOSIS;
+        const fallbackDiagnosis = createFallbackDiagnosis(t);
+        setError(getApiErrorMessage(requestError, t("alarms.failedToRunDiagnosis")));
+        setDiagnosticsByAlarm((prev) => ({ ...prev, [alarm.id]: fallbackDiagnosis }));
+        return fallbackDiagnosis;
       } finally {
         setDiagnosingId(null);
       }
     },
-    [diagnosticsByAlarm, setError],
+    [diagnosticsByAlarm, setError, t],
   );
 
   const runPlan = useCallback(
@@ -45,15 +61,22 @@ export default function useAlarmActions({ loadAlarms, setError }) {
         const diagnosis = diagnosticsByAlarm[alarm.id] || (await runDiagnose(alarm));
         const plan = await createPlan(alarm, diagnosis);
         setPlansByAlarm((prev) => ({ ...prev, [alarm.id]: plan }));
+        setResultsByAlarm((prev) => {
+          if (!(alarm.id in prev)) return prev;
+          const next = { ...prev };
+          delete next[alarm.id];
+          return next;
+        });
+        await loadAlarms();
         return plan;
       } catch (requestError) {
-        setError(getApiErrorMessage(requestError, "Failed to create action plan"));
+        setError(getApiErrorMessage(requestError, t("alarms.failedToCreatePlan")));
         return null;
       } finally {
         setPlanningId(null);
       }
     },
-    [diagnosticsByAlarm, runDiagnose, setError],
+    [diagnosticsByAlarm, runDiagnose, setError, t],
   );
 
   const runApprove = useCallback(
@@ -70,13 +93,13 @@ export default function useAlarmActions({ loadAlarms, setError }) {
         await loadAlarms();
         return result;
       } catch (requestError) {
-        setError(getApiErrorMessage(requestError, "Failed to approve planned action"));
+        setError(getApiErrorMessage(requestError, t("alarms.failedToApprovePlan")));
         return null;
       } finally {
         setApprovingId(null);
       }
     },
-    [loadAlarms, plansByAlarm, setError],
+    [loadAlarms, plansByAlarm, setError, t],
   );
 
   const runAcknowledge = useCallback(
@@ -89,13 +112,13 @@ export default function useAlarmActions({ loadAlarms, setError }) {
         await loadAlarms();
         return { ok: true };
       } catch (requestError) {
-        setError(getApiErrorMessage(requestError, "Failed to acknowledge incident"));
+        setError(getApiErrorMessage(requestError, t("alarms.failedToAcknowledge")));
         return null;
       } finally {
         setAcknowledgingId(null);
       }
     },
-    [loadAlarms, setError],
+    [loadAlarms, setError, t],
   );
 
   return {

@@ -29,10 +29,17 @@ export const chatService = {
   },
 
   async sendMessage(message, sessionId) {
-    return api.post("/api/chat", {
-      message,
-      session_id: sessionId,
-    });
+    return retryApiRequest(
+      () =>
+        api.post("/api/chat", {
+          message,
+          session_id: sessionId,
+        }),
+      {
+        retries: 0,
+        baseDelayMs: 650,
+      },
+    );
   },
 
   async deleteSession(sessionId) {

@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { getApiErrorMessage } from "../../../../utils/api";
-import { usePlcLiveDataContext } from "../../../plc/PlcLiveDataContext";
-import { fetchAlarms } from "./alarmApi";
+import { useT } from "../../../../utils/i18n";
+import { useOpsSyncContext } from "../../OpsSyncContext";
 import {
   buildAlarmCounts,
   buildPrimaryAction,
@@ -11,11 +10,17 @@ import {
 import useAlarmActions from "./useAlarmActions";
 
 export default function useAlarmsViewModel() {
-  const { connectionState } = usePlcLiveDataContext();
+  const { t } = useT();
+  const {
+    connectionState,
+    alarms,
+    loading: opsLoading,
+    error: opsError,
+    liveError,
+    refreshOpsData,
+  } = useOpsSyncContext();
 
-  const [alarms, setAlarms] = useState([]);
   const [ignoredAlarmIds, setIgnoredAlarmIds] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -23,28 +28,19 @@ export default function useAlarmsViewModel() {
   const [selectedAlarmId, setSelectedAlarmId] = useState(null);
 
   const loadAlarms = useCallback(async () => {
-    setLoading(true);
     setError("");
-    try {
-      const nextAlarms = await fetchAlarms();
-      setAlarms(nextAlarms);
-      setIgnoredAlarmIds((prev) =>
-        prev.filter((alarmId) =>
-          nextAlarms.some(
-            (alarm) => alarm.id === alarmId && alarm.status === "active",
-          ),
-        ),
-      );
-    } catch (requestError) {
-      setError(getApiErrorMessage(requestError, "Failed to load incident queue"));
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+    return refreshOpsData({ force: true }).catch(() => {});
+  }, [refreshOpsData]);
 
   useEffect(() => {
-    loadAlarms();
-  }, [loadAlarms]);
+    setIgnoredAlarmIds((prev) =>
+      prev.filter((alarmId) =>
+        alarms.some(
+          (alarm) => alarm.id === alarmId && alarm.status === "active",
+        ),
+      ),
+    );
+  }, [alarms]);
 
   const visibleAlarms = useMemo(
     () =>
@@ -107,6 +103,7 @@ export default function useAlarmsViewModel() {
         planningId,
         approvingId,
         acknowledgingId,
+        t,
       }),
     [
       acknowledgingId,
@@ -116,6 +113,7 @@ export default function useAlarmsViewModel() {
       planningId,
       plansByAlarm,
       selectedAlarm,
+      t,
     ],
   );
 
@@ -143,6 +141,14 @@ export default function useAlarmsViewModel() {
     await runAcknowledge(selectedAlarm);
   }, [runAcknowledge, selectedAlarm]);
 
+  const acknowledgeAlarm = useCallback(
+    async (alarm) => {
+      if (!alarm) return;
+      await runAcknowledge(alarm);
+    },
+    [runAcknowledge],
+  );
+
   const ignoreSelectedAlarm = useCallback(() => {
     if (!selectedAlarm) return;
     setIgnoredAlarmIds((prev) =>
@@ -154,8 +160,9 @@ export default function useAlarmsViewModel() {
 
   return {
     connectionState,
-    loading,
-    error,
+    alarms,
+    loading: opsLoading,
+    error: error || opsError || liveError,
     counts,
     statusFilter,
     setStatusFilter,
@@ -170,6 +177,7 @@ export default function useAlarmsViewModel() {
     primaryAction,
     triggerPrimaryAction,
     isPrimaryBusy,
+    acknowledgeAlarm,
     acknowledgeSelectedAlarm,
     ignoreSelectedAlarm,
     isAcknowledgeBusy: Boolean(

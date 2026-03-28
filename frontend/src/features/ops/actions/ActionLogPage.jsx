@@ -1,8 +1,9 @@
-import { ClipboardList, Wifi } from "lucide-react";
+import { useEffect } from "react";
+import { ClipboardList, Download, MessageSquareText } from "lucide-react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   EmptyState,
   InlineAlert,
-  PageHeader,
   SectionCard,
   SkeletonCard,
 } from "../../../components/ui";
@@ -11,17 +12,17 @@ import useActionLogViewModel from "./hooks/useActionLogViewModel";
 import ActionSummaryStrip from "./components/ActionSummaryStrip";
 import ActionFilterBar from "./components/ActionFilterBar";
 import ActionTimeline from "./components/ActionTimeline";
+import { useConfigureTopbar } from "../../../layout/AppTopbarContext";
+import { downloadCsv } from "../../../utils/exporters";
+import useConnectionLabel from "../../../hooks/useConnectionLabel";
 import "./styles/actions.css";
 
-const CONNECTION_LABELS = {
-  live: "common.liveStream",
-  reconnecting: "sidebar.reconnecting",
-  rest: "sidebar.restFallback",
-  connecting: "sidebar.connecting",
-};
+const QUICK_FILTERS = new Set(["all", "failed", "manual", "executed", "today"]);
 
 export default function ActionLogPage() {
   const { t } = useT();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const {
     connectionState,
     loading,
@@ -36,27 +37,84 @@ export default function ActionLogPage() {
     setExpandedId,
   } = useActionLogViewModel();
 
-  const connectionLabel = t(
-    CONNECTION_LABELS[connectionState] || CONNECTION_LABELS.connecting,
-  );
+  const { label: connectionLabel, tone: connectionTone } = useConnectionLabel(connectionState);
   const hasRecords = rows.length > 0;
 
-  return (
-    <div className="ops-page ops-actions-page">
-      <PageHeader
-        title={t("actions.title")}
-        subtitle={t("actions.subtitle")}
-        right={
-          <span className="live-indicator">
-            <span
-              className={`live-dot ${connectionState === "live" ? "" : connectionState === "reconnecting" ? "warn" : "off"}`}
-            />
-            <Wifi size={12} /> {connectionLabel}
-          </span>
-        }
-      />
+  useEffect(() => {
+    const searchQuery = searchParams.get("q");
+    const filter = searchParams.get("filter");
 
+    if (typeof searchQuery === "string") {
+      setQuery(searchQuery);
+    }
+
+    if (QUICK_FILTERS.has(filter || "")) {
+      setQuickFilter(filter);
+    }
+  }, [searchParams, setQuery, setQuickFilter]);
+
+  const exportCurrentView = () => {
+    downloadCsv(
+      `action_history_${new Date().toISOString().slice(0, 10)}`,
+      rows.map((row) => ({
+        id: row.id,
+        asset: row.machine_name || row.device_id || "",
+        machine: row.machineText,
+        status: row.execution_status,
+        type: row.action_type,
+        code: row.error_code,
+        mode: row.issue_type,
+        created_at: row.created_at,
+        result: row.execution_result?.message || row.reasonText || "",
+      })),
+    );
+  };
+
+  useConfigureTopbar(
+    {
+      title: "",
+      subtitle: "",
+      search: {
+        enabled: true,
+        placeholder: t("actions.searchPlaceholder"),
+        value: query,
+        onChange: setQuery,
+      },
+      statusPill: {
+        label: connectionLabel,
+        tone: connectionTone,
+      },
+      secondaryAction: null,
+      primaryAction: null,
+    },
+    [connectionLabel, connectionState, query, setQuery, t],
+  );
+
+  return (
+    <div className="ops-page ops-actions-page ops-page-enter">
       <InlineAlert message={error} tone="error" />
+
+      <section className="ops-page-header">
+        <div>
+          <h1 className="ops-page-title">{t("actions.title")}</h1>
+          <p className="ops-page-subtitle">{t("actions.subtitle")}</p>
+        </div>
+
+        <div className="ops-page-actions">
+          <button type="button" className="app-topbar-btn secondary" onClick={exportCurrentView}>
+            <Download size={16} />
+            {t("topbar.exportView")}
+          </button>
+          <button
+            type="button"
+            className="app-topbar-btn primary"
+            onClick={() => navigate("/chat")}
+          >
+            <MessageSquareText size={16} />
+            {t("topbar.openAssistant")}
+          </button>
+        </div>
+      </section>
 
       <ActionSummaryStrip stats={stats} />
 

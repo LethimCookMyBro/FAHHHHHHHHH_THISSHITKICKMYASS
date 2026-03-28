@@ -46,8 +46,9 @@ def validate_upload(
         raise HTTPException(status_code=415, detail=f"Unsupported file extension: {ext or '<none>'}")
 
     content_type = (file.content_type or "").strip().lower()
+    base_content_type = content_type.split(";")[0].strip()
     allowed_type_set = {str(item).lower().strip() for item in allowed_mime_types}
-    if content_type not in allowed_type_set:
+    if base_content_type not in allowed_type_set:
         raise HTTPException(status_code=415, detail=f"Unsupported file type: {content_type or '<none>'}")
 
     max_size_mb = _env_mb(max_size_mb_env, default_max_size_mb)

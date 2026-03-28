@@ -1,23 +1,32 @@
-import { ShieldAlert, Wifi, Bell, ChevronDown } from "lucide-react";
-import { EmptyState, InlineAlert, SkeletonCard } from "../../../components/ui";
+import { Download, PlayCircle, RefreshCcw } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { InlineAlert, SkeletonCard } from "../../../components/ui";
 import { useT } from "../../../utils/i18n";
 import useAlarmsViewModel from "./hooks/useAlarmsViewModel";
 import IncidentQueue from "./components/IncidentQueue";
 import DecisionPanel from "./components/DecisionPanel";
-
-const CONNECTION_LABELS = {
-  live: "common.liveStream",
-  reconnecting: "sidebar.reconnecting",
-  rest: "sidebar.restFallback",
-  connecting: "sidebar.connecting",
-};
+import { useConfigureTopbar } from "../../../layout/AppTopbarContext";
+import { downloadCsv } from "../../../utils/exporters";
+import useConnectionLabel from "../../../hooks/useConnectionLabel";
+import {
+  buildZoneRouteSearch,
+  resolveZoneIdForMachine,
+} from "../port-map/zoneModel";
+import { buildMockZoneChatUrl } from "../mockZoneChat";
+import "./styles/alarms.css";
 
 export default function AlarmsPage() {
   const { t } = useT();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const [pendingChatAlarmId, setPendingChatAlarmId] = useState(null);
   const {
     connectionState,
+    alarms,
     loading,
     error,
+    counts,
     statusFilter,
     setStatusFilter,
     searchQuery,
@@ -27,107 +36,254 @@ export default function AlarmsPage() {
     setSelectedAlarmId,
     selectedDiagnosis,
     selectedPlan,
+    selectedResult,
     primaryAction,
     triggerPrimaryAction,
     isPrimaryBusy,
+    acknowledgeAlarm,
     acknowledgeSelectedAlarm,
     ignoreSelectedAlarm,
     isAcknowledgeBusy,
+    refresh,
   } = useAlarmsViewModel();
 
-  const connectionLabel = t(
-    CONNECTION_LABELS[connectionState] || CONNECTION_LABELS.connecting,
+  const { label: connectionLabel, tone: connectionTone } = useConnectionLabel(connectionState);
+
+  useEffect(() => {
+    const requestedStatus = searchParams.get("status");
+    if (requestedStatus && requestedStatus !== statusFilter) {
+      setStatusFilter(requestedStatus);
+    }
+  }, [searchParams, setStatusFilter, statusFilter]);
+
+  useEffect(() => {
+    const requestedZoneId = searchParams.get("zoneId");
+    const requestedMachineId = searchParams.get("machineId");
+    const requestedMachineName = searchParams.get("machineName");
+    const requestedErrorCode = searchParams.get("errorCode");
+
+    if (
+      !requestedZoneId &&
+      !requestedMachineId &&
+      !requestedMachineName &&
+      !requestedErrorCode
+    ) {
+      return;
+    }
+
+    const requestedAlarm =
+      alarms.find((alarm) => {
+        if (
+          requestedZoneId &&
+          resolveZoneIdForMachine(alarm) !== requestedZoneId
+        ) {
+          return false;
+        }
+
+        if (
+          requestedMachineId &&
+          String(alarm.machine_id ?? alarm.id ?? "") !== String(requestedMachineId)
+        ) {
+          return false;
+        }
+
+        if (
+          requestedMachineName &&
+          String(alarm.machine_name || "").trim() !== String(requestedMachineName).trim()
+        ) {
+          return false;
+        }
+
+        if (
+          requestedErrorCode &&
+          String(alarm.error_code || "").trim() !== String(requestedErrorCode).trim()
+        ) {
+          return false;
+        }
+
+        return true;
+      }) || null;
+
+    if (!requestedAlarm) {
+      return;
+    }
+
+    if (statusFilter !== "all" && statusFilter !== requestedAlarm.status) {
+      setStatusFilter(requestedAlarm.status);
+      return;
+    }
+
+    if (selectedAlarm?.id !== requestedAlarm.id) {
+      setSelectedAlarmId(requestedAlarm.id);
+    }
+  }, [
+    alarms,
+    searchParams,
+    selectedAlarm?.id,
+    setSelectedAlarmId,
+    setStatusFilter,
+    statusFilter,
+  ]);
+
+  const openAlarmInChat = (alarm) => {
+    if (!alarm) return;
+    if (pendingChatAlarmId === alarm.id) return;
+    setPendingChatAlarmId(alarm.id);
+    navigate(buildMockZoneChatUrl(alarm, "alarms"));
+  };
+
+  const openAlarmInMap = (alarm) => {
+    if (!alarm) return;
+    navigate(`/overview?${buildZoneRouteSearch(alarm)}`);
+  };
+
+  const exportCurrentView = () => {
+    downloadCsv(
+      `incidents_${new Date().toISOString().slice(0, 10)}`,
+      incidentRows.map((row) => ({
+        id: row.id,
+        code: row.error_code,
+        machine: row.machine_name,
+        message: row.message,
+        severity: row.severity,
+        status: row.status,
+        category: row.category,
+        created: row.createdText,
+      })),
+    );
+  };
+
+  useConfigureTopbar(
+    {
+      title: "",
+      subtitle: "",
+      search: {
+        enabled: true,
+        placeholder: t("alarms.searchPlaceholder"),
+        value: searchQuery,
+        onChange: setSearchQuery,
+      },
+      statusPill: {
+        label: connectionLabel,
+        tone: connectionTone,
+      },
+      secondaryAction: null,
+      primaryAction: null,
+    },
+    [
+      connectionLabel,
+      connectionState,
+      searchQuery,
+      selectedAlarm,
+      setSearchQuery,
+      t,
+    ],
   );
 
   return (
-    <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative bg-[color:var(--background-dark)] h-full">
-      {/* Custom Header */}
-      <header className="h-20 flex items-center justify-between px-8 border-b border-slate-800 bg-[color:var(--surface-dark)]/95 backdrop-blur-sm z-10 sticky top-0 shrink-0">
+    <div className="ops-page ops-alarms-page ops-page-enter">
+      <InlineAlert message={error} tone="error" />
+
+      <section className="ops-page-header">
         <div>
-          <div className="flex items-center gap-3">
-            <h2 className="text-2xl font-bold text-white tracking-tight">
-              Alarm Control Center
-            </h2>
-            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[color:var(--primary)]/20 text-[color:var(--primary)] border border-[color:var(--primary)]/30 uppercase">
-              Variant 2.0
-            </span>
-          </div>
-          <p className="text-sm text-slate-400 mt-0.5">
-            Real-time anomaly detection &amp; autonomous diagnostics
-          </p>
+          <h1 className="ops-page-title">{t("alarms.title")}</h1>
+          <p className="ops-page-subtitle">{t("alarms.subtitle")}</p>
         </div>
-        <div className="flex items-center gap-4 hidden md:flex">
-          <div className="px-4 py-2 rounded bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-bold flex items-center gap-2.5 shadow-[0_0_10px_rgba(16,185,129,0.1)]">
-            <span
-              className={`w-2 h-2 rounded-full ${connectionState === "live" ? "bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.8)]" : "bg-slate-500"}`}
-            ></span>
-            {connectionLabel}
-          </div>
-          <div className="h-8 w-px bg-slate-700 mx-2"></div>
-          <button className="p-2.5 text-slate-400 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors relative">
-            <Bell size={20} />
-            {incidentRows.length > 0 && (
-              <span className="absolute top-2 right-2.5 w-2 h-2 rounded-full bg-red-500 border border-slate-800"></span>
-            )}
+
+        <div className="ops-page-actions">
+          <button type="button" className="app-topbar-btn secondary" onClick={exportCurrentView}>
+            <Download size={16} />
+            {t("topbar.exportView")}
+          </button>
+          <button
+            type="button"
+            className="app-topbar-btn primary"
+            onClick={triggerPrimaryAction}
+            disabled={
+              primaryAction.disabled ||
+              isPrimaryBusy ||
+              !selectedAlarm ||
+              primaryAction.kind === "none"
+            }
+          >
+            <PlayCircle size={16} />
+            {isPrimaryBusy ? t("common.loading") : primaryAction.label}
           </button>
         </div>
-      </header>
+      </section>
 
-      {error && (
-        <div className="px-6 pt-4 shrink-0">
-          <InlineAlert message={error} tone="error" />
+      <div className="alarms-summary-strip">
+        <div className="alarms-summary-item">
+          <span>{t("alarms.active")}</span>
+          <strong>{counts.active}</strong>
+        </div>
+        <div className="alarms-summary-item tone-critical">
+          <span>{t("alarms.critical")}</span>
+          <strong className="is-critical">{counts.critical}</strong>
+        </div>
+        <div className="alarms-summary-item tone-info">
+          <span>{t("alarms.acknowledged")}</span>
+          <strong>{counts.acknowledged}</strong>
+        </div>
+        <div className="alarms-summary-item tone-ok">
+          <span>{t("alarms.resolved")}</span>
+          <strong>{counts.resolved}</strong>
+        </div>
+        <button type="button" className="alarms-refresh-btn" onClick={refresh}>
+          <RefreshCcw size={14} />
+          {t("alarms.refreshQueue")}
+        </button>
+      </div>
+
+      <div className="alarms-status-line">
+        <span>
+          {t("alarms.requireImmediateAction", {
+            critical: counts.critical,
+            total: incidentRows.length || counts.active || 0,
+          })}
+        </span>
+        <span>
+          {t("alarms.oldestUnacknowledged", {
+            time:
+              incidentRows.find((item) => item.status === "active")?.createdText ||
+              t("common.na"),
+          })}
+        </span>
+      </div>
+
+      {loading ? (
+        <div className="ops-alarms-grid">
+          <SkeletonCard lines={7} />
+          <SkeletonCard lines={6} />
+        </div>
+      ) : (
+        <div className="ops-alarms-grid">
+          <IncidentQueue
+            incidents={incidentRows}
+            selectedAlarm={selectedAlarm}
+            onSelect={setSelectedAlarmId}
+            statusFilter={statusFilter}
+            onStatusFilterChange={setStatusFilter}
+            onAcknowledge={acknowledgeAlarm}
+            onOpenChat={openAlarmInChat}
+          />
+
+          <DecisionPanel
+            selectedAlarm={selectedAlarm}
+            diagnosis={selectedDiagnosis}
+            plan={selectedPlan}
+            result={selectedResult}
+            primaryAction={primaryAction}
+            onPrimaryAction={triggerPrimaryAction}
+            primaryBusy={isPrimaryBusy}
+            onAcknowledge={acknowledgeSelectedAlarm}
+            acknowledgeBusy={isAcknowledgeBusy}
+            onIgnore={ignoreSelectedAlarm}
+            onOpenChat={openAlarmInChat}
+            onOpenMap={openAlarmInMap}
+          />
         </div>
       )}
-
-      {/* Main Content Grid */}
-      <div className="flex-1 p-6 overflow-hidden flex flex-col lg:flex-row gap-6 relative min-h-0">
-        <div
-          className="absolute inset-0 z-0 pointer-events-none opacity-[0.03]"
-          style={{
-            backgroundImage: "radial-gradient(#60a5fa 1px, transparent 1px)",
-            backgroundSize: "24px 24px",
-          }}
-        ></div>
-
-        {loading ? (
-          <div className="flex-1 flex gap-6 z-10">
-            <div className="flex-1 lg:flex-[5] h-full">
-              <SkeletonCard lines={6} />
-            </div>
-            <div className="flex-1 lg:flex-[7] h-full">
-              <SkeletonCard lines={4} />
-            </div>
-          </div>
-        ) : (
-          <>
-            <div className="flex-1 lg:flex-[5] flex flex-col gap-4 h-full min-w-0 z-10">
-              <IncidentQueue
-                incidents={incidentRows}
-                selectedAlarm={selectedAlarm}
-                onSelect={setSelectedAlarmId}
-                statusFilter={statusFilter}
-                onStatusFilterChange={setStatusFilter}
-                searchQuery={searchQuery}
-                onSearchQueryChange={setSearchQuery}
-              />
-            </div>
-
-            <div className="flex-1 lg:flex-[7] h-full flex flex-col z-10 min-w-0">
-              <DecisionPanel
-                selectedAlarm={selectedAlarm}
-                diagnosis={selectedDiagnosis}
-                plan={selectedPlan}
-                primaryAction={primaryAction}
-                onPrimaryAction={triggerPrimaryAction}
-                primaryBusy={isPrimaryBusy}
-                onAcknowledge={acknowledgeSelectedAlarm}
-                acknowledgeBusy={isAcknowledgeBusy}
-                onIgnore={ignoreSelectedAlarm}
-              />
-            </div>
-          </>
-        )}
-      </div>
     </div>
   );
 }
