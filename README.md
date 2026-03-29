@@ -1,391 +1,472 @@
-# 🏭 Panya — PLC Assistant
+# Panya
 
-An AI-powered knowledge assistant for **industrial automation** and **PLC** operations. Built with **RAG (Retrieval-Augmented Generation)**, real-time PLC monitoring, and an agentic workflow engine for automated diagnostics and corrective actions.
+Panya is an industrial operations console that combines:
 
----
+- a FastAPI backend for authentication, chat, PLC data, alarms, and actions
+- a React/Vite frontend for dashboard, port map, incident triage, equipment, and chat
+- a retrieval-augmented chatbot for PLC documentation
+- a simulator-first PLC workflow that can fall back to real Modbus TCP integration
 
-## ✨ Key Features
+For the Thai handoff guide, see [README(th).md](./README(th).md).
 
-| Category                 | Features                                                                                                    |
-| ------------------------ | ----------------------------------------------------------------------------------------------------------- |
-| **AI Chat**              | RAG-powered Q&A from your PLC documentation, multi-turn conversations, source citations, Markdown rendering |
-| **PLC Live Monitoring**  | Real-time WebSocket data stream, machine status cards, OEE trend charts, alarm management                   |
-| **Agentic Workflow**     | AI-driven root cause analysis, auto-suggested corrective actions, action log tracking                       |
-| **Multi-Input**          | Text and voice input (Whisper STT)                                                                          |
-| **Evaluation**           | Built-in RAGAS evaluation pipeline for answer quality metrics                                               |
-| **Auth & Security**      | JWT authentication, CSRF protection, Redis-backed rate limiting, role-based access                          |
-| **Internationalization** | English & Thai (🇬🇧 / 🇹🇭)                                                                                    |
-| **Theming**              | Dark / Light mode with glassmorphism UI                                                                     |
+## What the project does
 
----
+Panya is built for operations and maintenance workflows around PLC systems. The app supports:
 
-## 🛠 Tech Stack
+- chat-based PLC troubleshooting with document retrieval
+- live PLC monitoring with REST snapshot + WebSocket stream
+- incident triage and action planning
+- port map visualization with AI handoff flow
+- equipment diagnostics and action history
+- English and Thai UI localization
 
-| Layer                  | Technology                                                               |
-| ---------------------- | ------------------------------------------------------------------------ |
-| **Frontend**           | React 18 · Vite · Tailwind CSS · Framer Motion · Recharts · Lucide Icons |
-| **Backend**            | FastAPI (Python) · LangChain · LangGraph                                 |
-| **LLM**                | Groq (`llama-3.3-70b-versatile`) — also supports Ollama (local LLaMA)    |
-| **Embeddings**         | `BAAI/bge-m3` via SentenceTransformers                                   |
-| **Database**           | PostgreSQL + pgvector                                                    |
-| **Cache / Rate Limit** | Redis 7                                                                  |
-| **PLC Connector**      | Modbus TCP (pymodbus) / Built-in Simulator                               |
-| **STT**                | faster-whisper                                                           |
-| **Evaluation**         | RAGAS                                                                    |
-| **Deployment**         | Docker Compose · Railway                                                 |
+## Architecture
 
----
+### Frontend
 
-## 📁 Project Structure
+Location: `frontend/`
 
-```
+Main stack:
+
+- React 18
+- Vite
+- React Router
+- Axios
+- Recharts
+- Framer Motion
+- Lucide React
+
+Main app structure:
+
+- `src/App.jsx`: top-level app shell, providers, routes
+- `src/features/plc/`: PLC live data context and payload normalizers
+- `src/features/ops/`: operational UI modules
+- `src/hooks/useChatManager.js`: chat page orchestration
+- `src/features/ops/OpsSyncContext.jsx`: shared source of truth for alarms, actions, machines, and zone summaries
+- `src/pages/chat/`: chat UI components
+
+Operational modules:
+
+- `dashboard/`: overview cards, charts, machine queue
+- `port-map/`: zone map, zone summary panel, AI handoff entry
+- `alarms/`: incident queue, decision panel, diagnose/plan/approve flow
+- `equipment/`: equipment fleet and diagnostics
+- `actions/`: action history and filters
+- `analytics/`: predictive/summary panels
+
+### Backend
+
+Location: `backend/`
+
+Main stack:
+
+- FastAPI
+- psycopg2 + PostgreSQL
+- pgvector
+- Redis
+- LangChain / LangGraph-compatible retrieval flow
+- SentenceTransformers
+- Flashrank / optional cross-encoder reranking
+- faster-whisper
+
+Runtime entrypoint:
+
+- `backend/main.py`
+
+Important backend modules:
+
+- `app/routes_auth.py`: login, registration, auth/session endpoints
+- `app/routes_chat.py`: chat sessions, chat messages, source file delivery
+- `app/routes_api.py`: health, metrics, agent endpoints, transcription, misc API
+- `app/routes_plc.py`: PLC route aggregation
+- `app/routes_plc_data.py`: PLC dashboard/snapshot data
+- `app/routes_plc_alarms.py`: alarm listing, acknowledge, resolve
+- `app/routes_plc_actions.py`: diagnose, plan, approve action flows
+- `app/chatbot.py`: prompt construction, retrieval orchestration, output normalization
+- `app/retriever.py`: pgvector retrieval, hybrid keyword retrieval, reranking
+- `app/plc/`: simulator, Modbus connector, contracts, action policy
+- `app/core/`: rate limiting, Redis client, metrics, retention, PLC ingestion, upload guards, WS tickets
+
+### Deployment/runtime layers
+
+There are two web server entrypoints:
+
+- `server.js`: root production web server for the monorepo deployment shape
+- `frontend/server.cjs`: frontend-local production server that serves `frontend/dist` and proxies `/api`
+
+## Current system flow
+
+### Chat
+
+1. User opens `/chat`
+2. Frontend calls `/api/chat/*` endpoints for session and message management
+3. Backend chat route selects either:
+   - direct LLM response, or
+   - RAG flow via retriever + reranker + LLM
+4. Reply is stored in chat history and rendered in the chat UI
+
+### PLC and ops sync
+
+1. `usePlcLiveData` loads `/api/plc/dashboard` and opens `/api/plc/ws`
+2. `OpsSyncContext` loads `/api/plc/alarms` and `/api/plc/actions`
+3. Frontend derives machines, recent alarms, recent actions, and zone summaries from shared state
+4. Dashboard, Port Map, Alerts, Equipment, and Chat all read from that shared context
+
+### Ask AI from Port Map
+
+1. User selects a zone in Port Map
+2. Zone panel stays open and offers `Ask AI`
+3. Chat opens with zone context
+4. After AI/mock resolution completes, resolved alarms and machine recovery propagate through shared ops state
+5. Port map, alerts, dashboard, and related counts update together
+
+## Repository layout
+
+```text
 Panya/
-├── backend/                    # FastAPI backend
-│   ├── main.py                 # App entrypoint, lifespan, middleware
-│   ├── embed.py                # Standalone embedding / ingest CLI
-│   ├── app/
-│   │   ├── routes_api.py       # General API routes
-│   │   ├── routes_auth.py      # Auth endpoints (login/register/refresh)
-│   │   ├── routes_chat.py      # Chat & RAG endpoints
-│   │   ├── routes_plc.py       # PLC data, alarms, actions, WebSocket
-│   │   ├── chatbot.py          # LLM orchestration, agent workflow
-│   │   ├── retriever.py        # Vector search + FlashRank reranker
-│   │   ├── llm.py              # LLM provider factory (Groq / Ollama)
-│   │   ├── db.py               # Database connection & schema
-│   │   ├── security.py         # JWT, password hashing, CSRF
-│   │   ├── auth.py             # Auth dependency injection
-│   │   ├── embed_logic.py      # Chunking & embedding logic
-│   │   ├── ingest_state.py     # Incremental ingest state tracking
-│   │   ├── ragas_eval.py       # RAGAS evaluation pipeline
-│   │   ├── seed.py             # Golden QA seeding
-│   │   ├── plc/                # PLC integration
-│   │   │   ├── connector.py    # Abstract PLC connector
-│   │   │   ├── simulator.py    # Built-in PLC simulator (dev)
-│   │   │   ├── modbus_connector.py  # Modbus TCP connector (prod)
-│   │   │   ├── diagnostic.py   # AI-powered PLC diagnostics
-│   │   │   ├── action_policy.py    # Action approval policies
-│   │   │   ├── contracts.py    # Data contracts / schemas
-│   │   │   └── mapping.py      # Register ↔ tag mapping
-│   │   └── core/               # Cross-cutting concerns
-│   │       ├── rate_limit.py   # Redis-backed rate limiter
-│   │       ├── redis_client.py # Redis connection
-│   │       ├── metrics.py      # Request counters
-│   │       ├── retention.py    # Data retention cleanup
-│   │       ├── plc_ingest.py   # Background alarm ingestion
-│   │       ├── upload_guard.py # Upload size/type validation
-│   │       └── ws_ticket.py    # WebSocket auth tickets
-│   ├── data/                   # PLC mapping configs
-│   └── requirements.txt
-│
-├── frontend/                   # React + Vite SPA
-│   ├── src/
-│   │   ├── App.jsx             # Root: routing, auth, theme, providers
-│   │   ├── pages/
-│   │   │   ├── Chat.jsx        # Knowledge Assistant chat page
-│   │   │   ├── chat/           # Chat sub-components
-│   │   │   │   ├── ChatComposer.jsx
-│   │   │   │   ├── ChatMessages.jsx
-│   │   │   │   ├── ChatSidebar.jsx
-│   │   │   │   ├── ChatWelcome.jsx
-│   │   │   │   ├── ThinkingIndicator.jsx
-│   │   │   │   └── markdown.jsx
-│   │   │   ├── Login.jsx
-│   │   │   └── Register.jsx
-│   │   ├── features/
-│   │   │   ├── ops/            # Operations module
-│   │   │   │   ├── dashboard/  # Plant overview, OEE charts, machine queue
-│   │   │   │   ├── alarms/     # Alarm list, incident analysis panel
-│   │   │   │   └── actions/    # AI action log, timeline, filters
-│   │   │   ├── plc/            # PLC live data context & normalizers
-│   │   │   └── auth/           # Auth context & session hooks
-│   │   ├── components/
-│   │   │   ├── Sidebar.jsx     # Main navigation sidebar
-│   │   │   ├── GooeyNav.jsx    # Animated bottom nav
-│   │   │   └── ui/             # Shared UI primitives
-│   │   │       ├── GlassSurface.jsx
-│   │   │       ├── DataTable.jsx
-│   │   │       ├── MetricTile.jsx
-│   │   │       ├── SectionCard.jsx
-│   │   │       ├── StatusPill.jsx
-│   │   │       ├── Skeleton.jsx
-│   │   │       └── ...
-│   │   ├── hooks/              # usePlcLiveData, useVoiceRecording, ...
-│   │   ├── utils/              # API client, i18n, feature flags, markdown
-│   │   ├── locales/            # en.json, th.json
-│   │   └── styles/             # Design tokens, glass, layout, responsive
-│   ├── server.cjs              # Production Express server (serves dist + API proxy)
-│   └── package.json
-│
-├── scripts/
-│   ├── dev-backend.js          # Dev backend launcher (uvicorn + venv detection)
-│   └── ingest_knowledge.sh     # Knowledge ingest helper
-│
-├── server.js                   # Root production web server (proxy + static)
-├── docker-compose.yml          # 6-service stack (see below)
-├── Dockerfile                  # Single-service production image
-├── .env.example                # All configuration variables
-└── package.json                # Monorepo dev scripts (concurrently)
+├─ backend/
+│  ├─ app/
+│  │  ├─ chat_agent/
+│  │  ├─ core/
+│  │  ├─ plc/
+│  │  ├─ routes_api.py
+│  │  ├─ routes_auth.py
+│  │  ├─ routes_chat.py
+│  │  ├─ routes_plc.py
+│  │  ├─ routes_plc_actions.py
+│  │  ├─ routes_plc_alarms.py
+│  │  ├─ routes_plc_data.py
+│  │  ├─ chatbot.py
+│  │  ├─ retriever.py
+│  │  └─ ...
+│  ├─ tests/
+│  ├─ embed.py
+│  ├─ main.py
+│  └─ requirements.txt
+├─ frontend/
+│  ├─ src/
+│  │  ├─ components/
+│  │  ├─ features/
+│  │  │  ├─ auth/
+│  │  │  ├─ ops/
+│  │  │  ├─ plc/
+│  │  │  └─ theme/
+│  │  ├─ hooks/
+│  │  ├─ locales/
+│  │  ├─ pages/
+│  │  ├─ styles/
+│  │  └─ utils/
+│  ├─ package.json
+│  └─ server.cjs
+├─ scripts/
+├─ docker-compose.yml
+├─ package.json
+└─ server.js
 ```
 
----
-
-## 🚀 Quick Start
+## Local development
 
 ### Prerequisites
 
-- **Node.js** ≥ 18
-- **Python** ≥ 3.10 with a virtual environment
-- **PostgreSQL** with pgvector extension
-- **Redis** (for rate limiting)
-- **Groq API key** (or local Ollama)
+- Node.js 18+
+- Python 3.10+ (3.11 also works in this repo)
+- PostgreSQL with `pgvector`
+- Redis
+- Ollama or Groq API access
 
-### Local Development
+### 1. Install dependencies
+
+Root:
 
 ```bash
-# 1. Clone
-git clone https://github.com/LethimCookMyBro/FAHHHHHHHHH_THISSHITKICKMYASS.git
-cd Panya
+npm install
+```
 
-# 2. Environment
-cp .env.example .env
-# Edit .env → set GROQ_API_KEY, DATABASE_URL, etc.
+Frontend:
 
-# 3. Backend setup
-cd backend
-python -m venv ../.venv
-source ../.venv/bin/activate        # Linux/macOS
-# ..\.venv\Scripts\activate         # Windows
-pip install -r requirements.txt
-cd ..
-
-# 4. Frontend setup
+```bash
 cd frontend
 npm install
 cd ..
+```
 
-# 5. Install root dev deps
-npm install
+Backend:
 
-# 6. Start both (API + Web dev servers)
+```bash
+cd backend
+python -m venv ../.venv
+```
+
+Windows:
+
+```powershell
+..\.venv\Scripts\activate
+```
+
+macOS/Linux:
+
+```bash
+source ../.venv/bin/activate
+```
+
+Then:
+
+```bash
+pip install -r requirements.txt
+cd ..
+```
+
+### 2. Configure environment
+
+Copy the example file:
+
+```bash
+cp .env.example .env
+```
+
+Important values to review:
+
+- `APP_ENV`
+- `DATABASE_URL` or `POSTGRES_*`
+- `REDIS_URL`
+- `JWT_SECRET`
+- `OLLAMA_BASE_URL`
+- `OLLAMA_MODEL`
+- `GROQ_API_KEY`
+- `PLC_CONNECTOR`
+- `FEATURE_AGENT_WORKFLOW`
+- `FEATURE_AUTOFIX_EXECUTION`
+
+### 3. Start the app
+
+Recommended dev command:
+
+```bash
 npm run dev
 ```
 
-### Access
+This starts:
 
-| Service         | URL                        |
-| --------------- | -------------------------- |
-| **Frontend**    | http://localhost:5173      |
-| **Backend API** | http://localhost:5000      |
-| **API Docs**    | http://localhost:5000/docs |
+- backend via `scripts/dev-backend.js`
+- frontend dev server after `/health/live` is available
 
----
+### 4. Open the app
 
-## 🐳 Docker Compose
+- Frontend: `http://localhost:5173`
+- Backend API: `http://localhost:5000`
+- OpenAPI docs: `http://localhost:5000/docs`
 
-The `docker-compose.yml` runs the full stack with 6 services.
-`pgadmin` is on the optional `debug` profile and is not started by default.
+## Docker Compose
 
-| Service      | Image                         | Port  |
-| ------------ | ----------------------------- | ----- |
-| **postgres** | `pgvector/pgvector:pg16`      | 5432  |
-| **redis**    | `redis:7-alpine`              | 6379  |
-| **ollama**   | `ollama/ollama` (GPU)         | 11435 |
-| **backend**  | Custom (FastAPI)              | 5000  |
-| **frontend** | Custom (Vite build + Express) | 5173  |
-| **pgadmin**  | `dpage/pgadmin4`              | 5050  |
+The included `docker-compose.yml` runs the main stack:
+
+- `postgres`
+- `redis`
+- `ollama`
+- `backend`
+- `frontend`
+- `pgadmin` under the optional `debug` profile
+
+Start core services:
 
 ```bash
-# Start all core services
 docker compose up -d
+```
 
-# Start pgAdmin only when needed
+Start pgAdmin only when needed:
+
+```bash
 docker compose --profile debug up -d pgadmin
+```
 
-# Run an isolated audit stack with a different project/port set
-BACKEND_PORT=15000 FRONTEND_PORT=15173 POSTGRES_PUBLISHED_PORT=15432 REDIS_PORT=16379 OLLAMA_PUBLISHED_PORT=11445 docker compose -p panya-audit up -d
+Stop services:
 
-# Pull LLM model (if using Ollama)
-docker compose exec ollama ollama pull llama-3.3-70b-versatile
-
-# View logs
-docker compose logs -f backend
-
-# Stop (keeps data)
+```bash
 docker compose down
+```
 
-# Stop and delete all data
+Delete volumes too:
+
+```bash
 docker compose down -v
 ```
 
-**pgAdmin access:** http://localhost:5050 using `PGADMIN_DEFAULT_EMAIL` / `PGADMIN_DEFAULT_PASSWORD`
+## Scripts
 
-Backend database config resolves in this order: `DATABASE_URL`, then `PG*`, then `POSTGRES_*`.
+Root scripts:
 
----
+- `npm run dev`: backend + frontend
+- `npm run lint`: frontend lint
+- `npm run build`: frontend production build
+- `npm run test`: backend + frontend tests
+- `npm run test:backend`
+- `npm run test:frontend`
+- `npm run check`: lint + build + backend compile check
+- `npm run start`: run root production web server
 
-## 📚 Document Embedding
+Frontend scripts:
 
-The embed pipeline supports **incremental ingestion** with checksum-based deduplication.
+- `npm run dev`
+- `npm run build`
+- `npm run start`
+- `npm run lint`
+- `npm run test:normalizers`
 
-| Behavior             | Description                   |
-| -------------------- | ----------------------------- |
-| Same checksum        | Skip (already embedded)       |
-| New file             | Embed and index               |
-| Changed checksum     | Replace old chunks, embed new |
-| First run (no state) | Bootstrap state from DB       |
+## Data and knowledge ingestion
 
-```bash
-# Manual embed (Docker)
-docker compose exec backend python embed.py /data/Knowledge \
-  --collection plcnext \
-  --knowledge-root /data/Knowledge \
-  --state-path /data/ingest/state.json \
-  --skip-mode checksum \
-  --bootstrap-from-db \
-  --replace-updated
+The backend supports document ingestion into pgvector.
 
-# Dry-run preview
-docker compose exec backend python embed.py /data/Knowledge --dry-run
+Key files:
 
-# Helper script (Railway)
-sh /app/scripts/ingest_knowledge.sh
-# Full rebuild
-INGEST_MODE=rebuild sh /app/scripts/ingest_knowledge.sh
-```
+- `backend/embed.py`
+- `backend/embed_cli.py`
+- `backend/embed_files.py`
+- `backend/app/embed_logic.py`
+- `backend/app/ingest_state.py`
 
-<details>
-<summary><b>All Embed Options</b></summary>
-
-| Option                  | Default             | Description                                        |
-| ----------------------- | ------------------- | -------------------------------------------------- |
-| `--collection`          | `plcnext`           | Vector store collection name                       |
-| `--knowledge-root`      | `KNOWLEDGE_DIR`     | Root path for `source_key`                         |
-| `--state-path`          | `INGEST_STATE_PATH` | Persistent ingest state JSON                       |
-| `--device`              | `auto`              | Embedding device (`auto`, `cpu`, `cuda`, `cuda:N`) |
-| `--skip-mode`           | `checksum`          | Skip by `checksum` or `filename`                   |
-| `--bootstrap-from-db`   | `true`              | Build state from existing DB if state missing      |
-| `--replace-updated`     | `true`              | Replace old rows when checksum changes             |
-| `--replace-all`         | `false`             | Force rebuild all discovered sources               |
-| `--prune-missing`       | `false`             | Delete rows for files missing from disk            |
-| `--chunk-size`          | `800`               | Characters per chunk                               |
-| `--chunk-overlap`       | `150`               | Overlap between chunks                             |
-| `--batch-size`          | `1000`              | Embeddings per batch                               |
-| `--max-embed-tokens`    | `480`               | Token cap per chunk                                |
-| `--embed-token-overlap` | `64`                | Token overlap for oversized chunks                 |
-| `--dry-run`             | `false`             | Preview without saving                             |
-
-</details>
-
----
-
-## ⚙️ Environment Variables
-
-All configurable via `.env`. See [`.env.example`](.env.example) for the full reference.
-
-<details>
-<summary><b>Key Variables</b></summary>
-
-| Variable                 | Description                                 |
-| ------------------------ | ------------------------------------------- |
-| `GROQ_API_KEY`           | Groq API key (primary LLM provider)         |
-| `DATABASE_URL`           | PostgreSQL connection string                |
-| `REDIS_URL`              | Redis connection string                     |
-| `JWT_SECRET`             | Secret for JWT token signing                |
-| `OLLAMA_BASE_URL`        | Ollama server URL (if using local LLM)      |
-| `OLLAMA_MODEL`           | Ollama model name (e.g. `llama3.2`)         |
-| `EMBED_MODEL`            | Embedding model (`BAAI/bge-m3`)             |
-| `EMBED_DEVICE`           | Device for embeddings (`auto`/`cpu`/`cuda`) |
-| `PLC_CONNECTOR`          | `simulator` (dev) or `modbus_tcp` (prod)    |
-| `PLC_MODBUS_HOST`        | Modbus TCP host address                     |
-| `APP_ENV`                | `development` or `production`               |
-| `FEATURE_AGENT_WORKFLOW` | Enable agentic diagnostics                  |
-| `VITE_FEATURE_UI_V2`     | Enable v2 glass UI                          |
-
-</details>
-
----
-
-## 🔌 PLC Connector
-
-Panya supports two PLC connector modes:
-
-| Mode           | Use Case                                                             | Config                     |
-| -------------- | -------------------------------------------------------------------- | -------------------------- |
-| **Simulator**  | Development & demo. Generates virtual machine data and random alarms | `PLC_CONNECTOR=simulator`  |
-| **Modbus TCP** | Production. Connects to real PLCs via Modbus TCP protocol            | `PLC_CONNECTOR=modbus_tcp` |
-
-In **development**, the simulator starts automatically with 4 virtual machines. In **production**, configure `PLC_MODBUS_HOST` and `PLC_MODBUS_PORT` for real PLC connections.
-
-The PLC module provides:
-
-- **Live data streaming** via WebSocket (`/api/plc/ws`)
-- **Alarm management** — active alarms, acknowledgement, history
-- **AI Diagnostics** — root cause analysis with LLM
-- **Corrective Actions** — AI-suggested fixes with approval workflow
-- **Register mapping** — configurable via `plc_mapping.json`
-
----
-
-## 🚂 Railway Deployment
-
-### Option A: Single Service (Recommended)
-
-The root `Dockerfile` bundles both frontend and backend into one container:
-
-- FastAPI backend on `127.0.0.1:8000`
-- Node web server on `$PORT`, serving `frontend/dist`
-- Runtime proxy: `/api/*` → `http://127.0.0.1:8000`
-
-**Required env:**
-
-```env
-APP_ENV=production
-JWT_SECRET=<strong-random-secret>
-DATABASE_URL=<postgresql://...>
-GROQ_API_KEY=<your-key>
-AUTO_EMBED_KNOWLEDGE=false
-ALLOW_STARTUP_INGEST_IN_PRODUCTION=false
-```
-
-**Volume mount:** `/data` → set `KNOWLEDGE_DIR=/data/Knowledge`, `MODEL_CACHE=/data/models`, `INGEST_STATE_PATH=/data/ingest/state.json`
-
-### Option B: Two Services (Frontend + Backend split)
-
-**Frontend service:**
-
-- Root Directory: `frontend`
-- Start: `npm start` (runs `server.cjs`)
-- Set `API_PROXY_TARGET=https://<backend-service>.up.railway.app`
-
-**Backend service:**
-
-- Root Directory: `backend`
-- Run with Dockerfile / uvicorn
-
-### Verification
+Common workflow:
 
 ```bash
-# Should return JSON (401/422 is OK, not HTML)
-curl -i https://<frontend>.up.railway.app/api/auth/me
+cd backend
+python embed.py /data/Knowledge --collection plcnext
 ```
 
----
+Common related env values:
 
-## 🧪 Testing
+- `KNOWLEDGE_DIR`
+- `MODEL_CACHE`
+- `INGEST_STATE_PATH`
+- `AUTO_EMBED_KNOWLEDGE`
+- `ALLOW_STARTUP_INGEST_IN_PRODUCTION`
+- `EMBED_MODEL`
+- `EMBED_DEVICE`
+
+## Main API groups
+
+The exact routes are defined in the route files, but these are the major groups:
+
+- Auth: `/api/auth/*`
+- Chat sessions/messages: `/api/chat/*`
+- Agent/misc API: `/api/agent-chat`, `/api/agent/action`, `/api/transcribe`
+- Health/metrics: `/health`, `/health/live`, `/health/ready`, `/metrics`
+- PLC dashboard and realtime: `/api/plc/dashboard`, `/api/plc/ws`
+- PLC alarms: `/api/plc/alarms*`
+- PLC actions/workflow: `/api/plc/actions*`, `/api/plc/diagnose`
+
+If you change or add endpoints, keep frontend callers aligned with backend routes.
+
+## Testing and validation
+
+Recommended validation before commit:
 
 ```bash
-# Run all tests
-npm test
-
-# Backend only
-npm run test:backend
-
-# Frontend normalizer tests
-npm run test:frontend
-
-# Lint
 npm run lint
+npm run test
+npm run build
+npm run check:backend
 ```
 
-# run all (use this for development)
-npm run dev
+Project-specific checks already used in this repo:
+
+```bash
+cd frontend
+npm run test:normalizers
+```
+
+```bash
+python -m unittest discover -s backend/tests -p "test_*.py"
+python -m compileall backend/app
+```
+
+## Notes for contributors
+
+### Shared frontend state
+
+Do not treat each ops page as an isolated feature. These pages are expected to stay synchronized:
+
+- Dashboard
+- Port Map
+- Alerts
+- Equipment
+- Action History
+- Chat-driven incident resolution
+
+The main shared state layer is:
+
+- `frontend/src/features/ops/OpsSyncContext.jsx`
+
+### Chat-specific notes
+
+- The assistant output is intended to be English-first
+- The UI can still be localized
+- Prompt chips and operational examples should stay consistent with the chatbot persona
+
+### Safe editing guidance
+
+Prefer changing:
+
+- shared hooks
+- view models
+- central contexts
+- route handlers that are already part of the same feature flow
+
+Avoid introducing duplicate state sources when the data already exists in:
+
+- `usePlcLiveData`
+- `OpsSyncContext`
+- backend route families for alarms/actions/chat
+
+## Troubleshooting
+
+### Frontend shows HTML instead of API JSON
+
+Check API proxy settings:
+
+- root production server uses `API_PROXY_TARGET`
+- frontend production server also uses `API_PROXY_TARGET`
+
+Do not point the proxy target back to the frontend itself.
+
+### Chat returns fallback text / no RAG answer
+
+Check:
+
+- Ollama availability
+- model pulled at `OLLAMA_MODEL`
+- embedder/model cache readiness
+- document ingestion completed
+- `LOAD_EMBEDDER_ON_DEMAND`
+
+### PLC data not updating
+
+Check:
+
+- `PLC_CONNECTOR`
+- backend `/health/ready`
+- `/api/plc/dashboard`
+- `/api/auth/ws-ticket`
+- WebSocket connection to `/api/plc/ws`
+
+### Alerts and Port Map look out of sync
+
+Start with:
+
+- `frontend/src/features/ops/OpsSyncContext.jsx`
+- `frontend/src/features/ops/port-map/zoneModel.js`
+- `frontend/src/hooks/useChatManager.js`
+
+## Recommended onboarding order
+
+If you are new to the codebase, read in this order:
+
+1. `package.json`
+2. `backend/main.py`
+3. `frontend/src/App.jsx`
+4. `frontend/src/features/plc/PlcLiveDataContext.jsx`
+5. `frontend/src/features/ops/OpsSyncContext.jsx`
+6. `frontend/src/hooks/useChatManager.js`
+7. relevant feature module you plan to edit
+
+## License / project note
+
+This README documents the current internal project structure and runtime behavior based on the repository state in this workspace.
