@@ -67,6 +67,10 @@ export default function useDashboardViewModel() {
   );
   const runningMachineCount = machineStateCounts.running;
   const totalMachineCount = machineQueue.length;
+  const availabilityRate = useMemo(() => {
+    if (totalMachineCount <= 0) return 0;
+    return Math.round((runningMachineCount / totalMachineCount) * 100);
+  }, [runningMachineCount, totalMachineCount]);
 
   const criticalAlarmCount = useMemo(() => {
     return alarms.filter(
@@ -111,15 +115,15 @@ export default function useDashboardViewModel() {
       {
         key: "availability",
         label: t("dashboard.availability"),
-        value: toPercent(derived.oee.availability),
+        value: toPercent(availabilityRate),
         hint: t("dashboard.availabilityHint"),
         tone: "info",
         actionHint: t("dashboard.availabilityAction"),
       },
     ],
     [
+      availabilityRate,
       criticalAlarmCount,
-      derived.oee.availability,
       runningMachineCount,
       t,
       totalMachineCount,
@@ -136,8 +140,8 @@ export default function useDashboardViewModel() {
       },
       {
         label: t("dashboard.availability"),
-        value: Number(derived.oee.availability || 0),
-        text: toPercent(derived.oee.availability),
+        value: availabilityRate,
+        text: toPercent(availabilityRate),
       },
       {
         label: t("dashboard.performance"),
@@ -151,7 +155,7 @@ export default function useDashboardViewModel() {
       },
     ],
     [
-      derived.oee.availability,
+      availabilityRate,
       derived.oee.overall,
       derived.oee.performance,
       derived.oee.quality,
@@ -217,10 +221,7 @@ export default function useDashboardViewModel() {
     [recentActions, t],
   );
 
-  const utilizationRate = useMemo(() => {
-    if (totalMachineCount <= 0) return 0;
-    return Math.round((runningMachineCount / totalMachineCount) * 100);
-  }, [runningMachineCount, totalMachineCount]);
+  const utilizationRate = availabilityRate;
 
   const focusMessage = useMemo(() => {
     if (criticalAlarmCount > 0) {

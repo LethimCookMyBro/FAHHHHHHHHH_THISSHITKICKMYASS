@@ -339,6 +339,16 @@ export function OpsSyncProvider({ children }) {
   const recentAlarms = useMemo(() => alarms.slice(0, 10), [alarms]);
   const recentActions = useMemo(() => actions.slice(0, 8), [actions]);
 
+  const refreshSyncedOps = useCallback(
+    async ({ force = true } = {}) => {
+      return Promise.allSettled([
+        refreshSnapshot?.(),
+        refreshOpsData({ force }),
+      ]);
+    },
+    [refreshOpsData, refreshSnapshot],
+  );
+
   const resolveAlarmIds = useCallback(
     async ({ alarmIds, note = "", source = "system" } = {}) => {
       const uniqueIds = [...new Set(toArray(alarmIds).map((id) => Number(id)).filter(Number.isFinite))];
@@ -406,10 +416,7 @@ export function OpsSyncProvider({ children }) {
           setActions((current) => sortActions(mergeRowsById(current, payload.actions)));
         }
 
-        await Promise.allSettled([
-          refreshSnapshot?.(),
-          refreshOpsData({ force: true }),
-        ]);
+        await refreshSyncedOps({ force: true });
 
         return payload;
       } catch (requestError) {
@@ -471,8 +478,8 @@ export function OpsSyncProvider({ children }) {
     [
       alarms,
       machineOverrides,
+      refreshSyncedOps,
       refreshOpsData,
-      refreshSnapshot,
       resolvedAlarmMeta,
     ],
   );
@@ -547,6 +554,7 @@ export function OpsSyncProvider({ children }) {
       recentActions,
       zoneSummaries,
       refreshOpsData,
+      refreshSyncedOps,
       resolveAlarmIds,
       resolveZoneIncidents,
     }),
@@ -563,6 +571,7 @@ export function OpsSyncProvider({ children }) {
       recentActions,
       recentAlarms,
       refreshOpsData,
+      refreshSyncedOps,
       resolveAlarmIds,
       resolveZoneIncidents,
       zoneSummaries,

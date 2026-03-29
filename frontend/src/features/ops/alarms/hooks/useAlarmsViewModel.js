@@ -17,7 +17,7 @@ export default function useAlarmsViewModel() {
     loading: opsLoading,
     error: opsError,
     liveError,
-    refreshOpsData,
+    refreshSyncedOps,
   } = useOpsSyncContext();
 
   const [ignoredAlarmIds, setIgnoredAlarmIds] = useState([]);
@@ -29,8 +29,8 @@ export default function useAlarmsViewModel() {
 
   const loadAlarms = useCallback(async () => {
     setError("");
-    return refreshOpsData({ force: true }).catch(() => {});
-  }, [refreshOpsData]);
+    return refreshSyncedOps({ force: true }).catch(() => {});
+  }, [refreshSyncedOps]);
 
   useEffect(() => {
     setIgnoredAlarmIds((prev) =>
