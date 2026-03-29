@@ -121,6 +121,7 @@ export function usePlcLiveData({
   const lastSnapshotKeyRef = useRef("");
   const restFailuresRef = useRef(0);
   const restBackoffTimerRef = useRef(null);
+  const refreshInFlightRef = useRef(null);
 
   const resolvedThrottleMs = useMemo(() => {
     const parsed = asNonNegativeInt(updateThrottleMs, 0);
@@ -202,27 +203,39 @@ export function usePlcLiveData({
   }, []);
 
   const refreshSnapshot = useCallback(async () => {
-    if (restBackoffTimerRef.current) return;
-
-    try {
-      const response = await api.get("/api/plc/dashboard");
-      mergeDashboardRef.current(response?.data, "rest");
-      setConnectionState((prev) => (prev === "live" ? prev : "rest"));
-      setError("");
-      restFailuresRef.current = 0;
-    } catch {
-      restFailuresRef.current += 1;
-
-      if (restFailuresRef.current >= MAX_REST_FAILURES) {
-        setError("Backend unreachable - polling paused. Will retry in 60s.");
-        restBackoffTimerRef.current = window.setTimeout(() => {
-          restBackoffTimerRef.current = null;
-          restFailuresRef.current = 0;
-        }, REST_BACKOFF_MS);
-      } else {
-        setError("Failed to load PLC snapshot");
-      }
+    if (restBackoffTimerRef.current) return null;
+    if (refreshInFlightRef.current) {
+      return refreshInFlightRef.current;
     }
+
+    const request = (async () => {
+      try {
+        const response = await api.get("/api/plc/dashboard");
+        mergeDashboardRef.current(response?.data, "rest");
+        setConnectionState((prev) => (prev === "live" ? prev : "rest"));
+        setError("");
+        restFailuresRef.current = 0;
+        return response?.data ?? null;
+      } catch (error) {
+        restFailuresRef.current += 1;
+
+        if (restFailuresRef.current >= MAX_REST_FAILURES) {
+          setError("Backend unreachable - polling paused. Will retry in 60s.");
+          restBackoffTimerRef.current = window.setTimeout(() => {
+            restBackoffTimerRef.current = null;
+            restFailuresRef.current = 0;
+          }, REST_BACKOFF_MS);
+        } else {
+          setError("Failed to load PLC snapshot");
+        }
+        throw error;
+      } finally {
+        refreshInFlightRef.current = null;
+      }
+    })();
+
+    refreshInFlightRef.current = request;
+    return request;
   }, []);
 
   useEffect(() => {

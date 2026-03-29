@@ -4,6 +4,7 @@ from typing import Any, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel
 from psycopg2 import sql
+from psycopg2.extras import execute_values
 
 from .plc.action_policy import POLICY_VERSION
 from .plc.contracts import _normalize_action, _normalize_alarm, _normalize_alarm_status, _now_iso
@@ -229,65 +230,83 @@ async def resolve_alarms(
             )
             updated_alarm_rows = _rows_to_dicts(cur)
 
+            source = str(payload.source or "system").strip() or "system"
+            note = str(payload.note or "").strip()
             action_rows = []
-            for alarm in updated_alarm_rows:
-                source = str(payload.source or "system").strip() or "system"
-                note = str(payload.note or "").strip()
-                result_message = f"Alarm resolved via {source.replace('_', ' ')}."
-                cur.execute(
+            if updated_alarm_rows:
+                action_values = []
+                approved_at = _now_iso()
+                for alarm in updated_alarm_rows:
+                    result_message = f"Alarm resolved via {source.replace('_', ' ')}."
+                    resolved_message = note or result_message
+                    action_values.append(
+                        (
+                            alarm["id"],
+                            "resolve",
+                            "Incident resolution confirmed by synchronized workflow.",
+                            resolved_message,
+                            1.0,
+                            False,
+                            json.dumps([]),
+                            json.dumps([]),
+                            resolved_message,
+                            json.dumps({"source": source, "alarm_ids": alarm_ids}),
+                            json.dumps(
+                                {
+                                    "approved_by": current_user.get("id"),
+                                    "approved_at": approved_at,
+                                    "source": source,
+                                }
+                            ),
+                            "executed",
+                            json.dumps({"success": True, "message": result_message}),
+                            json.dumps({}),
+                            json.dumps({}),
+                            POLICY_VERSION,
+                            alarm["error_code"],
+                            alarm["message"],
+                            alarm["severity"],
+                        )
+                    )
+
+                execute_values(
+                    cur,
                     """
-                    INSERT INTO ai_actions
-                        (alarm_id, action_type, diagnosis, recommendation, confidence,
-                         is_hardware, repair_steps, sources, action_reason,
-                         action_payload, approval_info, execution_status,
-                         execution_result, before_state, after_state, policy_version,
-                         created_at, updated_at, executed_at)
-                    VALUES (%s, %s, %s, %s, %s,
-                            %s, %s, %s, %s,
-                            %s, %s, %s,
-                            %s, %s, %s, %s,
-                            NOW(), NOW(), NOW())
-                    RETURNING id, alarm_id, action_type, diagnosis,
-                              recommendation, confidence, is_hardware,
-                              repair_steps, sources, created_at,
-                              action_reason, action_payload, approval_info,
-                              execution_status, execution_result,
-                              before_state, after_state, policy_version,
-                              executed_at, %s AS error_code,
-                              %s AS error_message, %s AS severity
+                    WITH input_data (
+                        alarm_id, action_type, diagnosis, recommendation, confidence,
+                        is_hardware, repair_steps, sources, action_reason,
+                        action_payload, approval_info, execution_status,
+                        execution_result, before_state, after_state, policy_version,
+                        error_code, error_message, severity
+                    ) AS (VALUES %s),
+                    inserted AS (
+                        INSERT INTO ai_actions
+                            (alarm_id, action_type, diagnosis, recommendation, confidence,
+                             is_hardware, repair_steps, sources, action_reason,
+                             action_payload, approval_info, execution_status,
+                             execution_result, before_state, after_state, policy_version,
+                             created_at, updated_at, executed_at)
+                        SELECT alarm_id, action_type, diagnosis, recommendation, confidence,
+                               is_hardware, repair_steps, sources, action_reason,
+                               action_payload, approval_info, execution_status,
+                               execution_result, before_state, after_state, policy_version,
+                               NOW(), NOW(), NOW()
+                        FROM input_data
+                        RETURNING id, alarm_id, action_type, diagnosis,
+                                  recommendation, confidence, is_hardware,
+                                  repair_steps, sources, created_at,
+                                  action_reason, action_payload, approval_info,
+                                  execution_status, execution_result,
+                                  before_state, after_state, policy_version,
+                                  executed_at
+                    )
+                    SELECT inserted.*, input_data.error_code, input_data.error_message, input_data.severity
+                    FROM inserted
+                    JOIN input_data USING (alarm_id)
                     """,
-                    [
-                        alarm["id"],
-                        "resolve",
-                        "Incident resolution confirmed by synchronized workflow.",
-                        note or result_message,
-                        1.0,
-                        False,
-                        json.dumps([]),
-                        json.dumps([]),
-                        note or result_message,
-                        json.dumps({"source": source, "alarm_ids": alarm_ids}),
-                        json.dumps(
-                            {
-                                "approved_by": current_user.get("id"),
-                                "approved_at": _now_iso(),
-                                "source": source,
-                            }
-                        ),
-                        "executed",
-                        json.dumps({"success": True, "message": result_message}),
-                        json.dumps({}),
-                        json.dumps({}),
-                        POLICY_VERSION,
-                        alarm["error_code"],
-                        alarm["message"],
-                        alarm["severity"],
-                    ],
+                    action_values,
                 )
-                action_row = cur.fetchone()
-                if action_row:
-                    columns = [desc[0] for desc in cur.description]
-                    action_rows.append(dict(zip(columns, action_row)))
+                action_rows = _rows_to_dicts(cur)
 
         conn.commit()
     except Exception:

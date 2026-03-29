@@ -172,6 +172,159 @@
   animation: fadeInUp var(--motion-base) var(--ease-smooth) both;
 }
 
+.chat-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: color-mix(in srgb, #08111f 62%, transparent);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  animation: overlayFadeIn var(--motion-base) var(--ease-smooth) both;
+}
+
+.chat-dialog {
+  position: relative;
+  width: min(100%, 452px);
+  padding: 22px 22px 18px;
+  border-radius: 22px;
+  border: 1px solid color-mix(in srgb, var(--surface-border) 88%, white 6%);
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--surface-panel) 94%, white 4%) 0%,
+      var(--surface-panel) 100%
+    );
+  box-shadow:
+    0 30px 80px color-mix(in srgb, #020617 30%, transparent),
+    inset 0 1px 0 color-mix(in srgb, white 10%, transparent);
+  animation: fadeInUp var(--motion-base) var(--ease-smooth) both;
+}
+
+.chat-dialog-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  border: 1px solid var(--surface-border);
+  background: color-mix(in srgb, var(--surface) 82%, transparent);
+  color: var(--text-secondary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition:
+    transform var(--transition-fast),
+    border-color var(--transition-fast),
+    color var(--transition-fast);
+}
+
+.chat-dialog-close:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--accent) 22%, var(--surface-border));
+  color: var(--text-primary);
+}
+
+.chat-dialog-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--warning);
+  background: color-mix(in srgb, var(--warning) 12%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--warning) 24%, transparent);
+  box-shadow: 0 12px 28px color-mix(in srgb, var(--warning) 12%, transparent);
+}
+
+.chat-dialog-title {
+  margin: 16px 0 0;
+  font-size: 1.18rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+}
+
+.chat-dialog-body {
+  margin: 12px 0 0;
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.chat-dialog-chat-name {
+  display: block;
+  margin-top: 10px;
+  color: var(--text-primary);
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.chat-dialog-warning {
+  margin: 10px 0 0;
+  color: var(--text-muted);
+  font-size: 0.83rem;
+  line-height: 1.55;
+}
+
+.chat-dialog-actions {
+  margin-top: 20px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.chat-dialog-btn {
+  min-width: 108px;
+  min-height: 42px;
+  padding: 0 16px;
+  border-radius: 14px;
+  border: 1px solid var(--surface-border);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    transform var(--transition-fast),
+    box-shadow var(--transition-fast),
+    border-color var(--transition-fast),
+    background var(--transition-fast),
+    color var(--transition-fast);
+}
+
+.chat-dialog-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-hover);
+}
+
+.chat-dialog-btn-secondary {
+  background: var(--surface);
+  color: var(--text-secondary);
+}
+
+.chat-dialog-btn-secondary:hover {
+  border-color: color-mix(in srgb, var(--accent) 22%, var(--surface-border));
+  color: var(--text-primary);
+}
+
+.chat-dialog-btn-danger {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  border-color: #dc2626;
+  color: #fff;
+}
+
+.chat-dialog-btn-danger:hover {
+  background: linear-gradient(135deg, #f05252, #e02424);
+}
+
 @keyframes overlayFadeIn {
   from {
     opacity: 0;
@@ -252,5 +405,18 @@
   .chat-main-shell,
   .chat-panel {
     border-radius: 20px;
+  }
+
+  .chat-dialog {
+    padding: 20px 18px 16px;
+    border-radius: 20px;
+  }
+
+  .chat-dialog-actions {
+    flex-direction: column-reverse;
+  }
+
+  .chat-dialog-btn {
+    width: 100%;
   }
 }

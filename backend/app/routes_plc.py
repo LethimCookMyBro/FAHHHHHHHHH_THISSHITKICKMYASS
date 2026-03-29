@@ -8,29 +8,23 @@ adds safe AI-agent workflow endpoints:
 """
 
 import asyncio
-import json
 import logging
 import os
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 from urllib.parse import urlparse
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, HTTPException, Request, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel, Field, model_validator
 
-from .plc.action_policy import POLICY_VERSION, propose_safe_action_plan
 from .plc.connector import get_connector
 from .plc.contracts import (
-    _iso,
     _normalize_action,
     _normalize_alarm,
-    _normalize_alarm_status,
     _normalize_machine,
-    _safe_json,
     _to_float,
 )
-from .plc.diagnostic import diagnose_error
-from .security import authenticate_websocket, require_roles
+from .security import authenticate_websocket
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/plc", tags=["PLC"])

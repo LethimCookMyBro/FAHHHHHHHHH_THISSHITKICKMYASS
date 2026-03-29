@@ -2,6 +2,12 @@ import { Bot, Search, Zap } from "lucide-react";
 import { useT } from "../../utils/i18n";
 
 const promptIcons = [Search, Zap, Bot];
+const ENGLISH_CHAT_PROMPTS = [
+  "Explain error code F800H and first field checks",
+  "How to configure CC-Link IE Field network",
+  "Give safe recovery steps for communication timeout",
+  "Summarize root cause for serial communication alarm",
+];
 
 export default function ChatWelcome({ user, onPromptSelect, composer }) {
   const { t } = useT();
@@ -9,12 +15,7 @@ export default function ChatWelcome({ user, onPromptSelect, composer }) {
     ? user.full_name.split(" ")[0]
     : t("chat.defaultUser");
 
-  const prompts = [
-    t("chat.promptExplainF800h"),
-    t("chat.promptCcLink"),
-    t("chat.promptRecoveryTimeout"),
-    t("chat.promptSummarizeSerial"),
-  ];
+  const prompts = ENGLISH_CHAT_PROMPTS;
   const visiblePrompts = prompts.slice(0, 2);
 
   return (

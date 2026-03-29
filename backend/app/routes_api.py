@@ -130,7 +130,7 @@ def root():
             "metrics": "GET /metrics",
             "chat": "POST /api/chat",
             "agent_chat": "POST /api/agent-chat",
-            "stream": "POST /api/chat/stream",
+            "stream": "POST /api/agent/action (SSE)",
             "transcribe": "POST /api/transcribe",
             "collections": "GET /api/collections",
             "stats": "GET /api/stats",
@@ -803,6 +803,8 @@ async def agent_action(
                 ],
                 "projectedGain": "+3.2%"
             }
+            IDEMPOTENCY_CACHE[idempotency_key] = opt_result
+            yield f"event: completed\ndata: {json.dumps({'result': opt_result})}\n\n"
         # 6. Predictive Analysis Action (Phase 5)
         elif action_name == "predictive_analysis":
             asset_target = payload.get("assetId", "Motor-M2")

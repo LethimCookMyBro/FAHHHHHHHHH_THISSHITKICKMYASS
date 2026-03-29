@@ -508,6 +508,9 @@ def log_chat_request(
     Log comprehensive information about a chat request.
     Includes: question, timing metrics, reranking process, chunk details, and RAGAS scores.
     """
+    if not logger.isEnabledFor(logging.INFO):
+        return
+
     separator = "=" * 70
     include_context_preview = _env_bool("LOG_CONTEXT_PREVIEW", False)
     preview_chars = _clamp_int(_env_int("LOG_CONTEXT_PREVIEW_CHARS", 200), 80, 400)

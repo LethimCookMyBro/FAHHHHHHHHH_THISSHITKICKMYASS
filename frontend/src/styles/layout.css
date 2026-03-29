@@ -707,23 +707,69 @@
     transparent 0%,
     color-mix(in srgb, var(--surface) 44%, transparent) 100%
   );
+  display: grid;
+  gap: 12px;
 }
 
-.nexus-user-card {
-  margin-bottom: 12px;
-  padding: 0 2px 10px;
-  border-bottom: 1px solid var(--border);
+.nexus-toolbar-top {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.nexus-user-pill {
+  min-width: 0;
+  min-height: 56px;
+  padding: 8px 10px;
+  border-radius: 18px;
+  border: 1px solid color-mix(in srgb, var(--accent) 14%, var(--border));
+  background:
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--accent) 10%, var(--surface)) 0%,
+      var(--surface) 100%
+    );
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-shadow: 0 12px 24px color-mix(in srgb, var(--accent) 8%, transparent);
+  cursor: default;
+}
+
+.nexus-user-pill-copy {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+  text-align: left;
+}
+
+.nexus-user-pill-label {
+  font-size: 0.9rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.nexus-user-pill-meta {
+  font-size: 0.64rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
 }
 
 .nexus-user-avatar {
-  width: 40px;
-  height: 40px;
-  border-radius: 14px;
-  font-size: 0.72rem;
+  width: 42px;
+  height: 42px;
+  border-radius: 15px;
+  font-size: 0.78rem;
   font-weight: 800;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 
 .nexus-user-name {
@@ -740,20 +786,43 @@
 }
 
 .nexus-controls {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  display: inline-grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
 }
 
 .nexus-ctrl-btn {
-  min-height: 38px;
-  border-radius: 12px;
-  border: 1px solid var(--border);
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--accent) 10%, var(--border));
   background: var(--surface);
   color: var(--text-secondary);
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  cursor: pointer;
+  transition:
+    transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 180ms ease,
+    color 180ms ease,
+    box-shadow 220ms ease,
+    background 180ms ease;
+}
+
+.nexus-logout-btn {
+  min-height: 44px;
+  width: 100%;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--accent) 12%, var(--border));
+  background: var(--surface);
+  color: var(--text-secondary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 0.88rem;
+  font-weight: 700;
   cursor: pointer;
   transition:
     transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
@@ -770,9 +839,11 @@
   box-shadow: var(--shadow-hover);
 }
 
-.nexus-ctrl-logout:hover {
+.nexus-logout-btn:hover {
+  transform: translateY(-1px);
   color: var(--critical);
   border-color: color-mix(in srgb, var(--critical) 24%, var(--border));
+  box-shadow: var(--shadow-hover);
 }
 
 .live-indicator {
@@ -813,7 +884,7 @@
 }
 
 .nexus-sidebar.is-collapsed .nexus-brand-row,
-.nexus-sidebar.is-collapsed .nexus-user-card {
+.nexus-sidebar.is-collapsed .nexus-toolbar-top {
   justify-items: center;
   padding: 0;
 }
@@ -843,6 +914,15 @@
   border-radius: 15px;
 }
 
+.nexus-sidebar.is-collapsed .nexus-toolbar-top {
+  grid-template-columns: 1fr;
+}
+
+.nexus-sidebar.is-collapsed .nexus-user-pill {
+  justify-content: center;
+  padding: 8px;
+}
+
 .nexus-sidebar.is-collapsed .nexus-user-avatar {
   width: 46px;
   height: 46px;
@@ -850,17 +930,19 @@
 }
 
 .nexus-sidebar.is-collapsed .nexus-controls {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  justify-self: center;
   gap: 10px;
 }
 
 .nexus-sidebar.is-collapsed .nexus-ctrl-btn {
-  min-height: 44px;
+  width: 44px;
+  height: 44px;
   border-radius: 14px;
 }
 
-.nexus-sidebar.is-collapsed .nexus-ctrl-logout {
-  grid-column: 1 / -1;
+.nexus-sidebar.is-collapsed .nexus-logout-btn {
+  min-height: 46px;
+  border-radius: 14px;
 }
 
 @keyframes ping {

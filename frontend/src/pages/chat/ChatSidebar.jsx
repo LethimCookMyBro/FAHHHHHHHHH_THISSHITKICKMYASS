@@ -236,15 +236,16 @@ function ChatSidebar({
                       ) : null}
 
                       {!isDesktopCollapsed ? (
-                        <div className="flex items-center gap-1 opacity-90 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                        <div className="chat-session-actions">
                           <button
                             type="button"
                             onClick={(event) => onTogglePin(event, chat.id)}
-                            className="chat-icon-btn glass-interactive"
+                            className="chat-icon-btn chat-sidebar-icon-btn glass-interactive"
                             title={isPinned ? t("chat.unpin") : t("chat.pin")}
+                            aria-label={isPinned ? t("chat.unpin") : t("chat.pin")}
                           >
                             <Pin
-                              size={12}
+                              size={14}
                               className={isPinned ? "fill-amber-400 text-amber-400" : ""}
                             />
                           </button>
@@ -252,10 +253,11 @@ function ChatSidebar({
                           <button
                             type="button"
                             onClick={(event) => onDeleteChat(event, chat.id)}
-                            className="chat-icon-btn glass-interactive"
+                            className="chat-icon-btn chat-sidebar-icon-btn glass-interactive"
                             title={t("chat.delete")}
+                            aria-label={t("chat.delete")}
                           >
-                            <Trash2 size={12} />
+                            <Trash2 size={14} />
                           </button>
                         </div>
                       ) : null}

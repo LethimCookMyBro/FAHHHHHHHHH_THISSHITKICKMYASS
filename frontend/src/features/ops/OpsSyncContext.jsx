@@ -180,6 +180,41 @@ const buildResolvedAlarmMeta = (alarms = [], resolvedAt) =>
     return meta;
   }, {});
 
+const buildAlarmListSignature = (alarms = []) =>
+  toArray(alarms)
+    .map(
+      (alarm) =>
+        [
+          alarm?.id ?? "",
+          alarm?.status ?? "",
+          alarm?.severity ?? "",
+          alarm?.machine_id ?? "",
+          alarm?.error_code ?? "",
+          alarm?.message ?? "",
+          alarm?.created_at ?? "",
+          alarm?.acknowledged_at ?? "",
+          alarm?.resolved_at ?? "",
+        ].join("::"),
+    )
+    .join("|");
+
+const buildActionListSignature = (actions = []) =>
+  toArray(actions)
+    .map(
+      (action) =>
+        [
+          action?.id ?? "",
+          action?.alarm_id ?? "",
+          action?.action_type ?? "",
+          action?.execution_status ?? "",
+          action?.severity ?? "",
+          action?.created_at ?? "",
+          action?.executed_at ?? "",
+          action?.recommendation ?? "",
+        ].join("::"),
+    )
+    .join("|");
+
 const buildLocalResolveActions = (
   alarms = [],
   { note = "", source = "system", resolvedAt } = {},
@@ -249,10 +284,20 @@ export function OpsSyncProvider({ children }) {
 
   const refreshInFlightRef = useRef(null);
   const lastRefreshAtRef = useRef(0);
+  const alarmsSignatureRef = useRef("");
+  const actionsSignatureRef = useRef("");
   const activeAlarmMachineKeys = useMemo(
     () => buildActiveAlarmMachineKeySet(alarms),
     [alarms],
   );
+
+  useEffect(() => {
+    alarmsSignatureRef.current = buildAlarmListSignature(alarms);
+  }, [alarms]);
+
+  useEffect(() => {
+    actionsSignatureRef.current = buildActionListSignature(actions);
+  }, [actions]);
 
   const machines = useMemo(
     () =>
@@ -284,9 +329,21 @@ export function OpsSyncProvider({ children }) {
             fetchOpsAlarms(ALARM_LIMIT),
             fetchOpsActions(ACTION_LIMIT),
           ]);
+          const nextSortedAlarms = sortAlarms(
+            applyResolvedAlarmMeta(nextAlarms, resolvedAlarmMeta),
+          );
+          const nextSortedActions = sortActions(
+            mergeRowsById(nextActions, localActions),
+          );
+          const nextAlarmsSignature = buildAlarmListSignature(nextSortedAlarms);
+          const nextActionsSignature = buildActionListSignature(nextSortedActions);
 
-          setAlarms(sortAlarms(applyResolvedAlarmMeta(nextAlarms, resolvedAlarmMeta)));
-          setActions(sortActions(mergeRowsById(nextActions, localActions)));
+          if (nextAlarmsSignature !== alarmsSignatureRef.current) {
+            setAlarms(nextSortedAlarms);
+          }
+          if (nextActionsSignature !== actionsSignatureRef.current) {
+            setActions(nextSortedActions);
+          }
           setError("");
           setHasLoaded(true);
           lastRefreshAtRef.current = Date.now();

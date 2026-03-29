@@ -168,3 +168,36 @@
 .chat-session-item.active .chat-session-time {
   color: var(--text-secondary);
 }
+
+.chat-session-actions {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 8px;
+  flex-shrink: 0;
+  opacity: 0.96;
+  transition: opacity var(--transition-fast);
+}
+
+@media (min-width: 768px) {
+  .chat-session-actions {
+    opacity: 0;
+  }
+
+  .chat-session-item:hover .chat-session-actions,
+  .chat-session-item:focus-within .chat-session-actions,
+  .chat-session-item.active .chat-session-actions {
+    opacity: 1;
+  }
+}
+
+.chat-sidebar-icon-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  border-color: color-mix(in srgb, var(--accent) 12%, var(--line-soft));
+  background: color-mix(in srgb, var(--surface-inset) 88%, var(--surface-elevated));
+}
+
+.chat-sidebar-icon-btn:hover {
+  transform: translateY(-1px);
+}

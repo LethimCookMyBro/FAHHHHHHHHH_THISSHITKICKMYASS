@@ -49,7 +49,7 @@ export default function useAlarmActions({ loadAlarms, setError }) {
         setDiagnosingId(null);
       }
     },
-    [diagnosticsByAlarm, setError, t],
+    [diagnosticsByAlarm, loadAlarms, setError, t],
   );
 
   const runPlan = useCallback(
@@ -76,7 +76,7 @@ export default function useAlarmActions({ loadAlarms, setError }) {
         setPlanningId(null);
       }
     },
-    [diagnosticsByAlarm, runDiagnose, setError, t],
+    [diagnosticsByAlarm, loadAlarms, runDiagnose, setError, t],
   );
 
   const runApprove = useCallback(

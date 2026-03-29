@@ -97,6 +97,7 @@ _STOPWORDS = {
     "show",
     "help",
 }
+_ERROR_EVENT_CODE_RE = re.compile(r"\b[A-F0-9]{4,5}H\b", re.IGNORECASE)
 
 
 def _extract_query_keywords(query: str, max_terms: int = 12) -> List[str]:
@@ -205,27 +206,26 @@ class PostgresVectorRetriever(BaseRetriever):
                 semantic_rows = self._fetch_semantic_rows(cur, query_vector)
                 keyword_rows = self._fetch_keyword_rows(cur, query_vector, query)
 
-            merged_rows: List[Tuple[Any, Any, Any]] = []
+            merged_rows: List[Tuple[Any, Any, Any, Tuple[str, str, int], str]] = []
             seen = set()
             for row in semantic_rows:
                 key = _doc_dedupe_key(row[0], row[1])
                 if key in seen:
                     continue
                 seen.add(key)
-                merged_rows.append(row)
+                merged_rows.append((row[0], row[1], row[2], key, "semantic"))
             for row in keyword_rows:
                 key = _doc_dedupe_key(row[0], row[1])
                 if key in seen:
                     continue
                 seen.add(key)
-                merged_rows.append(row)
+                merged_rows.append((row[0], row[1], row[2], key, "keyword"))
 
             docs: List[Document] = []
-            semantic_seen = {_doc_dedupe_key(r[0], r[1]) for r in semantic_rows}
-            for content, metadata, distance in merged_rows:
+            for content, metadata, distance, _, retrieval_match in merged_rows:
                 meta = _safe_load_json(metadata)
                 meta["distance"] = float(distance)
-                meta["retrieval_match"] = "semantic" if _doc_dedupe_key(content, metadata) in semantic_seen else "keyword"
+                meta["retrieval_match"] = retrieval_match
                 docs.append(Document(page_content=content, metadata=meta))
             return docs
 
@@ -293,8 +293,7 @@ class EnhancedFlashrankRerankRetriever(BaseRetriever):
         query_upper = (query or "").upper()
         
         # Extract error/event codes from query (pattern: letter + numbers + H, e.g., F800H, 9801H)
-        code_pattern = re.compile(r'\b[A-F0-9]{4,5}H\b', re.IGNORECASE)
-        query_codes = set(code_pattern.findall(query_upper))
+        query_codes = set(_ERROR_EVENT_CODE_RE.findall(query_upper))
         
         for s, d in pairs:
             text_low = (d.page_content or "").lower()
@@ -303,7 +302,7 @@ class EnhancedFlashrankRerankRetriever(BaseRetriever):
             
             # HIGH PRIORITY: Exact error/event code match (e.g., F800H, F389H)
             if query_codes:
-                chunk_codes = set(code_pattern.findall(text_upper))
+                chunk_codes = set(_ERROR_EVENT_CODE_RE.findall(text_upper))
                 matching_codes = query_codes & chunk_codes
                 if matching_codes:
                     bonus += 2.0  # Strong boost for exact code match

@@ -169,19 +169,22 @@ export default function Sidebar({
         </nav>
 
         <div className="nexus-sidebar-bottom">
-          <div className="nexus-user-card">
-            <div className="nexus-user-row">
+          <div className="nexus-toolbar-top">
+            <button
+              type="button"
+              className="nexus-user-pill"
+              title={userName}
+            >
               <span className="nexus-user-avatar">{userInitials}</span>
-              <div className="hide-on-collapsed">
-                <p className="nexus-user-name">{userName}</p>
-                <p className="nexus-user-role">
+              <span className="hide-on-collapsed nexus-user-pill-copy">
+                <span className="nexus-user-pill-label">{userName}</span>
+                <span className="nexus-user-pill-meta">
                   {userRole || t("topbar.operator")}
-                </p>
-              </div>
-            </div>
-          </div>
+                </span>
+              </span>
+            </button>
 
-          <div className="nexus-controls">
+            <div className="nexus-controls">
             <button
               type="button"
               className="nexus-ctrl-btn"
@@ -203,16 +206,18 @@ export default function Sidebar({
             >
               {collapsed ? <ChevronsRight size={16} /> : <ChevronsLeft size={16} />}
             </button>
-
-            <button
-              type="button"
-              className="nexus-ctrl-btn nexus-ctrl-logout"
-              onClick={onLogout}
-              title={t("sidebar.logout")}
-            >
-              <LogOut size={16} />
-            </button>
+            </div>
           </div>
+
+          <button
+            type="button"
+            className="nexus-logout-btn"
+            onClick={onLogout}
+            title={t("sidebar.logout")}
+          >
+            <LogOut size={16} />
+            <span className="hide-on-collapsed">{t("sidebar.logout")}</span>
+          </button>
         </div>
       </aside>
     </>

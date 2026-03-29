@@ -120,8 +120,11 @@ export const persistMockZoneSessions = (
     .filter((session) => isMockZoneSessionId(session?.id))
     .map(normalizeMockZoneSession)
     .sort(compareByUpdatedAt);
-
-  storage.setItem(MOCK_ZONE_STORAGE_KEY, JSON.stringify(normalized));
+  const serialized = JSON.stringify(normalized);
+  if (storage.getItem(MOCK_ZONE_STORAGE_KEY) === serialized) {
+    return;
+  }
+  storage.setItem(MOCK_ZONE_STORAGE_KEY, serialized);
 };
 
 export const upsertMockZoneSession = (

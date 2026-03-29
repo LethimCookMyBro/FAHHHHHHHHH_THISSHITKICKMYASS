@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { usePlcLiveDataContext } from "../features/plc/PlcLiveDataContext";
 import { useOpsSyncContext } from "../features/ops/OpsSyncContext";
+import { useT } from "../utils/i18n";
 import {
   buildMockZoneAssistantReply,
   buildMockZonePrompt,
@@ -212,6 +213,7 @@ const resolveSessionIdFromResponse = async (
 };
 
 export function useChatManager() {
+  const { t } = useT();
   const location = useLocation();
   const navigate = useNavigate();
   const { dashboard } = usePlcLiveDataContext();
@@ -236,6 +238,7 @@ export function useChatManager() {
   const [pendingMessage, setPendingMessage] = useState(null);
   const [streamingAssistant, setStreamingAssistant] = useState(null);
   const [apiError, setApiError] = useState("");
+  const [deleteCandidate, setDeleteCandidate] = useState(null);
   const [isRecovering, setIsRecovering] = useState(false);
   const [autoStickToBottom, setAutoStickToBottom] = useState(true);
   const [isBootstrapReady, setIsBootstrapReady] = useState(false);
@@ -247,6 +250,8 @@ export function useChatManager() {
   const machineContextKeyRef = useRef(null);
   const mockTimerEntriesRef = useRef([]);
   const submitRunIdRef = useRef(0);
+  const loadedSessionIdsRef = useRef(new Set());
+  const sessionLoadPromisesRef = useRef(new Map());
 
   const rawMockRouteContext = useMemo(
     () => getMockZoneRouteContext(location.search),
@@ -356,21 +361,54 @@ export function useChatManager() {
     setActiveChatId(nextActiveChatId);
     setIsNewChat(nextActiveChatId == null || hasAutoContextPrompt(location.search));
     setApiError("");
+    loadedSessionIdsRef.current = new Set(
+      sessions
+        .filter((session) => messagesOrEmpty(session).length > 0)
+        .map((session) => normalizeChatId(session.id))
+        .filter((sessionId) => sessionId != null),
+    );
 
     return sessions;
   }, [activeChatId, location.search]);
 
   const loadMessagesForSession = useCallback(
     async (sessionId) => {
-      if (isMockZoneSessionId(sessionId)) {
-        return messagesOrEmpty(findChatById(chatHistory, sessionId));
+      const normalizedSessionId = normalizeChatId(sessionId);
+      if (normalizedSessionId == null) {
+        return [];
       }
 
-      const response = await chatService.fetchSessionMessages(sessionId);
-      const messages = mapMessagesFromPayload(response?.data);
-      setChatHistory((prev) => replaceChatMessages(prev, sessionId, messages));
-      setApiError("");
-      return messages;
+      if (isMockZoneSessionId(normalizedSessionId)) {
+        return messagesOrEmpty(findChatById(chatHistory, normalizedSessionId));
+      }
+
+      if (loadedSessionIdsRef.current.has(normalizedSessionId)) {
+        return messagesOrEmpty(findChatById(chatHistory, normalizedSessionId));
+      }
+
+      const existingRequest =
+        sessionLoadPromisesRef.current.get(normalizedSessionId) || null;
+      if (existingRequest) {
+        return existingRequest;
+      }
+
+      const request = chatService
+        .fetchSessionMessages(normalizedSessionId)
+        .then((response) => {
+          const messages = mapMessagesFromPayload(response?.data);
+          loadedSessionIdsRef.current.add(normalizedSessionId);
+          setChatHistory((prev) =>
+            replaceChatMessages(prev, normalizedSessionId, messages),
+          );
+          setApiError("");
+          return messages;
+        })
+        .finally(() => {
+          sessionLoadPromisesRef.current.delete(normalizedSessionId);
+        });
+
+      sessionLoadPromisesRef.current.set(normalizedSessionId, request);
+      return request;
     },
     [chatHistory],
   );
@@ -721,12 +759,26 @@ export function useChatManager() {
     });
   }, []);
 
-  const handleDelete = useCallback(
+  const requestDeleteChat = useCallback(
     async (event, id) => {
       event.stopPropagation();
       const normalizedId = normalizeChatId(id);
       if (normalizedId == null) return;
 
+      const targetChat = findChatById(chatHistory, normalizedId);
+      setDeleteCandidate({
+        id: normalizedId,
+        title: targetChat?.title || t("chat.newChat"),
+        isMockZone: isMockZoneSessionId(normalizedId),
+      });
+    },
+    [chatHistory, t],
+  );
+
+  const confirmDeleteChat = useCallback(async () => {
+      if (!deleteCandidate?.id) return;
+
+      const normalizedId = deleteCandidate.id;
       const removeSessionLocally = () => {
         setChatHistory((prev) =>
           prev.filter((chat) => chat.id !== normalizedId),
@@ -734,9 +786,10 @@ export function useChatManager() {
         if (normalizeChatId(activeChatId) === normalizedId) {
           handleNewChat();
         }
+        setDeleteCandidate(null);
       };
 
-      if (isMockZoneSessionId(normalizedId)) {
+      if (deleteCandidate.isMockZone) {
         removeSessionLocally();
         return;
       }
@@ -754,8 +807,12 @@ export function useChatManager() {
         setApiError(getApiErrorMessage(error, "Failed to delete chat"));
       }
     },
-    [activeChatId, handleNewChat],
+    [activeChatId, deleteCandidate, handleNewChat],
   );
+
+  const cancelDeleteChat = useCallback(() => {
+    setDeleteCandidate(null);
+  }, []);
 
   const copyMessage = useCallback(async (text, id) => {
     try {
@@ -1005,6 +1062,7 @@ export function useChatManager() {
     handleRetryConnection,
 
     chatHistory,
+    deleteCandidate,
     activeChat,
     activeChatId,
     activeMessages,
@@ -1014,7 +1072,9 @@ export function useChatManager() {
     handleNewChat,
     handleSelectChat,
     togglePin,
-    handleDelete,
+    requestDeleteChat,
+    confirmDeleteChat,
+    cancelDeleteChat,
 
     input,
     setInput,

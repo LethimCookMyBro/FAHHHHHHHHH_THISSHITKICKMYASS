@@ -9,6 +9,7 @@ import { useVoiceRecording } from "../hooks/useVoiceRecording";
 import { useT } from "../utils/i18n";
 import { GlassSurface } from "../components/ui";
 import ChatComposer from "./chat/ChatComposer";
+import DeleteChatDialog from "./chat/DeleteChatDialog";
 import ChatMessages from "./chat/ChatMessages";
 import ChatSidebar from "./chat/ChatSidebar";
 import ChatWelcome from "./chat/ChatWelcome";
@@ -25,6 +26,7 @@ export default function Chat({ hasAppSidebar = false }) {
     isRecovering,
     handleRetryConnection,
 
+    deleteCandidate,
     activeChat,
     activeChatId,
     activeMessages,
@@ -34,7 +36,9 @@ export default function Chat({ hasAppSidebar = false }) {
     handleNewChat,
     handleSelectChat,
     togglePin,
-    handleDelete,
+    requestDeleteChat,
+    confirmDeleteChat,
+    cancelDeleteChat,
 
     input,
     setInput,
@@ -200,7 +204,7 @@ export default function Chat({ hasAppSidebar = false }) {
         onSelectChat={handleSelectChat}
         pinnedChats={pinnedChats}
         onTogglePin={togglePin}
-        onDeleteChat={handleDelete}
+        onDeleteChat={requestDeleteChat}
         searchQuery={searchQuery}
         onSearchQueryChange={setSearchQuery}
         onNewChat={handleNewChat}
@@ -270,6 +274,13 @@ export default function Chat({ hasAppSidebar = false }) {
           </>
         )}
       </GlassSurface>
+
+      <DeleteChatDialog
+        isOpen={Boolean(deleteCandidate)}
+        chatTitle={deleteCandidate?.title || ""}
+        onCancel={cancelDeleteChat}
+        onConfirm={confirmDeleteChat}
+      />
     </div>
   );
 }
