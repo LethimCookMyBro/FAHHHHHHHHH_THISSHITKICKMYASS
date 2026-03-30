@@ -3,8 +3,9 @@
 ############################################
 .DS_Store
 Thumbs.db
-.vscode/
 .idea/
+.vscode/*
+!.vscode/extensions.json
 
 ############################################
 # Node / Frontend
@@ -14,6 +15,8 @@ frontend/dist/
 .vite/
 dist/
 build/
+.npm/
+.pnpm-store/
 
 ############################################
 # Python
@@ -23,24 +26,32 @@ __pycache__/
 *.pyo
 *.pyd
 *.so
+*.so.*
 venv/
 .venv/
-.env
-.env.*
+.venv_linux/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
 *.sqlite
 *.db
 
 ############################################
-# Models / ML / RAG (สำคัญมาก)
+# Environment files
 ############################################
+.env
+.env.*
+!.env.example
 
-# โฟลเดอร์ models ทุกตำแหน่ง
+############################################
+# Models / ML / RAG
+############################################
 models/
 **/models/
 .models/
 **/.models/
-
-# HuggingFace / Torch cache
 .cache/
 **/.cache/
 .huggingface/
@@ -49,15 +60,11 @@ hf/
 **/hf/
 torch/
 **/torch/
-
-# Embedding / ingest state
 .ingest/
 **/.ingest/
 state.json
 *.lock
 **/*.lock
-
-# Model weight files
 *.safetensors
 *.bin
 *.pt
@@ -66,17 +73,18 @@ state.json
 *.ckpt
 
 ############################################
-# Knowledge / Data
+# Knowledge / local corpora
 ############################################
-# กัน data ทั้งหมดก่อน
 data/*
-backend/data/*
-
-# อนุญาตเฉพาะ Knowledge ที่ต้องใช้จริง
 !data/Knowledge/
-!data/Knowledge/**
+data/Knowledge/*
+!data/Knowledge/.gitkeep
+
+backend/data/*
 !backend/data/Knowledge/
-!backend/data/Knowledge/**
+backend/data/Knowledge/*
+!backend/data/Knowledge/.gitkeep
+!backend/data/Knowledge/golden_qa.json
 
 ############################################
 # Docker / runtime junk
@@ -96,7 +104,4 @@ temp/
 *.tar
 *.tar.gz
 *.7z
-*.rar.venv_linux/
-.venv/
-*.so
-*.so.*
+*.rar

@@ -24,6 +24,7 @@ from .plc.contracts import (
     _normalize_machine,
     _to_float,
 )
+from .core.plc_snapshot import get_plc_snapshot
 from .security import authenticate_websocket
 
 logger = logging.getLogger(__name__)
@@ -399,12 +400,10 @@ async def plc_websocket(websocket: WebSocket):
 
     await ws_manager.connect(websocket)
     connector = get_connector()
-    if not connector.is_connected:
-        await connector.connect()
 
     try:
         while True:
-            snapshot = await connector.read_data()
+            snapshot = await get_plc_snapshot(websocket.app.state, connector)
             payload = _build_dashboard_payload(
                 snapshot,
                 websocket.app.state,

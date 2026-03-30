@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
+from .core.plc_snapshot import get_plc_snapshot
 from .security import require_roles
 from .plc.connector import get_connector
 from .plc.contracts import _normalize_machine, _now_iso
@@ -13,10 +14,7 @@ async def list_machines(
 ):
     _ = current_user
     connector = get_connector()
-    if not connector.is_connected:
-        await connector.connect()
-
-    snapshot = await connector.read_data()
+    snapshot = await get_plc_snapshot(request.app.state, connector)
     machines = [_normalize_machine(machine) for machine in (snapshot.get("machines") or [])]
     summary = {
         "total_machines": len(machines),
@@ -40,10 +38,7 @@ async def get_machine(
 ):
     _ = current_user
     connector = get_connector()
-    if not connector.is_connected:
-        await connector.connect()
-
-    snapshot = await connector.read_data()
+    snapshot = await get_plc_snapshot(request.app.state, connector)
     for machine in (snapshot.get("machines") or []):
         if int(machine.get("id") or 0) == machine_id:
             return _normalize_machine(machine)
@@ -57,10 +52,7 @@ async def dashboard_data(
 ):
     _ = current_user
     connector = get_connector()
-    if not connector.is_connected:
-        await connector.connect()
-
-    snapshot = await connector.read_data()
+    snapshot = await get_plc_snapshot(request.app.state, connector)
     pool = _get_pool(request)
     return _build_dashboard_payload(
         snapshot,

@@ -170,6 +170,53 @@ def insert_chat_message(
         db_pool.putconn(conn)
 
 
+def get_recent_chat_context(
+    db_pool,
+    session_id: int,
+    user_id: int,
+    limit: int = 10,
+) -> Optional[List[Dict[str, str]]]:
+    conn = db_pool.getconn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT m.role, m.content
+                FROM chat_messages m
+                JOIN chat_sessions s ON m.session_id = s.id
+                WHERE m.session_id = %s AND s.user_id = %s
+                ORDER BY m.created_at DESC
+                LIMIT %s
+                """,
+                (session_id, user_id, max(1, int(limit))),
+            )
+            rows = cur.fetchall()
+
+            if not rows:
+                cur.execute(
+                    """
+                    SELECT 1
+                    FROM chat_sessions
+                    WHERE id = %s AND user_id = %s
+                    LIMIT 1
+                    """,
+                    (session_id, user_id),
+                )
+                if cur.fetchone() is None:
+                    return None
+                return []
+
+        return [
+            {
+                "role": row[0],
+                "content": row[1],
+            }
+            for row in reversed(rows)
+        ]
+    finally:
+        db_pool.putconn(conn)
+
+
 def get_chat_messages(
     db_pool, 
     session_id: int, 

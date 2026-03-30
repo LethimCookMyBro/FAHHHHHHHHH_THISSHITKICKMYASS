@@ -14,6 +14,7 @@ from app.security import get_current_user
 from app.chat_db import (
     create_chat_session,
     get_chat_sessions,
+    get_recent_chat_context,
     insert_chat_message,
     get_chat_messages,
     update_chat_session_title,
@@ -360,14 +361,14 @@ def chat(
         chat_history = []  # New session, no history
     else:
         session_id = payload.session_id
-        # Fetch recent messages for context (last 10 messages = 5 exchanges)
-        result = get_chat_messages(db_pool, session_id, current_user["id"])
-        if result is None:
+        chat_history = get_recent_chat_context(
+            db_pool=db_pool,
+            session_id=session_id,
+            user_id=current_user["id"],
+            limit=10,
+        )
+        if chat_history is None:
             raise HTTPException(status_code=404, detail="Chat session not found")
-        messages = result.get("items", []) if isinstance(result, dict) else []
-        if not isinstance(messages, list):
-            messages = []
-        chat_history = [{"role": m["role"], "content": m["content"]} for m in messages[-10:]]
 
     # 2) Save USER message
     insert_chat_message(
