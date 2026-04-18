@@ -3,23 +3,24 @@ import { createContext, useContext, useMemo } from "react";
 import { useLocation } from "react-router-dom";
 import usePlcLiveData from "../../hooks/usePlcLiveData";
 import featureFlags from "../../utils/featureFlags";
+import { isChatRoute } from "../../utils/routes";
 
 const PlcLiveDataContext = createContext(null);
 
 export function PlcLiveDataProvider({ children }) {
   const location = useLocation();
   const isAggressive = featureFlags.stabilityMode === "aggressive";
-  const isChatRoute = location.pathname.startsWith("/chat");
+  const chatRouteActive = isChatRoute(location.pathname);
 
   const options = useMemo(() => {
-    const refreshIntervalMs = isChatRoute && isAggressive ? 30000 : 15000;
+    const refreshIntervalMs = chatRouteActive && isAggressive ? 30000 : 15000;
     return {
       refreshIntervalMs,
       updateThrottleMs: featureFlags.plcUiUpdateThrottleMs,
       stabilityMode: featureFlags.stabilityMode,
       enableWebsocket: !isAggressive,
     };
-  }, [isAggressive, isChatRoute]);
+  }, [chatRouteActive, isAggressive]);
 
   const liveData = usePlcLiveData(options);
   return <PlcLiveDataContext.Provider value={liveData}>{children}</PlcLiveDataContext.Provider>;

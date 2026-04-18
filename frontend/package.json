@@ -8,7 +8,7 @@
     "build": "vite build",
     "start": "node server.cjs",
     "lint": "eslint . --report-unused-disable-directives --max-warnings 0",
-    "test:normalizers": "node src/features/plc/normalizers.test.mjs && node src/features/ops/dashboard/helpers.test.mjs && node src/features/ops/alarms/hooks/alarmUtils.test.mjs && node src/features/ops/mockZoneChat.test.mjs && node src/features/ops/mockZoneResolution.test.mjs && node src/features/ops/port-map/zoneModel.test.mjs && node src/features/ops/port-map/zonePanelState.test.mjs && node src/pages/chat/utils.test.mjs && node src/pages/chat/mockZoneSessions.test.mjs && node src/utils/api.security.test.mjs",
+    "test:normalizers": "node src/features/plc/normalizers.test.mjs && node src/features/ops/dashboard/helpers.test.mjs && node src/features/ops/alarms/hooks/alarmUtils.test.mjs && node src/features/ops/mockZoneChat.test.mjs && node src/features/ops/mockZoneResolution.test.mjs && node src/features/ops/port-map/zoneModel.test.mjs && node src/features/ops/port-map/zonePanelState.test.mjs && node src/pages/chat/utils.test.mjs && node src/pages/chat/mockZoneSessions.test.mjs && node src/utils/api.security.test.mjs && node src/utils/routes.test.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

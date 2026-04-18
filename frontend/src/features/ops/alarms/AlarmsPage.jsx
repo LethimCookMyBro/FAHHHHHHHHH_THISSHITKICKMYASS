@@ -14,6 +14,7 @@ import {
   resolveZoneIdForMachine,
 } from "../port-map/zoneModel";
 import { buildMockZoneChatUrl } from "../mockZoneChat";
+import { APP_ROUTES, buildPathWithSearch } from "../../../utils/routes";
 import "./styles/alarms.css";
 
 export default function AlarmsPage() {
@@ -135,7 +136,7 @@ export default function AlarmsPage() {
 
   const openAlarmInMap = (alarm) => {
     if (!alarm) return;
-    navigate(`/port-map?${buildZoneRouteSearch(alarm)}`);
+    navigate(buildPathWithSearch(APP_ROUTES.portMap, buildZoneRouteSearch(alarm)));
   };
 
   const exportCurrentView = () => {

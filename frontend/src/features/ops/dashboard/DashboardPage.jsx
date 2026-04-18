@@ -17,6 +17,7 @@ import { extractInstructionSteps } from "./helpers";
 import { useConfigureTopbar } from "../../../layout/AppTopbarContext";
 import { useNavigate } from "react-router-dom";
 import { buildZoneRouteSearch } from "../port-map/zoneModel";
+import { APP_ROUTES, buildPathWithSearch } from "../../../utils/routes";
 import "./styles/dashboard.css";
 
 const statusToneByConnection = {
@@ -241,29 +242,33 @@ export default function DashboardPage() {
   }, [loading]);
 
   const openActionTimeline = useCallback(() => {
-    navigate("/actions");
+    navigate(APP_ROUTES.actions);
   }, [navigate]);
 
   const openAlerts = useCallback(() => {
-    navigate("/alarms");
+    navigate(APP_ROUTES.alarms);
   }, [navigate]);
 
   const openAnalytics = useCallback(() => {
-    navigate("/analytics");
+    navigate(APP_ROUTES.analytics);
   }, [navigate]);
 
   const openEquipment = useCallback(() => {
-    navigate("/equipment");
+    navigate(APP_ROUTES.equipment);
   }, [navigate]);
 
   const openPortMap = useCallback(() => {
-    navigate("/port-map");
+    navigate(APP_ROUTES.portMap);
   }, [navigate]);
 
   const openMachineInChat = useCallback(
     (machine) => {
       navigate(
-        `/chat?machineId=${encodeURIComponent(machine.id || machine.name)}&machineName=${encodeURIComponent(machine.name || t("alarms.unknownMachine"))}&errorCode=${encodeURIComponent(machine.errorCode || machine.state || "CHECK")}`,
+        buildPathWithSearch(APP_ROUTES.chat, {
+          machineId: machine.id || machine.name,
+          machineName: machine.name || t("alarms.unknownMachine"),
+          errorCode: machine.errorCode || machine.state || "CHECK",
+        }),
       );
     },
     [navigate, t],
@@ -271,7 +276,7 @@ export default function DashboardPage() {
 
   const openMachineInMap = useCallback(
     (machine) => {
-      navigate(`/port-map?${buildZoneRouteSearch(machine)}`);
+      navigate(buildPathWithSearch(APP_ROUTES.portMap, buildZoneRouteSearch(machine)));
     },
     [navigate],
   );

@@ -15,6 +15,7 @@ import ActionTimeline from "./components/ActionTimeline";
 import { useConfigureTopbar } from "../../../layout/AppTopbarContext";
 import { downloadCsv } from "../../../utils/exporters";
 import useConnectionLabel from "../../../hooks/useConnectionLabel";
+import { APP_ROUTES } from "../../../utils/routes";
 import "./styles/actions.css";
 
 const QUICK_FILTERS = new Set(["all", "failed", "manual", "executed", "today"]);
@@ -146,7 +147,7 @@ export default function ActionLogPage() {
           <button
             type="button"
             className="app-topbar-btn primary"
-            onClick={() => navigate("/chat")}
+            onClick={() => navigate(APP_ROUTES.chat)}
           >
             <MessageSquareText size={16} />
             {t("topbar.openAssistant")}

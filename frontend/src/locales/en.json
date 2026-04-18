@@ -485,6 +485,10 @@
   "equipment.executionComplete": "Execution complete",
   "equipment.agentExecuting": "Agent executing...",
 
+  "equipment.noMatches": "No equipment matches current filters",
+  "equipment.noMatchesHint": "Try a different search term or switch status tabs to bring controllers back into view.",
+  "equipment.resetFilters": "Reset filters",
+
   "diagnostic.panelTitle": "Diagnostic analyst",
   "diagnostic.analystLog": "Analyst log",
   "diagnostic.analystLogLabel": "Streaming diagnostic reasoning",

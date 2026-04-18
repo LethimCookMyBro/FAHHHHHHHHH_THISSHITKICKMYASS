@@ -445,7 +445,7 @@ function PlantOverviewCards({
 
             <div className="dash-topology-stage">
               <svg
-                viewBox="0 0 640 276"
+                viewBox="0 0 640 292"
                 className="dash-topology-canvas"
                 preserveAspectRatio="none"
                 aria-hidden="true"
@@ -453,12 +453,12 @@ function PlantOverviewCards({
                 <defs>
                   <pattern
                     id="dash-topology-grid-pattern"
-                    width="28"
-                    height="28"
+                    width="30"
+                    height="30"
                     patternUnits="userSpaceOnUse"
                   >
                     <path
-                      d="M 28 0 L 0 0 0 28"
+                      d="M 30 0 L 0 0 0 30"
                       fill="none"
                       className="dash-topology-grid-line"
                       strokeWidth="1"
@@ -481,65 +481,65 @@ function PlantOverviewCards({
 
                 <rect
                   width="640"
-                  height="276"
+                  height="292"
                   fill="url(#dash-topology-grid-pattern)"
                   className="dash-topology-grid-surface"
                 />
                 <circle
                   cx="320"
-                  cy="138"
-                  r="58"
+                  cy="146"
+                  r="60"
                   className="dash-topology-core-ring"
                 />
                 <circle
                   cx="320"
-                  cy="138"
-                  r="32"
+                  cy="146"
+                  r="34"
                   className="dash-topology-core-glow"
                   filter="url(#dash-topology-glow)"
                 />
 
                 <path
                   className="dash-topology-path edge"
-                  d="M 286 126 C 248 118, 220 101, 168 82"
+                  d="M 286 136 C 246 126, 214 108, 166 90"
                 />
                 <path
                   className="dash-topology-path hmi"
-                  d="M 354 126 C 394 114, 428 100, 492 82"
+                  d="M 354 136 C 398 122, 432 108, 494 88"
                 />
                 <path
                   className="dash-topology-path zone"
-                  d="M 286 150 C 248 164, 218 180, 168 194"
+                  d="M 286 158 C 244 170, 214 186, 168 206"
                 />
                 <path
                   className="dash-topology-path history"
-                  d="M 354 150 C 396 164, 430 180, 492 194"
+                  d="M 354 158 C 398 170, 434 188, 494 206"
                 />
 
                 <g
                   className="dash-topology-flow-badge edge"
-                  transform="translate(154 72)"
+                  transform="translate(150 78)"
                 >
                   <rect x="0" y="0" width="78" height="24" rx="12" />
                   <text x="39" y="15">{t("dashboardV2.uplink")}</text>
                 </g>
                 <g
                   className="dash-topology-flow-badge hmi"
-                  transform="translate(446 72)"
+                  transform="translate(452 76)"
                 >
                   <rect x="0" y="0" width="98" height="24" rx="12" />
                   <text x="49" y="15">{t("dashboardV2.operatorHmi")}</text>
                 </g>
                 <g
                   className="dash-topology-flow-badge zone"
-                  transform="translate(148 180)"
+                  transform="translate(146 190)"
                 >
                   <rect x="0" y="0" width="92" height="24" rx="12" />
                   <text x="46" y="15">{t("dashboardV2.remoteIo")}</text>
                 </g>
                 <g
                   className="dash-topology-flow-badge history"
-                  transform="translate(442 180)"
+                  transform="translate(444 188)"
                 >
                   <rect x="0" y="0" width="106" height="24" rx="12" />
                   <text x="53" y="15">{t("dashboardV2.historianSync")}</text>
@@ -569,17 +569,17 @@ function PlantOverviewCards({
             </div>
 
             <div className="dash-topology-foot">
-              <div>
+              <div className="dash-topology-metric coverage">
                 <span>{t("dashboardV2.signalCoverage")}</span>
                 <strong>
                   {safePlantSummary.total > 0 ? `${utilizationRate}%` : "0%"}
                 </strong>
               </div>
-              <div>
+              <div className="dash-topology-metric warning">
                 <span>{t("dashboardV2.warnings")}</span>
                 <strong>{safePlantSummary.warning}</strong>
               </div>
-              <div>
+              <div className="dash-topology-metric critical">
                 <span>{t("dashboardV2.criticalLabel")}</span>
                 <strong>{safePlantSummary.criticalAlarms}</strong>
               </div>

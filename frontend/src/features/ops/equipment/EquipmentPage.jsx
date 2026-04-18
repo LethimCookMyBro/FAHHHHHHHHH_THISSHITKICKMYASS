@@ -1,5 +1,6 @@
 import { useCallback, useDeferredValue, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { EmptyState } from "../../../components/ui";
 import { useT } from "../../../utils/i18n";
 import { useConfigureTopbar } from "../../../layout/AppTopbarContext";
 import useConnectionLabel from "../../../hooks/useConnectionLabel";
@@ -16,6 +17,7 @@ import useAgentAction from "../../../hooks/useAgentAction";
 import { downloadText } from "../../../utils/exporters";
 import { useOpsSyncContext } from "../OpsSyncContext";
 import { resolveMachineState } from "../dashboard/helpers";
+import { APP_ROUTES, buildPathWithSearch } from "../../../utils/routes";
 import DiagnosticPanel from "./components/DiagnosticPanel";
 import SafetyConfirmDialog from "./components/SafetyConfirmDialog";
 import "./styles/equipment.css";
@@ -78,7 +80,7 @@ const buildActionLogUrl = (equipment) => {
   if (query) {
     params.set("q", query);
   }
-  return `/actions${params.toString() ? `?${params.toString()}` : ""}`;
+  return buildPathWithSearch(APP_ROUTES.actions, params);
 };
 
 const updateAlarmSummaryMap = (map, key, alarm, status) => {
@@ -222,12 +224,13 @@ export default function EquipmentPage() {
 
   const handleAskChatbot = useCallback(
     (equipment) => {
-      const params = new URLSearchParams({
-        machineId: equipment.id,
-        machineName: equipment.name,
-        errorCode: equipment.errorCode || equipment.status.toUpperCase(),
-      });
-      navigate(`/chat?${params.toString()}`);
+      navigate(
+        buildPathWithSearch(APP_ROUTES.chat, {
+          machineId: equipment.id,
+          machineName: equipment.name,
+          errorCode: equipment.errorCode || equipment.status.toUpperCase(),
+        }),
+      );
     },
     [navigate],
   );
@@ -384,6 +387,11 @@ export default function EquipmentPage() {
     [equipmentCounts, t],
   );
 
+  const resetFilters = useCallback(() => {
+    setSearchQuery("");
+    setStatusFilter("all");
+  }, []);
+
   return (
     <div className="ops-page ops-equipment-page ops-page-enter">
       <section className="ops-page-header">
@@ -429,121 +437,134 @@ export default function EquipmentPage() {
         </div>
 
         <div className="equipment-card-grid">
-          {filteredEquipment.map((equipment) => (
-            <article
-              key={equipment.id}
-              className={`equipment-card status-${equipment.status}`}
-            >
-              <div className="equipment-card-top">
-                <div className="equipment-card-identity">
-                  <div className="equipment-card-kicker">
-                    <span className="equipment-card-label">
+          {filteredEquipment.length ? (
+            filteredEquipment.map((equipment) => (
+              <article
+                key={equipment.id}
+                className={`equipment-card status-${equipment.status}`}
+              >
+                <div className="equipment-card-top">
+                  <div className="equipment-card-identity">
+                    <div className="equipment-card-kicker">
+                      <span className="equipment-card-label">
+                        {equipment.errorCode
+                          ? t("equipment.leadCode")
+                          : t("equipment.controller")}
+                      </span>
+                      <span
+                        className={`status-badge ${STATUS_BADGES[equipment.status].className}`}
+                      >
+                        {t(STATUS_BADGES[equipment.status].labelKey)}
+                      </span>
+                    </div>
+                    <h3>{equipment.name}</h3>
+                    <p className="equipment-device-meta">
+                      <span>{equipment.id}</span>
+                      <span>{equipment.firmware}</span>
+                    </p>
+                  </div>
+
+                  {equipment.alarms > 0 ? (
+                    <span className="alarm-count">{equipment.alarms}</span>
+                  ) : null}
+                </div>
+
+                <div className="equipment-inline-stats">
+                  <div className="equipment-inline-stat">
+                    <Clock size={14} />
+                    <span>{t("equipment.runtime")}</span>
+                    <strong>{equipment.runtime}</strong>
+                  </div>
+                  <div className="equipment-inline-stat">
+                    <Activity size={14} />
+                    <span>
                       {equipment.errorCode
                         ? t("equipment.leadCode")
-                        : t("equipment.controller")}
+                        : t("equipment.health")}
                     </span>
-                    <span
-                      className={`status-badge ${STATUS_BADGES[equipment.status].className}`}
-                    >
-                      {t(STATUS_BADGES[equipment.status].labelKey)}
-                    </span>
-                  </div>
-                  <h3>{equipment.name}</h3>
-                  <p className="equipment-device-meta">
-                    <span>{equipment.id}</span>
-                    <span>{equipment.firmware}</span>
-                  </p>
-                </div>
-
-                {equipment.alarms > 0 ? (
-                  <span className="alarm-count">{equipment.alarms}</span>
-                ) : null}
-              </div>
-
-              <div className="equipment-inline-stats">
-                <div className="equipment-inline-stat">
-                  <Clock size={14} />
-                  <span>{t("equipment.runtime")}</span>
-                  <strong>{equipment.runtime}</strong>
-                </div>
-                <div className="equipment-inline-stat">
-                  <Activity size={14} />
-                  <span>
-                    {equipment.errorCode ? t("equipment.leadCode") : t("equipment.health")}
-                  </span>
-                  <strong>{equipment.errorCode || t("equipment.stable")}</strong>
-                </div>
-              </div>
-
-              <div className="equipment-metric-grid">
-                <div className="equipment-metric-card">
-                  <div className="equipment-metric-head">
-                    <Cpu size={14} />
-                    <span>{t("equipment.cpu")}</span>
-                    <strong>{equipment.cpuLoad}%</strong>
-                  </div>
-                  <div className="equipment-mini-bar">
-                    <span style={{ width: `${equipment.cpuLoad}%` }} />
+                    <strong>{equipment.errorCode || t("equipment.stable")}</strong>
                   </div>
                 </div>
 
-                <div className="equipment-metric-card">
-                  <div className="equipment-metric-head">
-                    <Server size={14} />
-                    <span>{t("equipment.mem")}</span>
-                    <strong>{equipment.memoryUsage}%</strong>
+                <div className="equipment-metric-grid">
+                  <div className="equipment-metric-card">
+                    <div className="equipment-metric-head">
+                      <Cpu size={14} />
+                      <span>{t("equipment.cpu")}</span>
+                      <strong>{equipment.cpuLoad}%</strong>
+                    </div>
+                    <div className="equipment-mini-bar">
+                      <span style={{ width: `${equipment.cpuLoad}%` }} />
+                    </div>
                   </div>
-                  <div className="equipment-mini-bar">
-                    <span style={{ width: `${equipment.memoryUsage}%` }} />
+
+                  <div className="equipment-metric-card">
+                    <div className="equipment-metric-head">
+                      <Server size={14} />
+                      <span>{t("equipment.mem")}</span>
+                      <strong>{equipment.memoryUsage}%</strong>
+                    </div>
+                    <div className="equipment-mini-bar">
+                      <span style={{ width: `${equipment.memoryUsage}%` }} />
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <p className="equipment-card-note">
-                {getEquipmentNote(equipment.status, t)}
-              </p>
+                <p className="equipment-card-note">
+                  {getEquipmentNote(equipment.status, t)}
+                </p>
 
-              <div className="equipment-action-row">
-                <button
-                  type="button"
-                  className="agent-btn primary"
-                  onClick={() => handleDiagnose(equipment)}
-                >
-                  <Activity size={14} />
-                  {t("equipment.diagnose")}
-                </button>
-
-                <button
-                  type="button"
-                  className="agent-btn secondary"
-                  onClick={() => handleOpenLog(equipment)}
-                >
-                  <FileText size={14} />
-                  {t("equipment.viewLog")}
-                </button>
-
-                <button
-                  type="button"
-                  className="agent-btn warning"
-                  onClick={() => handleReset(equipment)}
-                >
-                  <Wrench size={14} />
-                  {t("equipment.config")}
-                </button>
-
-                {equipment.status === "fault" || equipment.status === "warning" ? (
+                <div className="equipment-action-row">
                   <button
                     type="button"
-                    className="agent-btn chatbot"
-                    onClick={() => handleAskChatbot(equipment)}
+                    className="agent-btn primary"
+                    onClick={() => handleDiagnose(equipment)}
                   >
-                    <MessageSquare size={14} />
-                    {t("equipment.askAi")}
+                    <Activity size={14} />
+                    {t("equipment.diagnose")}
                   </button>
-                ) : null}
-              </div>
-            </article>
-          ))}
+
+                  <button
+                    type="button"
+                    className="agent-btn secondary"
+                    onClick={() => handleOpenLog(equipment)}
+                  >
+                    <FileText size={14} />
+                    {t("equipment.viewLog")}
+                  </button>
+
+                  <button
+                    type="button"
+                    className="agent-btn warning"
+                    onClick={() => handleReset(equipment)}
+                  >
+                    <Wrench size={14} />
+                    {t("equipment.config")}
+                  </button>
+
+                  {equipment.status === "fault" ||
+                  equipment.status === "warning" ? (
+                    <button
+                      type="button"
+                      className="agent-btn chatbot"
+                      onClick={() => handleAskChatbot(equipment)}
+                    >
+                      <MessageSquare size={14} />
+                      {t("equipment.askAi")}
+                    </button>
+                  ) : null}
+                </div>
+              </article>
+            ))
+          ) : (
+            <EmptyState
+              icon={Server}
+              title={t("equipment.noMatches")}
+              message={t("equipment.noMatchesHint")}
+              actionLabel={t("equipment.resetFilters")}
+              onAction={resetFilters}
+            />
+          )}
         </div>
       </div>
 

@@ -16,14 +16,15 @@ import {
 import { useT } from "../utils/i18n";
 import useMediaQuery from "../hooks/useMediaQuery";
 import useConnectionLabel from "../hooks/useConnectionLabel";
+import { APP_ROUTES } from "../utils/routes";
 
 const NAV_ITEMS = [
-  { to: "/overview", key: "nav.overview", icon: PieChart, end: true },
-  { to: "/port-map", key: "nav.portMap", icon: Map },
-  { to: "/equipment", key: "nav.equipment", icon: Briefcase },
-  { to: "/alarms", key: "nav.alerts", icon: Lightbulb },
-  { to: "/actions", key: "nav.actions", icon: ClipboardList },
-  { to: "/chat", key: "nav.chat", icon: MessageSquare },
+  { to: APP_ROUTES.overview, key: "nav.overview", icon: PieChart, end: true },
+  { to: APP_ROUTES.portMap, key: "nav.portMap", icon: Map },
+  { to: APP_ROUTES.equipment, key: "nav.equipment", icon: Briefcase },
+  { to: APP_ROUTES.alarms, key: "nav.alerts", icon: Lightbulb },
+  { to: APP_ROUTES.actions, key: "nav.actions", icon: ClipboardList },
+  { to: APP_ROUTES.chat, key: "nav.chat", icon: MessageSquare },
 ];
 
 export default function Sidebar({

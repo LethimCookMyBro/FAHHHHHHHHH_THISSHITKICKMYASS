@@ -13,6 +13,7 @@ import {
 } from "../features/ops/mockZoneChat";
 import { chatService } from "../services/chatService";
 import { getApiErrorMessage } from "../utils/api";
+import { APP_ROUTES, buildPathWithSearch } from "../utils/routes";
 import {
   appendAssistantToMockSession,
   isMockZoneSessionId,
@@ -443,7 +444,7 @@ export function useChatManager() {
     resetDraftState({ clearError: true });
     closeCompactSidebar(isCompactLayout, setSidebarCollapsed);
     if (location.search) {
-      navigate("/chat", { replace: true });
+      navigate(APP_ROUTES.chat, { replace: true });
     }
     focusComposerLater(inputRef);
   }, [isCompactLayout, location.search, navigate, resetDraftState]);
@@ -745,7 +746,7 @@ export function useChatManager() {
       setPendingMessage(null);
       setStreamingAssistant(null);
       closeCompactSidebar(isCompactLayout, setSidebarCollapsed);
-      navigate(`/chat?chatId=${encodeURIComponent(String(chatId))}`);
+      navigate(buildPathWithSearch(APP_ROUTES.chat, { chatId: String(chatId) }));
     },
     [isCompactLayout, navigate, resetScrollStickiness],
   );
@@ -1005,7 +1006,9 @@ export function useChatManager() {
       });
 
       navigate(
-        `/chat?chatId=${encodeURIComponent(String(mockRouteContext.sessionId))}`,
+        buildPathWithSearch(APP_ROUTES.chat, {
+          chatId: String(mockRouteContext.sessionId),
+        }),
         {
           replace: true,
         },
@@ -1035,7 +1038,7 @@ export function useChatManager() {
     if (machineContextKeyRef.current === contextKey) return undefined;
 
     machineContextKeyRef.current = contextKey;
-    navigate("/chat", { replace: true });
+    navigate(APP_ROUTES.chat, { replace: true });
 
     const timer = window.setTimeout(() => {
       const prompt = `Machine "${machineName}" (ID: ${machineId}) has error status ${errorCode || "FAULT"}. Please diagnose the issue, identify the root cause, and suggest recovery steps.`;

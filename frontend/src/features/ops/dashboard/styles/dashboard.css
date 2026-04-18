@@ -58,6 +58,7 @@
 
 .dash-feature-side {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
 }
 
 .ops-dashboard-columns {
@@ -121,7 +122,7 @@
 
 .dash-command-card,
 .dash-topology-card {
-  min-height: clamp(260px, 30vh, 360px);
+  min-height: 0;
   background: var(--surface-spotlight);
 }
 
@@ -494,12 +495,26 @@
 
 .dash-topology-stage {
   position: relative;
-  min-height: 288px;
+  min-height: 308px;
   isolation: isolate;
   overflow: hidden;
   border-radius: 24px;
   border: 1px solid var(--border);
   background: var(--surface-canvas);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.38),
+    inset 0 0 0 1px color-mix(in srgb, var(--surface-canvas-grid) 24%, transparent);
+}
+
+.dash-topology-stage::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background:
+    radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--accent) 12%, transparent), transparent 36%),
+    linear-gradient(180deg, color-mix(in srgb, white 14%, transparent), transparent 24%);
+  pointer-events: none;
 }
 
 .dash-topology-canvas {
@@ -512,28 +527,29 @@
 }
 
 .dash-topology-grid-surface {
-  opacity: 0.82;
+  opacity: 0.92;
 }
 
 .dash-topology-grid-line {
-  stroke: var(--surface-canvas-grid);
+  stroke: color-mix(in srgb, var(--surface-canvas-grid) 88%, white 12%);
 }
 
 .dash-topology-core-ring {
   fill: var(--chart-topology-core);
   stroke: var(--chart-topology-core-ring);
-  stroke-width: 1.5;
+  stroke-width: 2;
 }
 
 .dash-topology-core-glow {
-  fill: color-mix(in srgb, var(--accent) 16%, transparent);
+  fill: color-mix(in srgb, var(--accent) 22%, transparent);
 }
 
 .dash-topology-path {
   fill: none;
-  stroke-width: 2.5;
+  stroke-width: 2.8;
   stroke-linecap: round;
   stroke-linejoin: round;
+  opacity: 0.92;
 }
 
 .dash-topology-path.edge {
@@ -555,9 +571,10 @@
 }
 
 .dash-topology-flow-badge rect {
-  fill: var(--surface);
-  stroke: var(--border);
+  fill: color-mix(in srgb, var(--surface) 92%, white 8%);
+  stroke: color-mix(in srgb, var(--border) 88%, white 12%);
   stroke-width: 1;
+  filter: drop-shadow(0 6px 12px rgba(12, 18, 28, 0.08));
 }
 
 .dash-topology-flow-badge text {
@@ -572,37 +589,41 @@
 .dash-topology-node {
   position: absolute;
   z-index: 1;
-  min-width: 120px;
-  padding: 12px 14px;
-  border-radius: 18px;
+  min-width: 128px;
+  padding: 14px 16px 15px;
+  border-radius: 20px;
   border: 1px solid var(--border);
-  background: var(--surface);
-  box-shadow: var(--shadow-soft);
+  background: color-mix(in srgb, var(--surface) 94%, white 6%);
+  box-shadow:
+    0 12px 26px rgba(12, 18, 28, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.45);
   color: var(--text-primary);
 }
 
 .dash-topology-node::before {
   content: "";
   position: absolute;
-  top: 14px;
-  left: 14px;
-  width: 8px;
-  height: 8px;
+  top: 16px;
+  left: 16px;
+  width: 9px;
+  height: 9px;
   border-radius: 50%;
   background: currentColor;
+  box-shadow: 0 0 0 4px color-mix(in srgb, currentColor 12%, transparent);
 }
 
 .dash-topology-node-name {
   display: block;
-  padding-left: 16px;
-  font-size: 0.88rem;
-  font-weight: 700;
+  padding-left: 18px;
+  font-size: 0.92rem;
+  line-height: 1.25;
+  font-weight: 800;
 }
 
 .dash-topology-node-kind {
   display: block;
   margin-bottom: 4px;
-  padding-left: 16px;
+  padding-left: 18px;
   font-size: 0.62rem;
   font-weight: 700;
   letter-spacing: 0.1em;
@@ -614,6 +635,10 @@
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
+  min-width: 146px;
+  padding-block: 16px 18px;
+  border-color: color-mix(in srgb, var(--accent) 20%, var(--border));
+  background: color-mix(in srgb, var(--surface) 82%, white 18%);
   color: var(--accent);
 }
 
@@ -647,17 +672,35 @@
   gap: 10px;
 }
 
-.dash-topology-foot > div {
-  border-radius: 16px;
+.dash-topology-metric {
+  display: grid;
+  gap: 6px;
+  border-radius: 18px;
   border: 1px solid var(--border);
-  background: var(--surface-inset);
-  padding: 12px 14px;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--surface) 72%, white 28%),
+    var(--surface-inset)
+  );
+  padding: 13px 14px 14px;
+}
+
+.dash-topology-metric.coverage {
+  border-color: color-mix(in srgb, var(--accent) 18%, var(--border));
+}
+
+.dash-topology-metric.warning {
+  border-color: color-mix(in srgb, var(--warn) 18%, var(--border));
+}
+
+.dash-topology-metric.critical {
+  border-color: color-mix(in srgb, var(--critical) 18%, var(--border));
 }
 
 .dash-topology-foot strong {
   display: block;
-  margin-top: 4px;
-  font-size: 1rem;
+  margin-top: 2px;
+  font-size: 1.15rem;
   color: var(--text-primary);
   font-family: var(--font-mono);
 }
@@ -1064,7 +1107,7 @@
   }
 
   .dash-topology-stage {
-    min-height: 308px;
+    min-height: 324px;
   }
 
   .dash-topology-node.edge,

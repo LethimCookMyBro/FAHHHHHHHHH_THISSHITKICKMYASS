@@ -7,6 +7,7 @@ import {
   createMockZoneSessionToken,
   isMockZoneSessionId,
 } from "../../pages/chat/mockZoneSessions.js";
+import { APP_ROUTES, buildPathWithSearch } from "../../utils/routes.js";
 
 const DEFAULT_ZONE_ID = "zone-b";
 const MOCK_STREAM_TOTAL_MS = 5000;
@@ -253,7 +254,7 @@ export const buildMockZoneChatSearch = (input = {}, source = "portmap") => {
 };
 
 export const buildMockZoneChatUrl = (input = {}, source = "portmap") =>
-  `/chat?${buildMockZoneChatSearch(input, source)}`;
+  buildPathWithSearch(APP_ROUTES.chat, buildMockZoneChatSearch(input, source));
 
 export const getMockZoneRouteContext = (search) => {
   const params = new URLSearchParams(search || "");

@@ -6,6 +6,7 @@ import { useConfigureTopbar } from "../../../layout/AppTopbarContext";
 import useConnectionLabel from "../../../hooks/useConnectionLabel";
 import useAgentAction from "../../../hooks/useAgentAction";
 import { useT } from "../../../utils/i18n";
+import { APP_ROUTES, buildPathWithSearch } from "../../../utils/routes";
 import { useOpsSyncContext } from "../OpsSyncContext";
 import { buildMockZoneChatUrl } from "../mockZoneChat";
 import ZoneSummaryPanel from "./components/ZoneSummaryPanel";
@@ -246,7 +247,12 @@ export default function PortMapPage() {
 
   const handleOpenAlarmCenter = (zone) => {
     if (!zone) return;
-    navigate(`/alarms?${buildAlarmCenterSearch(zone, searchParams.toString())}`);
+    navigate(
+      buildPathWithSearch(
+        APP_ROUTES.alarms,
+        buildAlarmCenterSearch(zone, searchParams.toString()),
+      ),
+    );
   };
 
   const handleClosePanel = () => {

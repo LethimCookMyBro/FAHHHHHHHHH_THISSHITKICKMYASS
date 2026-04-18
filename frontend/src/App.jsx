@@ -10,6 +10,7 @@ import { AuthProvider } from "./features/auth/AuthContext";
 import { useSession } from "./features/auth/useSession";
 import { I18nProvider, useT } from "./utils/i18n";
 import featureFlags from "./utils/featureFlags";
+import { APP_ROUTES, APP_ROUTE_ALIASES } from "./utils/routes";
 import { LoaderCircle, AlertTriangle } from "lucide-react";
 
 const SHOW_ERROR_DETAILS = import.meta.env.DEV;
@@ -188,27 +189,27 @@ function AppShell() {
       <Suspense fallback={<PageLoader />}>
         <Routes>
           <Route
-            path="/login"
+            path={APP_ROUTES.login}
             element={
               <Login
                 onLogin={async ({ email, password }) => {
                   await login({ email, password });
-                  navigate("/overview");
+                  navigate(APP_ROUTES.overview);
                 }}
-                onGoRegister={() => navigate("/register")}
+                onGoRegister={() => navigate(APP_ROUTES.register)}
               />
             }
           />
           <Route
-            path="/register"
+            path={APP_ROUTES.register}
             element={
               <Register
-                onRegisterSuccess={() => navigate("/login")}
-                onBackToLogin={() => navigate("/login")}
+                onRegisterSuccess={() => navigate(APP_ROUTES.login)}
+                onBackToLogin={() => navigate(APP_ROUTES.login)}
               />
             }
           />
-          <Route path="*" element={<Navigate to="/login" replace />} />
+          <Route path="*" element={<Navigate to={APP_ROUTES.login} replace />} />
         </Routes>
       </Suspense>
     );
@@ -219,7 +220,7 @@ function AppShell() {
       <AuthenticatedLayout
         onLogout={async () => {
           await logout();
-          navigate("/login");
+          navigate(APP_ROUTES.login);
         }}
         user={user}
         userName={user?.full_name || user?.email || t("chat.defaultUser")}
@@ -228,16 +229,22 @@ function AppShell() {
         <LocalizedErrorBoundary resetKey={location.pathname}>
           <Suspense fallback={<PageLoader />}>
             <Routes>
-              <Route path="/" element={<Navigate to="/overview" replace />} />
-              <Route path="/overview" element={<Dashboard />} />
-              <Route path="/port-map" element={<PortMap />} />
-              <Route path="/portmap" element={<Navigate to="/port-map" replace />} />
-              <Route path="/equipment" element={<Equipment />} />
-              <Route path="/alarms" element={<Alarms />} />
-              <Route path="/analytics" element={<Analytics />} />
-              <Route path="/chat" element={<Chat hasAppSidebar />} />
-              <Route path="/actions" element={<ActionLog />} />
-              <Route path="*" element={<Navigate to="/overview" replace />} />
+              <Route
+                path={APP_ROUTES.root}
+                element={<Navigate to={APP_ROUTES.overview} replace />}
+              />
+              <Route path={APP_ROUTES.overview} element={<Dashboard />} />
+              <Route path={APP_ROUTES.portMap} element={<PortMap />} />
+              <Route
+                path={APP_ROUTE_ALIASES.portMapLegacy}
+                element={<Navigate to={APP_ROUTES.portMap} replace />}
+              />
+              <Route path={APP_ROUTES.equipment} element={<Equipment />} />
+              <Route path={APP_ROUTES.alarms} element={<Alarms />} />
+              <Route path={APP_ROUTES.analytics} element={<Analytics />} />
+              <Route path={APP_ROUTES.chat} element={<Chat hasAppSidebar />} />
+              <Route path={APP_ROUTES.actions} element={<ActionLog />} />
+              <Route path="*" element={<Navigate to={APP_ROUTES.overview} replace />} />
             </Routes>
           </Suspense>
         </LocalizedErrorBoundary>

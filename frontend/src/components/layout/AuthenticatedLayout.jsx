@@ -14,6 +14,7 @@ import { useUserUiPreferencesSync } from "../../hooks/useUserUiPreferencesSync";
 import { AppTopbarProvider } from "../../layout/AppTopbarContext";
 import useMediaQuery from "../../hooks/useMediaQuery";
 import featureFlags from "../../utils/featureFlags";
+import { isChatRoute } from "../../utils/routes";
 import "../../styles/layout.css";
 import "../../styles/ops-ui.css";
 import "../../styles/chat/markdown.css";
@@ -28,7 +29,7 @@ function AuthenticatedLayoutContent({
   const location = useLocation();
   const { connectionState } = usePlcLiveDataContext();
   const { alarms } = useOpsSyncContext();
-  const isChatRoute = location.pathname.startsWith("/chat");
+  const chatRouteActive = isChatRoute(location.pathname);
   const isCompactLayout = useMediaQuery("(max-width: 980px)");
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const activeAlarmCount = alarms.filter(
@@ -56,8 +57,8 @@ function AuthenticatedLayoutContent({
         onMobileOpenChange={setMobileSidebarOpen}
       />
 
-      <main className={`plc-main ${isChatRoute ? "is-chat-route" : ""}`}>
-        {!isChatRoute || isCompactLayout ? (
+      <main className={`plc-main ${chatRouteActive ? "is-chat-route" : ""}`}>
+        {!chatRouteActive || isCompactLayout ? (
           <AppTopbar
             onOpenSidebar={() => setMobileSidebarOpen(true)}
             showSidebarToggle={isCompactLayout}
@@ -67,7 +68,7 @@ function AuthenticatedLayoutContent({
           />
         ) : null}
 
-        <div className={`plc-route-body ${isChatRoute ? "is-chat-route" : ""}`}>
+        <div className={`plc-route-body ${chatRouteActive ? "is-chat-route" : ""}`}>
           {children}
         </div>
       </main>
