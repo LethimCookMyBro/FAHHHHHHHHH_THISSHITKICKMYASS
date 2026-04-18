@@ -1,13 +1,63 @@
 .git
 .gitignore
 .vscode
+.idea
+.DS_Store
+Thumbs.db
+
+# Dependencies / build outputs
 node_modules
 frontend/node_modules
 frontend/dist
+dist
+build
+coverage
+frontend/coverage
+
+# Python cache / local environments
 backend/__pycache__
 backend/.pytest_cache
+__pycache__
+**/__pycache__
 *.pyc
 *.pyo
 *.pyd
+.venv
+.venv_linux
+venv
+
+# Local env / secrets
+.env
+.env.*
+backend/.env
+backend/.env.*
+frontend/.env
+frontend/.env.*
+
+# Local model/data caches and generated knowledge payloads
+.models
+**/.models
+.ingest
+**/.ingest
+backend/models
+backend/data/*
+!backend/data/Knowledge/
+backend/data/Knowledge/*
+!backend/data/Knowledge/.gitkeep
+!backend/data/Knowledge/golden_qa.json
+
+# Runtime artifacts
 *.log
+*.pid
+*.sock
+*.sqlite
+*.sqlite3
+*.db
+*.db-shm
+*.db-wal
+uploads
+backend/uploads
+media
+backend/media
+backups
 backup.sql
