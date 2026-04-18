@@ -15,8 +15,14 @@ frontend/dist/
 .vite/
 dist/
 build/
+coverage/
+frontend/coverage/
 .npm/
 .pnpm-store/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
 
 ############################################
 # Python
@@ -44,6 +50,13 @@ htmlcov/
 .env
 .env.*
 !.env.example
+.envrc
+backend/.env
+backend/.env.*
+frontend/.env
+frontend/.env.*
+!backend/.env.example
+!frontend/.env.example
 
 ############################################
 # Models / ML / RAG
@@ -62,9 +75,10 @@ torch/
 **/torch/
 .ingest/
 **/.ingest/
-state.json
-*.lock
-**/*.lock
+.ingest/state.json
+.ingest/*.lock
+**/.ingest/state.json
+**/.ingest/*.lock
 *.safetensors
 *.bin
 *.pt
@@ -92,7 +106,20 @@ backend/data/Knowledge/*
 *.log
 *.pid
 *.sock
+*.seed
+*.sqlite3
+*.db-shm
+*.db-wal
+*.sqlite-shm
+*.sqlite-wal
 docker-volumes/
+uploads/
+backend/uploads/
+frontend/uploads/
+media/
+backend/media/
+backups/
+backup.sql
 ollama/
 tmp/
 temp/
