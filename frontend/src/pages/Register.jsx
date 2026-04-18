@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { LoaderCircle, Mail, Lock, User, Sparkles } from "lucide-react";
 import { authAPI, getApiErrorMessage } from "../utils/api";
-import { GlassSurface } from "../components/ui";
 import { useT } from "../utils/i18n";
+
+const APP_LOGO_SRC = "/assets/panya-mark-v1.svg";
 
 export default function Register({ onRegisterSuccess, onBackToLogin }) {
   const { t } = useT();
@@ -41,8 +42,10 @@ export default function Register({ onRegisterSuccess, onBackToLogin }) {
         <div className="flex flex-col items-center mb-8">
           <div className="relative mb-4">
             <img
-              src="/panya-logo.png"
+              src={APP_LOGO_SRC}
               alt="Panya logo"
+              width="56"
+              height="56"
               className="w-14 h-14 object-contain"
             />
             <div className="absolute -top-1 -right-1">
@@ -58,17 +61,9 @@ export default function Register({ onRegisterSuccess, onBackToLogin }) {
         </div>
 
         {/* Card */}
-        <GlassSurface
-          as="form"
+        <form
           onSubmit={handleSubmit}
           className="auth-card rounded-2xl p-6 sm:p-8 glass-noise"
-          borderRadius={20}
-          blur={13}
-          displace={0.62}
-          brightness={56}
-          opacity={0.9}
-          saturation={1.18}
-          backgroundOpacity={0.14}
         >
           <h2 className="auth-card-title text-xl font-semibold mb-6 text-center">
             {t("auth.getStarted")}
@@ -167,7 +162,7 @@ export default function Register({ onRegisterSuccess, onBackToLogin }) {
               {t("auth.signIn")}
             </button>
           </p>
-        </GlassSurface>
+        </form>
 
         <p className="auth-footer text-center text-[11px] mt-6">
           {t("auth.powered")}

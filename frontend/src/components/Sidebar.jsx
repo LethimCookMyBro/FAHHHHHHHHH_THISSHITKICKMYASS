@@ -18,8 +18,8 @@ import useMediaQuery from "../hooks/useMediaQuery";
 import useConnectionLabel from "../hooks/useConnectionLabel";
 
 const NAV_ITEMS = [
-  { to: "/", key: "nav.overview", icon: PieChart, end: true },
-  { to: "/overview", key: "nav.portMap", icon: Map },
+  { to: "/overview", key: "nav.overview", icon: PieChart, end: true },
+  { to: "/port-map", key: "nav.portMap", icon: Map },
   { to: "/equipment", key: "nav.equipment", icon: Briefcase },
   { to: "/alarms", key: "nav.alerts", icon: Lightbulb },
   { to: "/actions", key: "nav.actions", icon: ClipboardList },
@@ -100,7 +100,7 @@ export default function Sidebar({
           <div className="nexus-brand-row">
             <span className="nexus-brand-logo">
               <img
-                src="/favicon.svg"
+                src="/assets/panya-mark-v1.svg"
                 alt={t("brand.title")}
                 className="nexus-brand-logo-image"
               />
@@ -146,7 +146,7 @@ export default function Sidebar({
               end={end}
               style={{ "--nav-index": navIndex }}
               className={({ isActive }) => {
-                const active = end ? location.pathname === "/" : isActive;
+                const active = end ? location.pathname === to : isActive;
                 return `nexus-nav-link ${active ? "is-active" : ""}`;
               }}
               onClick={() => {

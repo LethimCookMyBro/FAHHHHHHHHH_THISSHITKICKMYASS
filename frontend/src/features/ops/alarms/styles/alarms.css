@@ -180,10 +180,9 @@
   box-shadow: var(--shadow-soft);
   padding: 12px;
   cursor: pointer;
-  opacity: 0;
-  transform: translateY(8px);
-  animation: incidentIn var(--motion-base) var(--ease-smooth) forwards;
-  animation-delay: var(--incident-delay, 0s);
+  opacity: 1;
+  transform: none;
+  animation: none;
 }
 
 .incident-card.is-critical {
@@ -947,6 +946,18 @@
 .decision-scroll {
   overflow-y: auto;
   overflow-x: hidden;
+}
+
+.alarms-queue-scroll {
+  align-content: start;
+  align-items: start;
+  grid-auto-rows: max-content;
+}
+
+.incident-card {
+  align-self: start;
+  height: auto;
+  min-height: 0;
 }
 
 .decision-panel {

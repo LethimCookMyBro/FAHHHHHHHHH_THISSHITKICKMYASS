@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from "react";
+import { Suspense, lazy, useCallback, useMemo } from "react";
 import {
   AlertTriangle,
   Plus,
@@ -10,12 +10,14 @@ import { useT } from "../utils/i18n";
 import { GlassSurface } from "../components/ui";
 import ChatComposer from "./chat/ChatComposer";
 import DeleteChatDialog from "./chat/DeleteChatDialog";
-import ChatMessages from "./chat/ChatMessages";
 import ChatSidebar from "./chat/ChatSidebar";
 import ChatWelcome from "./chat/ChatWelcome";
 import { useChatManager } from "../hooks/useChatManager";
 import { useConfigureTopbar } from "../layout/AppTopbarContext";
 import { downloadText } from "../utils/exporters";
+import "../styles/chat.css";
+
+const ChatMessages = lazy(() => import("./chat/ChatMessages"));
 
 export default function Chat({ hasAppSidebar = false }) {
   const { t } = useT();
@@ -60,6 +62,7 @@ export default function Chat({ hasAppSidebar = false }) {
     copyMessage,
     openSourceDocument,
   } = useChatManager();
+  const hasWideAppSidebar = hasAppSidebar && !isCompactLayout;
 
   const {
     isRecording,
@@ -96,8 +99,8 @@ export default function Chat({ hasAppSidebar = false }) {
 
   useConfigureTopbar(
     {
-      title: activeTitle,
-      subtitle: t("chat.headerSub"),
+      title: isCompactLayout ? "" : activeTitle,
+      subtitle: isCompactLayout ? "" : t("chat.headerSub"),
       search: {
         enabled: false,
       },
@@ -105,23 +108,28 @@ export default function Chat({ hasAppSidebar = false }) {
         label: t("chat.ready"),
         tone: "live",
       },
-      secondaryAction: {
-        label: t("topbar.exportChat"),
-        icon: Save,
-        onClick: exportChatTranscript,
-        disabled: !activeMessages.length,
-      },
-      primaryAction: {
-        label: t("chat.newChat"),
-        icon: Plus,
-        onClick: handleNewChat,
-      },
+      secondaryAction: isCompactLayout
+        ? null
+        : {
+            label: t("topbar.exportChat"),
+            icon: Save,
+            onClick: exportChatTranscript,
+            disabled: !activeMessages.length,
+          },
+      primaryAction: isCompactLayout
+        ? null
+        : {
+            label: t("chat.newChat"),
+            icon: Plus,
+            onClick: handleNewChat,
+          },
     },
     [
       activeMessages.length,
       activeTitle,
       exportChatTranscript,
       handleNewChat,
+      isCompactLayout,
       t,
     ],
   );
@@ -192,9 +200,9 @@ export default function Chat({ hasAppSidebar = false }) {
   );
 
   return (
-    <div className={`chat-shell-height chat-page ${hasAppSidebar ? "has-app-sidebar" : ""}`}>
+    <div className={`chat-shell-height chat-page ${hasWideAppSidebar ? "has-app-sidebar" : ""}`}>
       <ChatSidebar
-        hasAppSidebar={hasAppSidebar}
+        hasAppSidebar={hasWideAppSidebar}
         isCompactLayout={isCompactLayout}
         sidebarCollapsed={sidebarCollapsed}
         setSidebarCollapsed={setSidebarCollapsed}
@@ -248,20 +256,22 @@ export default function Chat({ hasAppSidebar = false }) {
           />
         ) : (
           <>
-            <ChatMessages
-              messagesContainerRef={messagesContainerRef}
-              activeMessages={activeMessages}
-              pendingMessage={pendingMessage}
-              streamingAssistant={streamingAssistant}
-              activeChat={activeChat}
-              autoStickToBottom={autoStickToBottom}
-              isLoading={isLoading}
-              copiedId={copiedId}
-              onCopyMessage={copyMessage}
-              onReuseMessage={handleReuseMessage}
-              onOpenSourceDocument={openSourceDocument}
-              apiError={apiError}
-            />
+            <Suspense fallback={<div className="chat-messages-loading" />}>
+              <ChatMessages
+                messagesContainerRef={messagesContainerRef}
+                activeMessages={activeMessages}
+                pendingMessage={pendingMessage}
+                streamingAssistant={streamingAssistant}
+                activeChat={activeChat}
+                autoStickToBottom={autoStickToBottom}
+                isLoading={isLoading}
+                copiedId={copiedId}
+                onCopyMessage={copyMessage}
+                onReuseMessage={handleReuseMessage}
+                onOpenSourceDocument={openSourceDocument}
+                apiError={apiError}
+              />
+            </Suspense>
 
             <div className="chat-compose-dock">
               <div className="chat-compose-dock-inner">

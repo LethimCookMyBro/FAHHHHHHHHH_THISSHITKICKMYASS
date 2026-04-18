@@ -1,8 +1,9 @@
 import { Bot, Info, MapPinned, RadioTower, ShieldCheck, Wrench } from "lucide-react";
-import ReactMarkdown from "react-markdown";
-import { useMemo } from "react";
+import { Suspense, lazy, useMemo } from "react";
 import { useT } from "../../../../utils/i18n";
 import { prepareMarkdownText } from "../../../../utils/markdownFormatting";
+
+const ReactMarkdown = lazy(() => import("react-markdown"));
 
 const getAlarmDisplayId = (alarmId) => {
   if (alarmId === null || alarmId === undefined || alarmId === "") return "-";
@@ -286,9 +287,11 @@ export default function DecisionPanel({
           </h4>
           <div className="decision-markdown">
             {diagnosisMarkdown ? (
-              <ReactMarkdown components={markdownComponents}>
-                {diagnosisMarkdown}
-              </ReactMarkdown>
+              <Suspense fallback={<p className="message-md-p">{diagnosisMarkdown}</p>}>
+                <ReactMarkdown components={markdownComponents}>
+                  {diagnosisMarkdown}
+                </ReactMarkdown>
+              </Suspense>
             ) : (
               <div className="decision-empty-cta">
                 <span className="decision-empty-robot">AI</span>
@@ -320,9 +323,11 @@ export default function DecisionPanel({
           </div>
           <div className="decision-markdown">
             {recommendationMarkdown ? (
-              <ReactMarkdown components={markdownComponents}>
-                {recommendationMarkdown}
-              </ReactMarkdown>
+              <Suspense fallback={<p className="message-md-p">{recommendationMarkdown}</p>}>
+                <ReactMarkdown components={markdownComponents}>
+                  {recommendationMarkdown}
+                </ReactMarkdown>
+              </Suspense>
             ) : (
               <p>{t("alarms.runDiagnose")}</p>
             )}

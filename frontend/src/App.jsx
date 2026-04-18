@@ -1,4 +1,4 @@
-import React, { Suspense, lazy, useEffect, useState } from "react";
+import React, { Suspense, lazy, useEffect } from "react";
 import {
   Navigate,
   Route,
@@ -6,23 +6,14 @@ import {
   useLocation,
   useNavigate,
 } from "react-router-dom";
-import Sidebar from "./components/Sidebar";
-import AppTopbar from "./components/layout/AppTopbar";
 import { AuthProvider } from "./features/auth/AuthContext";
 import { useSession } from "./features/auth/useSession";
-import {
-  PlcLiveDataProvider,
-  usePlcLiveDataContext,
-} from "./features/plc/PlcLiveDataContext";
-import { OpsSyncProvider, useOpsSyncContext } from "./features/ops/OpsSyncContext";
 import { I18nProvider, useT } from "./utils/i18n";
 import featureFlags from "./utils/featureFlags";
 import { LoaderCircle, AlertTriangle } from "lucide-react";
-import { useUserUiPreferencesSync } from "./hooks/useUserUiPreferencesSync";
-import { AppTopbarProvider } from "./layout/AppTopbarContext";
-import useMediaQuery from "./hooks/useMediaQuery";
 
 const SHOW_ERROR_DETAILS = import.meta.env.DEV;
+const APP_LOGO_SRC = "/assets/panya-mark-v1.svg";
 
 class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -116,6 +107,9 @@ const Chat = lazy(() => import("./pages/Chat"));
 const ActionLog = lazy(() => import("./features/ops/actions/ActionLogPage"));
 const Login = lazy(() => import("./pages/Login"));
 const Register = lazy(() => import("./pages/Register"));
+const AuthenticatedLayout = lazy(
+  () => import("./components/layout/AuthenticatedLayout"),
+);
 
 function PageLoader() {
   const { t } = useT();
@@ -133,8 +127,10 @@ function PageLoader() {
       }}
     >
       <img
-        src="/panya-logo.png"
+        src={APP_LOGO_SRC}
         alt="Panya logo"
+        width="56"
+        height="56"
         style={{ width: 56, height: 56, objectFit: "contain" }}
       />
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -168,6 +164,7 @@ function LocalizedErrorBoundary({ resetKey, children }) {
 
 function AppShell() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { t } = useT();
   const { sessionStatus, isAuthenticated, login, logout, user } = useSession();
 
@@ -181,8 +178,6 @@ function AppShell() {
       featureFlags.liquidGlass ? "on" : "off",
     );
   }, []);
-
-  useUserUiPreferencesSync({ user });
 
   if (sessionStatus === "loading") {
     return <PageLoader />;
@@ -198,7 +193,7 @@ function AppShell() {
               <Login
                 onLogin={async ({ email, password }) => {
                   await login({ email, password });
-                  navigate("/");
+                  navigate("/overview");
                 }}
                 onGoRegister={() => navigate("/register")}
               />
@@ -220,89 +215,34 @@ function AppShell() {
   }
 
   return (
-    <PlcLiveDataProvider>
-      <OpsSyncProvider>
-        <AppTopbarProvider>
-          <AuthenticatedLayout
-            onLogout={async () => {
-              await logout();
-              navigate("/login");
-            }}
-            userName={user?.full_name || user?.email || t("chat.defaultUser")}
-            userRole={user?.role || ""}
-          />
-        </AppTopbarProvider>
-      </OpsSyncProvider>
-    </PlcLiveDataProvider>
-  );
-}
-
-function AuthenticatedLayout({ onLogout, userName, userRole }) {
-  const location = useLocation();
-  const { connectionState } = usePlcLiveDataContext();
-  const { alarms } = useOpsSyncContext();
-  const isChatRoute = location.pathname.startsWith("/chat");
-  const isCompactLayout = useMediaQuery("(max-width: 980px)");
-  const showAppSidebar = true;
-  const showTopbar = !isChatRoute || isCompactLayout;
-  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
-  const activeAlarmCount = alarms.filter(
-    (alarm) => String(alarm?.status || "active").toLowerCase() === "active",
-  ).length;
-  const shellClass = featureFlags.uiV2
-    ? "plc-shell app-shell-ambience"
-    : "min-h-screen flex bg-slate-950 text-slate-100";
-
-  useEffect(() => {
-    setMobileSidebarOpen(false);
-  }, [location.pathname]);
-
-  return (
-    <div className={shellClass}>
-      {showAppSidebar ? (
-        <Sidebar
-          alarmCount={activeAlarmCount}
-          onLogout={onLogout}
-          connectionState={connectionState}
-          userName={userName}
-          userRole={userRole}
-          mobileOpen={mobileSidebarOpen}
-          onMobileOpenChange={setMobileSidebarOpen}
-        />
-      ) : null}
-
-      <main className={`plc-main ${isChatRoute ? "is-chat-route" : ""}`}>
-        {showTopbar ? (
-          <AppTopbar
-            onOpenSidebar={() => setMobileSidebarOpen(true)}
-            showSidebarToggle={isCompactLayout}
-            userName={userName}
-            userRole={userRole}
-            notificationCount={activeAlarmCount}
-          />
-        ) : null}
-
-        <div className={`plc-route-body ${isChatRoute ? "is-chat-route" : ""}`}>
-          <LocalizedErrorBoundary resetKey={location.pathname}>
-            <Suspense fallback={<PageLoader />}>
-              <Routes>
-                <Route path="/" element={<Dashboard />} />
-                <Route path="/overview" element={<PortMap />} />
-                <Route path="/equipment" element={<Equipment />} />
-                <Route path="/alarms" element={<Alarms />} />
-                <Route path="/analytics" element={<Analytics />} />
-                <Route
-                  path="/chat"
-                  element={<Chat hasAppSidebar={showAppSidebar && !isCompactLayout} />}
-                />
-                <Route path="/actions" element={<ActionLog />} />
-                <Route path="*" element={<Navigate to="/" replace />} />
-              </Routes>
-            </Suspense>
-          </LocalizedErrorBoundary>
-        </div>
-      </main>
-    </div>
+    <Suspense fallback={<PageLoader />}>
+      <AuthenticatedLayout
+        onLogout={async () => {
+          await logout();
+          navigate("/login");
+        }}
+        user={user}
+        userName={user?.full_name || user?.email || t("chat.defaultUser")}
+        userRole={user?.role || ""}
+      >
+        <LocalizedErrorBoundary resetKey={location.pathname}>
+          <Suspense fallback={<PageLoader />}>
+            <Routes>
+              <Route path="/" element={<Navigate to="/overview" replace />} />
+              <Route path="/overview" element={<Dashboard />} />
+              <Route path="/port-map" element={<PortMap />} />
+              <Route path="/portmap" element={<Navigate to="/port-map" replace />} />
+              <Route path="/equipment" element={<Equipment />} />
+              <Route path="/alarms" element={<Alarms />} />
+              <Route path="/analytics" element={<Analytics />} />
+              <Route path="/chat" element={<Chat hasAppSidebar />} />
+              <Route path="/actions" element={<ActionLog />} />
+              <Route path="*" element={<Navigate to="/overview" replace />} />
+            </Routes>
+          </Suspense>
+        </LocalizedErrorBoundary>
+      </AuthenticatedLayout>
+    </Suspense>
   );
 }
 

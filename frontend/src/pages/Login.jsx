@@ -2,7 +2,6 @@ import { useState } from "react";
 import { LoaderCircle, Mail, Lock, Sparkles } from "lucide-react";
 import { getApiErrorMessage } from "../utils/api";
 import { useT } from "../utils/i18n";
-import { GlassSurface } from "../components/ui";
 
 const LOCALHOST_HOSTNAMES = new Set(["localhost", "127.0.0.1"]);
 const metaEnv = import.meta.env || {};
@@ -10,6 +9,7 @@ const LOCAL_DEMO_CREDENTIALS = {
   email: String(metaEnv.VITE_DEV_DEMO_EMAIL || "").trim(),
   password: String(metaEnv.VITE_DEV_DEMO_PASSWORD || ""),
 };
+const APP_LOGO_SRC = "/assets/panya-mark-v1.svg";
 
 function Login({ onLogin, onGoRegister }) {
   const { t } = useT();
@@ -50,8 +50,10 @@ function Login({ onLogin, onGoRegister }) {
         <div className="flex flex-col items-center mb-8">
           <div className="relative mb-4">
             <img
-              src="/panya-logo.png"
+              src={APP_LOGO_SRC}
               alt="Panya logo"
+              width="56"
+              height="56"
               className="w-14 h-14 object-contain"
             />
             <div className="absolute -top-1 -right-1">
@@ -66,17 +68,9 @@ function Login({ onLogin, onGoRegister }) {
           </p>
         </div>
 
-        <GlassSurface
-          as="form"
+        <form
           className="auth-card rounded-2xl p-6 sm:p-8 glass-noise"
           onSubmit={handleSubmit}
-          borderRadius={20}
-          blur={13}
-          displace={0.62}
-          brightness={56}
-          opacity={0.9}
-          saturation={1.18}
-          backgroundOpacity={0.14}
         >
           <h2 className="auth-card-title text-xl font-semibold mb-6 text-center">
             {t("auth.welcomeBack")}
@@ -175,7 +169,7 @@ function Login({ onLogin, onGoRegister }) {
               {t("auth.createOne")}
             </button>
           </p>
-        </GlassSurface>
+        </form>
 
         <p className="auth-footer text-center text-[11px] mt-6">
           {t("auth.powered")}

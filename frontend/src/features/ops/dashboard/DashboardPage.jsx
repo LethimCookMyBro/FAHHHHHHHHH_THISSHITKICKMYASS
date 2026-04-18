@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, ArrowUpRight, ClipboardList } from "lucide-react";
 import {
   EmptyState,
@@ -73,7 +73,13 @@ function DashboardSkeleton() {
   );
 }
 
-function FeedList({ rows, emptyIcon: Icon, emptyTitle, emptyMessage, kind }) {
+const FeedList = memo(function FeedList({
+  rows,
+  emptyIcon: Icon,
+  emptyTitle,
+  emptyMessage,
+  kind,
+}) {
   const { t } = useT();
   const safeRows = Array.isArray(rows) ? rows : [];
 
@@ -149,12 +155,15 @@ function FeedList({ rows, emptyIcon: Icon, emptyTitle, emptyMessage, kind }) {
       })}
     </div>
   );
-}
+});
 
 export default function DashboardPage() {
   const { t } = useT();
   const navigate = useNavigate();
   const [machineSearch, setMachineSearch] = useState("");
+  const deferredMachineSearch = useDeferredValue(machineSearch);
+  const [showSecondarySections, setShowSecondarySections] = useState(false);
+  const secondaryPlaceholderRef = useRef(null);
   const {
     connectionState,
     connectionLabel,
@@ -172,7 +181,7 @@ export default function DashboardPage() {
   } = useDashboardViewModel();
 
   const filteredMachineRows = useMemo(() => {
-    const query = machineSearch.trim().toLowerCase();
+    const query = deferredMachineSearch.trim().toLowerCase();
     if (!query) return machineRows;
 
     return machineRows.filter((row) => {
@@ -189,7 +198,7 @@ export default function DashboardPage() {
 
       return haystack.includes(query);
     });
-  }, [machineRows, machineSearch]);
+  }, [deferredMachineSearch, machineRows]);
 
   const visibleMachineRows = filteredMachineRows;
   const priorityAssetSubtitle =
@@ -201,15 +210,71 @@ export default function DashboardPage() {
           count: visibleMachineRows.length,
         });
 
-  const openMachineInChat = (machine) => {
-    navigate(
-      `/chat?machineId=${encodeURIComponent(machine.id || machine.name)}&machineName=${encodeURIComponent(machine.name || t("alarms.unknownMachine"))}&errorCode=${encodeURIComponent(machine.errorCode || machine.state || "CHECK")}`,
-    );
-  };
+  useEffect(() => {
+    if (loading) {
+      setShowSecondarySections(false);
+      return undefined;
+    }
 
-  const openMachineInMap = (machine) => {
-    navigate(`/overview?${buildZoneRouteSearch(machine)}`);
-  };
+    const reveal = () => setShowSecondarySections(true);
+    const timeoutId = window.setTimeout(reveal, 4500);
+
+    if (!("IntersectionObserver" in window) || !secondaryPlaceholderRef.current) {
+      return () => window.clearTimeout(timeoutId);
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry?.isIntersecting) return;
+        window.clearTimeout(timeoutId);
+        observer.disconnect();
+        reveal();
+      },
+      { rootMargin: "360px 0px" },
+    );
+    observer.observe(secondaryPlaceholderRef.current);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+      observer.disconnect();
+    };
+  }, [loading]);
+
+  const openActionTimeline = useCallback(() => {
+    navigate("/actions");
+  }, [navigate]);
+
+  const openAlerts = useCallback(() => {
+    navigate("/alarms");
+  }, [navigate]);
+
+  const openAnalytics = useCallback(() => {
+    navigate("/analytics");
+  }, [navigate]);
+
+  const openEquipment = useCallback(() => {
+    navigate("/equipment");
+  }, [navigate]);
+
+  const openPortMap = useCallback(() => {
+    navigate("/port-map");
+  }, [navigate]);
+
+  const openMachineInChat = useCallback(
+    (machine) => {
+      navigate(
+        `/chat?machineId=${encodeURIComponent(machine.id || machine.name)}&machineName=${encodeURIComponent(machine.name || t("alarms.unknownMachine"))}&errorCode=${encodeURIComponent(machine.errorCode || machine.state || "CHECK")}`,
+      );
+    },
+    [navigate, t],
+  );
+
+  const openMachineInMap = useCallback(
+    (machine) => {
+      navigate(`/port-map?${buildZoneRouteSearch(machine)}`);
+    },
+    [navigate],
+  );
 
   useConfigureTopbar(
     {
@@ -247,7 +312,7 @@ export default function DashboardPage() {
           <button
             type="button"
             className="app-topbar-btn secondary"
-            onClick={() => navigate("/actions")}
+            onClick={openActionTimeline}
           >
             <ClipboardList size={16} />
             {t("dashboardV2.actionTimeline")}
@@ -255,7 +320,7 @@ export default function DashboardPage() {
           <button
             type="button"
             className="app-topbar-btn primary"
-            onClick={() => navigate("/alarms")}
+            onClick={openAlerts}
           >
             <AlertTriangle size={16} />
             {t("dashboardV2.openAlerts")}
@@ -275,101 +340,109 @@ export default function DashboardPage() {
             actionRows={actionRows}
             utilizationRate={utilizationRate}
             focusMessage={focusMessage}
-            onOpenPortMap={() => navigate("/overview")}
-            onOpenAnalytics={() => navigate("/analytics")}
-            onOpenActions={() => navigate("/actions")}
+            onOpenPortMap={openPortMap}
+            onOpenAnalytics={openAnalytics}
+            onOpenActions={openActionTimeline}
           />
 
-          <div className="ops-dashboard-columns">
-            <div className="ops-dashboard-column">
-              <SectionCard
-                title={t("dashboardV2.maintenanceRhythm")}
-                subtitle={t("dashboardV2.maintenanceRhythmSubtitle")}
-                right={
-                  <button
-                    type="button"
-                    className="dash-inline-link"
-                    onClick={() => navigate("/analytics")}
-                  >
-                    {t("dashboardV2.predictiveLens")}
-                    <ArrowUpRight size={14} />
-                  </button>
-                }
-              >
-                <OeeTrendPanel oeeRows={oeeRows} history={history} />
-              </SectionCard>
+          {showSecondarySections ? (
+            <div className="ops-dashboard-columns">
+              <div className="ops-dashboard-column">
+                <SectionCard
+                  title={t("dashboardV2.maintenanceRhythm")}
+                  subtitle={t("dashboardV2.maintenanceRhythmSubtitle")}
+                  right={
+                    <button
+                      type="button"
+                      className="dash-inline-link"
+                      onClick={openAnalytics}
+                    >
+                      {t("dashboardV2.predictiveLens")}
+                      <ArrowUpRight size={14} />
+                    </button>
+                  }
+                >
+                  <OeeTrendPanel oeeRows={oeeRows} history={history} />
+                </SectionCard>
 
-              <SectionCard
-                title={t("dashboardV2.alertWatchlist")}
-                subtitle={t("dashboardV2.alertWatchlistSubtitle")}
-                right={
-                  <button
-                    type="button"
-                    className="dash-inline-link"
-                    onClick={() => navigate("/alarms")}
-                  >
-                    {t("dashboardV2.incidentCenter")}
-                    <ArrowUpRight size={14} />
-                  </button>
-                }
-              >
-                <FeedList
-                  rows={alertRows}
-                  kind="alert"
-                  emptyIcon={AlertTriangle}
-                  emptyTitle={t("dashboardV2.noActiveAlerts")}
-                  emptyMessage={t("dashboardV2.noActiveAlertsMessage")}
-                />
-              </SectionCard>
+                <SectionCard
+                  title={t("dashboardV2.alertWatchlist")}
+                  subtitle={t("dashboardV2.alertWatchlistSubtitle")}
+                  right={
+                    <button
+                      type="button"
+                      className="dash-inline-link"
+                      onClick={openAlerts}
+                    >
+                      {t("dashboardV2.incidentCenter")}
+                      <ArrowUpRight size={14} />
+                    </button>
+                  }
+                >
+                  <FeedList
+                    rows={alertRows}
+                    kind="alert"
+                    emptyIcon={AlertTriangle}
+                    emptyTitle={t("dashboardV2.noActiveAlerts")}
+                    emptyMessage={t("dashboardV2.noActiveAlertsMessage")}
+                  />
+                </SectionCard>
+              </div>
+
+              <div className="ops-dashboard-column">
+                <SectionCard
+                  title={t("dashboardV2.priorityAssets")}
+                  subtitle={priorityAssetSubtitle}
+                  right={
+                    <button
+                      type="button"
+                      className="dash-inline-link"
+                      onClick={openEquipment}
+                    >
+                      {t("dashboardV2.equipmentView")}
+                      <ArrowUpRight size={14} />
+                    </button>
+                  }
+                >
+                  <MachineQueueTable
+                    rows={visibleMachineRows}
+                    onOpenChat={openMachineInChat}
+                    onOpenMap={openMachineInMap}
+                    onOpenAll={openEquipment}
+                  />
+                </SectionCard>
+
+                <SectionCard
+                  title={t("dashboardV2.recentActions")}
+                  subtitle={t("dashboardV2.recentActionsSubtitle")}
+                  right={
+                    <button
+                      type="button"
+                      className="dash-inline-link"
+                      onClick={openActionTimeline}
+                    >
+                      {t("dashboardV2.fullTimeline")}
+                      <ArrowUpRight size={14} />
+                    </button>
+                  }
+                >
+                  <FeedList
+                    rows={actionRows}
+                    kind="action"
+                    emptyIcon={ClipboardList}
+                    emptyTitle={t("dashboardV2.noRecordedActions")}
+                    emptyMessage={t("dashboardV2.noRecordedActionsMessage")}
+                  />
+                </SectionCard>
+              </div>
             </div>
-
-            <div className="ops-dashboard-column">
-              <SectionCard
-                title={t("dashboardV2.priorityAssets")}
-                subtitle={priorityAssetSubtitle}
-                right={
-                  <button
-                    type="button"
-                    className="dash-inline-link"
-                    onClick={() => navigate("/equipment")}
-                  >
-                    {t("dashboardV2.equipmentView")}
-                    <ArrowUpRight size={14} />
-                  </button>
-                }
-              >
-                <MachineQueueTable
-                  rows={visibleMachineRows}
-                  onOpenChat={openMachineInChat}
-                  onOpenMap={openMachineInMap}
-                  onOpenAll={() => navigate("/equipment")}
-                />
-              </SectionCard>
-
-              <SectionCard
-                title={t("dashboardV2.recentActions")}
-                subtitle={t("dashboardV2.recentActionsSubtitle")}
-                right={
-                  <button
-                    type="button"
-                    className="dash-inline-link"
-                    onClick={() => navigate("/actions")}
-                  >
-                    {t("dashboardV2.fullTimeline")}
-                    <ArrowUpRight size={14} />
-                  </button>
-                }
-              >
-                <FeedList
-                  rows={actionRows}
-                  kind="action"
-                  emptyIcon={ClipboardList}
-                  emptyTitle={t("dashboardV2.noRecordedActions")}
-                  emptyMessage={t("dashboardV2.noRecordedActionsMessage")}
-                />
-              </SectionCard>
-            </div>
-          </div>
+          ) : (
+            <div
+              ref={secondaryPlaceholderRef}
+              className="dash-secondary-placeholder"
+              aria-hidden="true"
+            />
+          )}
         </>
       )}
     </div>

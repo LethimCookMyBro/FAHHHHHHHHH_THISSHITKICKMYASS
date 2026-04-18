@@ -76,20 +76,70 @@ def _connector_supports_live_execution(connector: Any) -> bool:
     return False
 
 
+def _build_action_filters(
+    *,
+    q: Optional[str] = None,
+    status_filter: Optional[str] = None,
+    today: bool = False,
+) -> tuple[str, list[Any]]:
+    clauses: list[str] = []
+    params: list[Any] = []
+
+    normalized_status = (status_filter or "").strip().lower()
+    if normalized_status:
+        clauses.append("LOWER(COALESCE(a.execution_status, '')) = %s")
+        params.append(normalized_status)
+
+    if today:
+        clauses.append("a.created_at >= date_trunc('day', now())")
+        clauses.append("a.created_at < date_trunc('day', now()) + interval '1 day'")
+
+    query = (q or "").strip().lower()
+    if query:
+        pattern = f"%{query}%"
+        clauses.append(
+            """
+            (
+                LOWER(COALESCE(a.action_type, '')) LIKE %s OR
+                LOWER(COALESCE(a.execution_status, '')) LIKE %s OR
+                LOWER(COALESCE(a.diagnosis, '')) LIKE %s OR
+                LOWER(COALESCE(a.recommendation, '')) LIKE %s OR
+                LOWER(COALESCE(a.action_reason, '')) LIKE %s OR
+                LOWER(COALESCE(al.error_code, '')) LIKE %s OR
+                LOWER(COALESCE(al.message, '')) LIKE %s OR
+                LOWER(COALESCE(a.action_payload::text, '')) LIKE %s
+            )
+            """
+        )
+        params.extend([pattern] * 8)
+
+    if not clauses:
+        return "", params
+    return f"WHERE {' AND '.join(clauses)}", params
+
+
 @router.get("/actions")
 async def list_actions(
     request: Request,
     current_user: dict = Depends(require_roles("viewer")),
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
+    q: Optional[str] = Query(None, max_length=120),
+    status: Optional[str] = Query(None, max_length=40),
+    today: bool = Query(False),
 ):
     _ = current_user
     pool = _get_pool(request)
     conn = pool.getconn()
     try:
         with conn.cursor() as cur:
+            where_sql, filter_params = _build_action_filters(
+                q=q,
+                status_filter=status,
+                today=today,
+            )
             cur.execute(
-                """
+                f"""
                 SELECT a.id, a.alarm_id, a.action_type, a.diagnosis,
                        a.recommendation, a.confidence, a.is_hardware,
                        a.repair_steps, a.sources, a.created_at,
@@ -100,18 +150,55 @@ async def list_actions(
                        al.error_code, al.message AS error_message, al.severity
                 FROM ai_actions a
                 LEFT JOIN plc_alarms al ON a.alarm_id = al.id
+                {where_sql}
                 ORDER BY a.created_at DESC
                 LIMIT %s OFFSET %s
                 """,
-                [limit, offset],
+                [*filter_params, limit, offset],
             )
             rows = _rows_to_dicts(cur)
 
-            cur.execute("SELECT COUNT(*) FROM ai_actions")
+            cur.execute(
+                f"""
+                SELECT COUNT(*)
+                FROM ai_actions a
+                LEFT JOIN plc_alarms al ON a.alarm_id = al.id
+                {where_sql}
+                """,
+                filter_params,
+            )
             total = cur.fetchone()[0]
 
+            cur.execute(
+                """
+                SELECT
+                    COUNT(*) AS total,
+                    COUNT(*) FILTER (WHERE LOWER(COALESCE(execution_status, '')) = 'executed') AS executed,
+                    COUNT(*) FILTER (WHERE LOWER(COALESCE(execution_status, '')) = 'failed') AS failed,
+                    COUNT(*) FILTER (WHERE LOWER(COALESCE(execution_status, '')) = 'requires_manual') AS manual,
+                    COUNT(*) FILTER (
+                        WHERE created_at >= date_trunc('day', now())
+                          AND created_at < date_trunc('day', now()) + interval '1 day'
+                    ) AS today
+                FROM ai_actions
+                """
+            )
+            stats_row = cur.fetchone()
+
         actions = [_normalize_action(row) for row in rows]
-        return {"actions": actions, "total": total, "limit": limit, "offset": offset}
+        return {
+            "actions": actions,
+            "total": total,
+            "limit": limit,
+            "offset": offset,
+            "stats": {
+                "total": stats_row[0] if stats_row else 0,
+                "executed": stats_row[1] if stats_row else 0,
+                "failed": stats_row[2] if stats_row else 0,
+                "manual": stats_row[3] if stats_row else 0,
+                "today": stats_row[4] if stats_row else 0,
+            },
+        }
     finally:
         pool.putconn(conn)
 

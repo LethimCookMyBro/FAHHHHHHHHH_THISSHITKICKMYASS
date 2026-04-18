@@ -135,7 +135,7 @@ export default function AlarmsPage() {
 
   const openAlarmInMap = (alarm) => {
     if (!alarm) return;
-    navigate(`/overview?${buildZoneRouteSearch(alarm)}`);
+    navigate(`/port-map?${buildZoneRouteSearch(alarm)}`);
   };
 
   const exportCurrentView = () => {

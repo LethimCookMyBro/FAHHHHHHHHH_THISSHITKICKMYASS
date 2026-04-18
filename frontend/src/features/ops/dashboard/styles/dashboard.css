@@ -74,6 +74,12 @@
   align-content: start;
 }
 
+.dash-secondary-placeholder {
+  min-height: 240px;
+  border-radius: 24px;
+  border: 1px solid transparent;
+}
+
 .dash-feature-card,
 .dash-command-card,
 .dash-topology-card,
@@ -87,6 +93,12 @@
   box-shadow: var(--shadow-card);
   min-width: 0;
   width: 100%;
+}
+
+.dash-feed-item,
+.machine-card {
+  content-visibility: auto;
+  contain-intrinsic-size: 280px;
 }
 
 .dash-feature-card,
@@ -200,14 +212,88 @@
   min-height: 232px;
   margin: 0;
   padding: 0;
+  position: relative;
+  overflow: hidden;
 }
 
-.dash-feature-chart .recharts-responsive-container {
-  width: 100% !important;
+.dash-native-chart {
+  width: 100%;
+  height: 100%;
+  display: block;
+  cursor: crosshair;
+}
+
+.dash-feature-tooltip {
+  position: absolute;
+  top: 10px;
+  z-index: 2;
+  pointer-events: none;
+  transition:
+    left 140ms ease,
+    transform 140ms ease;
+}
+
+.dash-feature-tooltip.is-left {
+  transform: translateX(0);
+}
+
+.dash-feature-tooltip.is-center {
+  transform: translateX(-50%);
+}
+
+.dash-feature-tooltip.is-right {
+  transform: translateX(-100%);
 }
 
 .dash-pulse-chart {
   min-height: 260px;
+}
+
+.dash-native-bars {
+  height: 100%;
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  align-items: end;
+  gap: 8px;
+  padding: 14px 10px 4px;
+  border-radius: 18px;
+  background:
+    repeating-linear-gradient(
+      to top,
+      transparent 0,
+      transparent 42px,
+      color-mix(in srgb, var(--chart-grid) 58%, transparent) 43px
+    );
+}
+
+.dash-native-bar-group {
+  height: 100%;
+  min-width: 0;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.dash-native-bar-pair {
+  min-height: 0;
+  display: flex;
+  align-items: end;
+  justify-content: center;
+  gap: 4px;
+}
+
+.dash-native-bar {
+  width: min(11px, 42%);
+  border-radius: 9px 9px 3px 3px;
+}
+
+.dash-native-bar-label {
+  overflow: hidden;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  text-align: center;
+  text-overflow: ellipsis;
 }
 
 .dash-tooltip-card {

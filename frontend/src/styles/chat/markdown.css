@@ -67,12 +67,34 @@
 }
 
 .message-code-block {
-  margin: 0.5rem 0;
+  margin: 0;
   padding: 0.72rem;
   overflow-x: auto;
   border: 1px solid var(--line-soft);
   border-radius: 10px;
   background: var(--surface-code);
+}
+
+.message-code-shell {
+  margin: 0.5rem 0;
+}
+
+.message-code-meta {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 0.35rem;
+}
+
+.message-code-language {
+  padding: 0.15rem 0.5rem;
+  border: 1px solid var(--line-soft);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface-code) 74%, white);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .message-code-content {

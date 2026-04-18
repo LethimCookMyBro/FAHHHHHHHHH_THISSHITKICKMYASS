@@ -7,13 +7,15 @@ import {
   Database,
   AlertCircle,
 } from "lucide-react";
-import ReactMarkdown from "react-markdown";
+import { Suspense, lazy } from "react";
 import { EmptyState, StatusPill } from "../../../../components/ui";
 import { useT } from "../../../../utils/i18n";
 import {
   looksLikeDiagnosticMarkdown,
   prepareMarkdownText,
 } from "../../../../utils/markdownFormatting";
+
+const ReactMarkdown = lazy(() => import("react-markdown"));
 
 const actionDetailMarkdownComponents = {
   h1: ({ children }) => (
@@ -97,9 +99,11 @@ function MarkdownDetail({ text, emptyText }) {
     <div
       className={`timeline-detail-md message-markdown ${isDiagnostic ? "is-diagnostic" : ""}`}
     >
-      <ReactMarkdown components={actionDetailMarkdownComponents}>
-        {formatted}
-      </ReactMarkdown>
+      <Suspense fallback={<p className="timeline-detail-text">{formatted}</p>}>
+        <ReactMarkdown components={actionDetailMarkdownComponents}>
+          {formatted}
+        </ReactMarkdown>
+      </Suspense>
     </div>
   );
 }

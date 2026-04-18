@@ -1,8 +1,7 @@
-/* eslint-disable react-refresh/only-export-components */
-import { Suspense, lazy } from "react";
 import { ListChecks, Wrench, AlertTriangle, FileSearch } from "lucide-react";
 import { toArray } from "./utils";
 import featureFlags from "../../utils/featureFlags";
+import CodeHighlighter from "./CodeHighlighter";
 export {
   fixMarkdownTable,
   looksLikeDiagnosticMarkdown,
@@ -10,20 +9,10 @@ export {
   prepareMarkdownText,
 } from "../../utils/markdownFormatting";
 
-const CodeHighlighterLazy = lazy(() => import("./CodeHighlighter"));
-
 const renderPlainCodeBlock = (children) => (
   <pre className="message-code-block">
     <code className="message-code-content">{children}</code>
   </pre>
-);
-
-const AsyncSyntaxHighlighter = ({ language, children, ...props }) => (
-  <Suspense fallback={renderPlainCodeBlock(children)}>
-    <CodeHighlighterLazy language={language} {...props}>
-      {children}
-    </CodeHighlighterLazy>
-  </Suspense>
 );
 
 export const markdownComponents = {
@@ -35,9 +24,9 @@ export const markdownComponents = {
 
     if (shouldRenderHighlighted) {
       return (
-        <AsyncSyntaxHighlighter language={match[1]} {...props}>
+        <CodeHighlighter language={match[1]} {...props}>
           {codeText}
-        </AsyncSyntaxHighlighter>
+        </CodeHighlighter>
       );
     }
 

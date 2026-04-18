@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { AlertCircle, ArrowUpRight, MapPinned, Search } from "lucide-react";
 import { StatusPill } from "../../../../components/ui";
 import { useT } from "../../../../utils/i18n";
@@ -19,7 +20,7 @@ const STATE_CONFIG = {
   stopped: { color: "var(--text-muted)", borderColor: "var(--surface-border)" },
 };
 
-export default function MachineQueueTable({
+function MachineQueueTable({
   rows,
   onOpenChat,
   onOpenMap,
@@ -181,3 +182,5 @@ export default function MachineQueueTable({
     </div>
   );
 }
+
+export default memo(MachineQueueTable);

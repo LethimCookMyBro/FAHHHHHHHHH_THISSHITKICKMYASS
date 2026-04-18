@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import {
   Activity,
   AlertTriangle,
@@ -7,16 +7,6 @@ import {
   Gauge,
   Map,
 } from "lucide-react";
-import {
-  CartesianGrid,
-  Line,
-  LineChart,
-  ReferenceLine,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
 import { MetricTile } from "../../../../components/ui";
 import { useT } from "../../../../utils/i18n";
 import { useThemePalette } from "../../../theme/themeContext";
@@ -49,31 +39,78 @@ const buildSeries = (history) => {
   }));
 };
 
-function TrendTooltip({ active, payload, label }) {
-  if (!active || !Array.isArray(payload) || payload.length === 0) return null;
+const buildLinePath = (data, key, xForIndex, yForValue) => {
+  if (!data.length) return "";
+  return data
+    .map((point, index) => {
+      const command = index === 0 ? "M" : "L";
+      return `${command} ${xForIndex(index).toFixed(1)} ${yForValue(point[key]).toFixed(1)}`;
+    })
+    .join(" ");
+};
+
+function TrendTooltip({ point, t }) {
+  if (!point) return null;
+
   return (
     <div className="dash-tooltip-card">
-      <p>{label}</p>
-      {payload.map((item) => (
-        <div
-          key={item.name}
-          className="dash-tooltip-row"
-          style={{ "--swatch": item.color }}
-        >
-          <span>{item.name}</span>
-          <strong>{Math.round(Number(item.value) || 0)}</strong>
-        </div>
-      ))}
+      <p>{point.time}</p>
+      <div className="dash-tooltip-row" style={{ "--swatch": "var(--accent)" }}>
+        <span>{t("dashboard.executed")}</span>
+        <strong>{Math.round(Number(point.executed) || 0)}</strong>
+      </div>
+      <div
+        className="dash-tooltip-row"
+        style={{ "--swatch": "var(--chart-accent-alt)" }}
+      >
+        <span>{t("dashboard.planned")}</span>
+        <strong>{Math.round(Number(point.planned) || 0)}</strong>
+      </div>
     </div>
   );
 }
 
-function StatChartCard({ data }) {
+const StatChartCard = memo(function StatChartCard({ data }) {
   const { t } = useT();
   const palette = useThemePalette();
+  const chartFrameRef = useRef(null);
+  const [chartWidth, setChartWidth] = useState(960);
+  const [activeIndex, setActiveIndex] = useState(null);
   const chartHeight = 232;
-  const markerIndex = Math.max(0, data.length - 2);
-  const markerPoint = data[markerIndex] || null;
+  const plot = useMemo(
+    () => ({
+      left: Math.max(48, Math.round(chartWidth * 0.045)),
+      right: Math.max(20, Math.round(chartWidth * 0.02)),
+      top: 16,
+      bottom: 32,
+    }),
+    [chartWidth],
+  );
+
+  useEffect(() => {
+    const element = chartFrameRef.current;
+    if (!element) return undefined;
+
+    const syncChartWidth = () => {
+      const nextWidth = Math.max(320, Math.round(element.clientWidth || 0));
+      setChartWidth((current) => (current === nextWidth ? current : nextWidth));
+    };
+
+    syncChartWidth();
+
+    if (typeof ResizeObserver === "undefined") {
+      window.addEventListener("resize", syncChartWidth);
+      return () => window.removeEventListener("resize", syncChartWidth);
+    }
+
+    const observer = new ResizeObserver(() => {
+      syncChartWidth();
+    });
+    observer.observe(element);
+
+    return () => observer.disconnect();
+  }, []);
+
   const yAxisDomain = useMemo(() => {
     const values = data.flatMap((point) => [
       Number(point.executed) || 0,
@@ -88,6 +125,55 @@ function StatChartCard({ data }) {
 
     return [min, max <= min ? min + 10 : max];
   }, [data]);
+  const yTicks = useMemo(() => {
+    const [min, max] = yAxisDomain;
+    return Array.from({ length: 4 }, (_, index) =>
+      Math.round(min + ((max - min) / 3) * index),
+    );
+  }, [yAxisDomain]);
+  const xForIndex = (index) => {
+    if (data.length <= 1) return plot.left;
+    const width = chartWidth - plot.left - plot.right;
+    return plot.left + (width / (data.length - 1)) * index;
+  };
+  const yForValue = (value) => {
+    const [min, max] = yAxisDomain;
+    const height = chartHeight - plot.top - plot.bottom;
+    const ratio = (Number(value) - min) / Math.max(1, max - min);
+    return plot.top + height - ratio * height;
+  };
+  const executedPath = buildLinePath(data, "executed", xForIndex, yForValue);
+  const plannedPath = buildLinePath(data, "planned", xForIndex, yForValue);
+  const fallbackIndex = Math.max(0, data.length - 2);
+  const resolvedActiveIndex = activeIndex == null ? fallbackIndex : activeIndex;
+  const activePoint = data[resolvedActiveIndex] || null;
+  const markerX = xForIndex(resolvedActiveIndex);
+  const executedY = activePoint ? yForValue(activePoint.executed) : plot.top;
+  const plannedY = activePoint ? yForValue(activePoint.planned) : plot.top;
+  const tooltipAlign =
+    markerX > chartWidth - 150 ? "right" : markerX < 150 ? "left" : "center";
+
+  const handlePointerMove = (event) => {
+    if (!chartFrameRef.current || data.length === 0) return;
+    const rect = chartFrameRef.current.getBoundingClientRect();
+    if (!rect.width) return;
+
+    const relativeX = ((event.clientX - rect.left) / rect.width) * chartWidth;
+    const clampedX = Math.min(
+      chartWidth - plot.right,
+      Math.max(plot.left, relativeX),
+    );
+    const step =
+      data.length > 1
+        ? (chartWidth - plot.left - plot.right) / (data.length - 1)
+        : 1;
+    const nextIndex = Math.round((clampedX - plot.left) / step);
+    setActiveIndex(Math.max(0, Math.min(data.length - 1, nextIndex)));
+  };
+
+  const handlePointerLeave = () => {
+    setActiveIndex(null);
+  };
 
   return (
     <article className="dash-feature-card dash-feature-card-primary">
@@ -108,84 +194,116 @@ function StatChartCard({ data }) {
         </div>
       </header>
 
-      <div className="dash-feature-chart" style={{ height: chartHeight }}>
-        <ResponsiveContainer width="100%" height="100%">
-          <LineChart
-            data={data}
-            margin={{ top: 6, right: 10, left: 2, bottom: 0 }}
+      <div
+        ref={chartFrameRef}
+        className="dash-feature-chart"
+        style={{ height: chartHeight }}
+      >
+        {activePoint ? (
+          <div
+            className={`dash-feature-tooltip is-${tooltipAlign}`}
+            style={{ left: `${markerX}px` }}
           >
-            <CartesianGrid stroke={palette.chartGrid} vertical={false} />
-            <XAxis
-              dataKey="time"
-              tickLine={false}
-              axisLine={false}
-              tick={{
-                fontSize: 10,
-                fill: palette.chartText,
-                fontFamily: "var(--font-mono)",
-              }}
-            />
-            <YAxis
-              domain={yAxisDomain}
-              tickCount={4}
-              tickFormatter={(value) => String(Math.round(Number(value) || 0))}
-              tickLine={false}
-              axisLine={false}
-              width={40}
-              tickMargin={6}
-              allowDecimals={false}
-              tick={{
-                fontSize: 10,
-                fill: palette.chartText,
-                fontFamily: "var(--font-mono)",
-              }}
-            />
-            <Tooltip content={<TrendTooltip />} />
-
-            {markerPoint ? (
-              <ReferenceLine
-                x={markerPoint.time}
-                stroke={palette.chartReference}
-                strokeDasharray="4 4"
+            <TrendTooltip point={activePoint} t={t} />
+          </div>
+        ) : null}
+        <svg
+          className="dash-native-chart"
+          viewBox={`0 0 ${chartWidth} ${chartHeight}`}
+          role="img"
+          aria-label={t("dashboard.workOrders")}
+          onPointerMove={handlePointerMove}
+          onPointerLeave={handlePointerLeave}
+        >
+          {yTicks.map((tick) => {
+            const y = yForValue(tick);
+            return (
+              <g key={tick}>
+                <line
+                  x1={plot.left}
+                  x2={chartWidth - plot.right}
+                  y1={y}
+                  y2={y}
+                  stroke={palette.chartGrid}
+                  strokeDasharray="5 7"
+                />
+                <text
+                  x={plot.left - 10}
+                  y={y + 4}
+                  textAnchor="end"
+                  fill={palette.chartText}
+                  fontSize="11"
+                  fontFamily="var(--font-mono)"
+                >
+                  {tick}
+                </text>
+              </g>
+            );
+          })}
+          <line
+            x1={markerX}
+            x2={markerX}
+            y1={plot.top}
+            y2={chartHeight - plot.bottom}
+            stroke={palette.chartReference}
+            strokeDasharray="4 4"
+          />
+          <path
+            d={plannedPath}
+            fill="none"
+            stroke={palette.accentAlt}
+            strokeWidth="3"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <path
+            d={executedPath}
+            fill="none"
+            stroke={palette.accent}
+            strokeWidth="3.4"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          {activePoint ? (
+            <>
+              <circle
+                cx={markerX}
+                cy={plannedY}
+                r="5.5"
+                fill={palette.surface}
+                stroke={palette.accentAlt}
+                strokeWidth="2.4"
               />
-            ) : null}
-
-            <Line
-              type="monotone"
-              dataKey="executed"
-              name="Executed"
-              stroke={palette.accent}
-              strokeWidth={2.2}
-              dot={false}
-              activeDot={{
-                r: 4,
-                fill: palette.surface,
-                stroke: palette.accent,
-                strokeWidth: 2,
-              }}
-            />
-            <Line
-              type="monotone"
-              dataKey="planned"
-              name="Planned"
-              stroke={palette.accentAlt}
-              strokeWidth={2.2}
-              dot={false}
-              activeDot={{
-                r: 4,
-                fill: palette.surface,
-                stroke: palette.accentAlt,
-                strokeWidth: 2,
-              }}
-            />
-          </LineChart>
-        </ResponsiveContainer>
+              <circle
+                cx={markerX}
+                cy={executedY}
+                r="5.5"
+                fill={palette.surface}
+                stroke={palette.accent}
+                strokeWidth="2.4"
+              />
+            </>
+          ) : null}
+          {data.map((point, index) => (
+            <text
+              key={point.time}
+              x={xForIndex(index)}
+              y={chartHeight - 10}
+              textAnchor="middle"
+              fill={palette.chartText}
+              fontSize="11"
+              fontFamily="var(--font-mono)"
+            >
+              {point.time}
+            </text>
+          ))}
+        </svg>
       </div>
     </article>
   );
-}
+});
 
-export default function PlantOverviewCards({
+function PlantOverviewCards({
   tiles,
   plantSummary,
   history,
@@ -472,3 +590,5 @@ export default function PlantOverviewCards({
     </div>
   );
 }
+
+export default memo(PlantOverviewCards);

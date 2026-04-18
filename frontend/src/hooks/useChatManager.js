@@ -49,6 +49,10 @@ const buildSessionTitle = (text) =>
   String(text || "").slice(0, SESSION_TITLE_MAX_LENGTH);
 const findChatById = (history, chatId) =>
   history.find((chat) => chat.id === chatId) || null;
+const getInitialCompactLayout = () =>
+  typeof window !== "undefined"
+    ? window.innerWidth <= COMPACT_CHAT_BREAKPOINT
+    : false;
 
 const readPinnedChatIds = () => {
   if (typeof localStorage === "undefined") return [];
@@ -216,6 +220,7 @@ export function useChatManager() {
   const { t } = useT();
   const location = useLocation();
   const navigate = useNavigate();
+  const initialCompactLayout = getInitialCompactLayout();
   const { dashboard } = usePlcLiveDataContext();
   const {
     alarms: opsAlarms,
@@ -230,8 +235,8 @@ export function useChatManager() {
   const [isNewChat, setIsNewChat] = useState(true);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [isCompactLayout, setIsCompactLayout] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(initialCompactLayout);
+  const [isCompactLayout, setIsCompactLayout] = useState(initialCompactLayout);
   const [pinnedChats, setPinnedChats] = useState(readPinnedChatIds);
   const [searchQuery, setSearchQuery] = useState("");
   const [copiedId, setCopiedId] = useState(null);
@@ -245,7 +250,7 @@ export function useChatManager() {
 
   const messagesContainerRef = useRef(null);
   const inputRef = useRef(null);
-  const compactModeRef = useRef(null);
+  const compactModeRef = useRef(initialCompactLayout);
   const mockContextKeyRef = useRef(null);
   const machineContextKeyRef = useRef(null);
   const mockTimerEntriesRef = useRef([]);

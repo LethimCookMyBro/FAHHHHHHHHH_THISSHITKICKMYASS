@@ -417,7 +417,7 @@
 }
 
 .ops-page-enter {
-  animation: pageEnter var(--motion-slow) var(--ease-smooth) both;
+  animation: none;
 }
 
 @keyframes pageEnter {

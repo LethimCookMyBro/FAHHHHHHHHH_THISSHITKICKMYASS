@@ -21,7 +21,7 @@ import {
 
 const OpsSyncContext = createContext(null);
 
-const ACTION_LIMIT = 150;
+const ACTION_LIMIT = 40;
 const ALARM_LIMIT = 200;
 const REFRESH_DEBOUNCE_MS = 800;
 const POLL_INTERVAL_BY_CONNECTION = {

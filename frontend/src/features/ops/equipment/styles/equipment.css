@@ -843,6 +843,8 @@
   border-radius: 22px;
   padding: 18px;
   gap: 16px;
+  content-visibility: auto;
+  contain-intrinsic-size: 360px;
 }
 
 .equipment-card.status-fault {

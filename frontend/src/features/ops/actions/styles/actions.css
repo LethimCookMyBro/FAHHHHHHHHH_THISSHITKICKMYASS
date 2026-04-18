@@ -227,10 +227,9 @@
   gap: 14px;
   position: relative;
   z-index: 1;
-  opacity: 0;
-  transform: translateY(8px);
-  animation: timelineIn var(--motion-base) var(--ease-smooth) forwards;
-  animation-delay: var(--timeline-delay, 0s);
+  opacity: 1;
+  transform: none;
+  animation: none;
 }
 
 .timeline-node {

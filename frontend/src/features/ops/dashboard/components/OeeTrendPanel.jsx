@@ -1,13 +1,4 @@
-import { useMemo } from "react";
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
+import { memo, useMemo } from "react";
 import { useT } from "../../../../utils/i18n";
 import { useThemePalette } from "../../../theme/themeContext";
 
@@ -29,22 +20,7 @@ const FALLBACK_MONTHS = [
 const clampPercent = (value) =>
   Math.max(0, Math.min(100, Math.round(Number(value) || 0)));
 
-function MaintenanceTooltip({ active, payload, label }) {
-  if (!active || !Array.isArray(payload) || payload.length === 0) return null;
-  return (
-    <div className="dash-tooltip-card">
-      <p>{label}</p>
-      {payload.map((item) => (
-        <div key={item.name} className="dash-tooltip-row" style={{ "--swatch": item.color }}>
-          <span>{item.name}</span>
-          <strong>{Math.round(Number(item.value) || 0)}</strong>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-export default function OeeTrendPanel({ oeeRows, history }) {
+function OeeTrendPanel({ oeeRows, history }) {
   const { t } = useT();
   const palette = useThemePalette();
 
@@ -84,6 +60,10 @@ export default function OeeTrendPanel({ oeeRows, history }) {
       Number(current.value) < Number(lowest.value) ? current : lowest,
     );
   }, [oeeRows]);
+  const chartMax = useMemo(() => {
+    const values = maintenanceData.flatMap((item) => [item.actual, item.planned]);
+    return Math.max(8, ...values);
+  }, [maintenanceData]);
 
   return (
     <div className="dash-pulse-shell">
@@ -97,59 +77,35 @@ export default function OeeTrendPanel({ oeeRows, history }) {
         </header>
 
         <div className="dash-pulse-chart">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart
-              data={maintenanceData}
-              margin={{ top: 8, right: 8, left: -8, bottom: 0 }}
-            >
-              <CartesianGrid vertical={false} stroke={palette.chartGrid} />
-              <XAxis
-                dataKey="month"
-                tickLine={false}
-                axisLine={false}
-                tick={{
-                  fontSize: 10,
-                  fill: palette.chartText,
-                  fontFamily: "var(--font-mono)",
-                }}
-              />
-              <YAxis
-                tickLine={false}
-                axisLine={false}
-                width={26}
-                tick={{
-                  fontSize: 10,
-                  fill: palette.chartText,
-                  fontFamily: "var(--font-mono)",
-                }}
-                label={{
-                  value: t("dashboardV2.loadAxis"),
-                  angle: -90,
-                  position: "insideLeft",
-                  style: {
-                    fill: palette.chartText,
-                    fontSize: 11,
-                    fontFamily: "var(--font-mono)",
-                  },
-                }}
-              />
-              <Tooltip content={<MaintenanceTooltip />} />
-              <Bar
-                dataKey="actual"
-                name={t("dashboard.actual")}
-                radius={[6, 6, 0, 0]}
-                fill={palette.accent}
-                barSize={10}
-              />
-              <Bar
-                dataKey="planned"
-                name={t("dashboard.planned")}
-                radius={[6, 6, 0, 0]}
-                fill={palette.ok}
-                barSize={10}
-              />
-            </BarChart>
-          </ResponsiveContainer>
+          <div
+            className="dash-native-bars"
+            role="img"
+            aria-label={t("dashboardV2.serviceLoadByMonth")}
+          >
+            {maintenanceData.map((item) => (
+              <div key={item.month} className="dash-native-bar-group">
+                <div className="dash-native-bar-pair">
+                  <span
+                    className="dash-native-bar actual"
+                    style={{
+                      height: `${Math.max(8, (item.actual / chartMax) * 100)}%`,
+                      background: palette.accent,
+                    }}
+                    title={`${t("dashboard.actual")}: ${item.actual}`}
+                  />
+                  <span
+                    className="dash-native-bar planned"
+                    style={{
+                      height: `${Math.max(8, (item.planned / chartMax) * 100)}%`,
+                      background: palette.ok,
+                    }}
+                    title={`${t("dashboard.planned")}: ${item.planned}`}
+                  />
+                </div>
+                <span className="dash-native-bar-label">{item.month}</span>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -185,3 +141,5 @@ export default function OeeTrendPanel({ oeeRows, history }) {
     </div>
   );
 }
+
+export default memo(OeeTrendPanel);

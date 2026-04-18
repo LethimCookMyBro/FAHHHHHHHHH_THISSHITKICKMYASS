@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useCallback, useDeferredValue, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useT } from "../../../utils/i18n";
 import { useConfigureTopbar } from "../../../layout/AppTopbarContext";
@@ -27,9 +27,12 @@ const STATUS_BADGES = {
 };
 
 const FILTER_TABS = ["all", "fault", "warning", "ok"];
+const EMPTY_ALARM_SUMMARY = Object.freeze({ activeCount: 0, leadAlarm: null });
 
 const clampPercent = (value) =>
   Math.max(0, Math.min(100, Math.round(Number(value) || 0)));
+
+const normalizeLookupKey = (value) => String(value || "").trim().toLowerCase();
 
 const toEquipmentStatus = (machineState) => {
   if (machineState === "error") {
@@ -78,6 +81,70 @@ const buildActionLogUrl = (equipment) => {
   return `/actions${params.toString() ? `?${params.toString()}` : ""}`;
 };
 
+const updateAlarmSummaryMap = (map, key, alarm, status) => {
+  if (!key) return;
+
+  const existing = map.get(key);
+  if (!existing) {
+    map.set(key, {
+      activeCount: status === "active" ? 1 : 0,
+      leadAlarm: alarm,
+      hasActiveLead: status === "active",
+    });
+    return;
+  }
+
+  if (status === "active") {
+    existing.activeCount += 1;
+    if (!existing.hasActiveLead) {
+      existing.leadAlarm = alarm;
+      existing.hasActiveLead = true;
+    }
+    return;
+  }
+
+  if (!existing.leadAlarm) {
+    existing.leadAlarm = alarm;
+  }
+};
+
+const buildAlarmSummaryIndex = (alarms) => {
+  const byMachineId = new Map();
+  const byMachineName = new Map();
+
+  (Array.isArray(alarms) ? alarms : []).forEach((alarm) => {
+    const status = normalizeLookupKey(alarm.status || "active");
+    if (status === "resolved") return;
+
+    updateAlarmSummaryMap(
+      byMachineId,
+      alarm.machine_id != null ? String(alarm.machine_id) : "",
+      alarm,
+      status,
+    );
+    updateAlarmSummaryMap(
+      byMachineName,
+      normalizeLookupKey(alarm.machine_name),
+      alarm,
+      status,
+    );
+  });
+
+  return { byMachineId, byMachineName };
+};
+
+const resolveAlarmSummary = (alarmSummaryIndex, machine) => {
+  if (machine?.id != null) {
+    const byId = alarmSummaryIndex.byMachineId.get(String(machine.id));
+    if (byId) return byId;
+  }
+
+  return (
+    alarmSummaryIndex.byMachineName.get(normalizeLookupKey(machine?.name)) ||
+    EMPTY_ALARM_SUMMARY
+  );
+};
+
 export default function EquipmentPage() {
   const { t } = useT();
   const navigate = useNavigate();
@@ -85,6 +152,7 @@ export default function EquipmentPage() {
   const { label: connectionLabel, tone: connectionTone } =
     useConnectionLabel(connectionState);
   const [searchQuery, setSearchQuery] = useState("");
+  const deferredSearchQuery = useDeferredValue(searchQuery);
   const [statusFilter, setStatusFilter] = useState("all");
   const [activeEq, setActiveEq] = useState(null);
   const [isDiagnosticOpen, setIsDiagnosticOpen] = useState(false);
@@ -113,50 +181,65 @@ export default function EquipmentPage() {
     actionName: "reset_fault",
   });
 
-  const handleDiagnose = (equipment) => {
-    setActiveEq(equipment);
-    if (diagState !== "idle") {
-      resetDiagnose();
-    }
-    setIsDiagnosticOpen(true);
-    startDiagnose({ timestamp: new Date().toISOString() });
-  };
+  const handleDiagnose = useCallback(
+    (equipment) => {
+      setActiveEq(equipment);
+      if (diagState !== "idle") {
+        resetDiagnose();
+      }
+      setIsDiagnosticOpen(true);
+      startDiagnose({ timestamp: new Date().toISOString() });
+    },
+    [diagState, resetDiagnose, startDiagnose],
+  );
 
-  const handleReset = (equipment) => {
-    setActiveEq(equipment);
+  const handleReset = useCallback(
+    (equipment) => {
+      setActiveEq(equipment);
+      if (resetState !== "idle") {
+        resetResetFlow();
+      }
+      promptForReset();
+      setIsSafetyOpen(true);
+    },
+    [promptForReset, resetResetFlow, resetState],
+  );
+
+  const executeResetConfirmed = useCallback(
+    (mode) => {
+      setIsSafetyOpen(false);
+      startReset({}, mode);
+    },
+    [startReset],
+  );
+
+  const handleCancelReset = useCallback(() => {
+    setIsSafetyOpen(false);
     if (resetState !== "idle") {
       resetResetFlow();
     }
-    promptForReset();
-    setIsSafetyOpen(true);
-  };
+  }, [resetResetFlow, resetState]);
 
-  const executeResetConfirmed = (mode) => {
-    setIsSafetyOpen(false);
-    startReset({}, mode);
-  };
+  const handleAskChatbot = useCallback(
+    (equipment) => {
+      const params = new URLSearchParams({
+        machineId: equipment.id,
+        machineName: equipment.name,
+        errorCode: equipment.errorCode || equipment.status.toUpperCase(),
+      });
+      navigate(`/chat?${params.toString()}`);
+    },
+    [navigate],
+  );
 
-  const handleCancelReset = () => {
-    setIsSafetyOpen(false);
-    if (resetState !== "idle") {
-      resetResetFlow();
-    }
-  };
+  const handleOpenLog = useCallback(
+    (equipment) => {
+      navigate(buildActionLogUrl(equipment));
+    },
+    [navigate],
+  );
 
-  const handleAskChatbot = (equipment) => {
-    const params = new URLSearchParams({
-      machineId: equipment.id,
-      machineName: equipment.name,
-      errorCode: equipment.errorCode || equipment.status.toUpperCase(),
-    });
-    navigate(`/chat?${params.toString()}`);
-  };
-
-  const handleOpenLog = (equipment) => {
-    navigate(buildActionLogUrl(equipment));
-  };
-
-  const handleExportDiagnosticReport = () => {
+  const handleExportDiagnosticReport = useCallback(() => {
     if (!activeEq || !diagData) return;
 
     const evidenceLines = Array.isArray(diagData.evidence)
@@ -193,54 +276,43 @@ export default function EquipmentPage() {
       `diagnostic_${activeEq.id || activeEq.name || "asset"}`,
       report,
     );
-  };
+  }, [activeEq, diagData, t]);
+
+  const alarmSummaryIndex = useMemo(
+    () => buildAlarmSummaryIndex(alarms),
+    [alarms],
+  );
 
   const equipmentRows = useMemo(
     () =>
       machines.map((machine, index) => {
         const machineState = machine.machineState || resolveMachineState(machine);
-        const machineAlarms = alarms.filter((alarm) => {
-          const status = String(alarm.status || "active").toLowerCase();
-          if (status === "resolved") {
-            return false;
-          }
-
-          if (
-            machine.id != null &&
-            alarm.machine_id != null &&
-            String(alarm.machine_id) === String(machine.id)
-          ) {
-            return true;
-          }
-
-          return (
-            String(alarm.machine_name || "").trim() ===
-            String(machine.name || "").trim()
-          );
-        });
-        const leadAlarm =
-          machineAlarms.find(
-            (alarm) => String(alarm.status || "active").toLowerCase() === "active",
-          ) ||
-          machineAlarms[0] ||
-          null;
+        const alarmSummary = resolveAlarmSummary(alarmSummaryIndex, machine);
+        const leadAlarm = alarmSummary.leadAlarm;
+        const id = machine.id ?? `machine-${index}`;
+        const name = machine.name || t("alarms.unknownMachine");
+        const status = toEquipmentStatus(machineState);
+        const firmware = machine.model || machine.plc_type || "Unknown";
+        const errorCode =
+          leadAlarm?.error_code ||
+          machine.error_code ||
+          machine.active_error?.error_code ||
+          "";
 
         return {
-          id: machine.id ?? `machine-${index}`,
-          name: machine.name || t("alarms.unknownMachine"),
-          status: toEquipmentStatus(machineState),
-          firmware: machine.model || machine.plc_type || "Unknown",
+          id,
+          name,
+          status,
+          firmware,
           runtime: formatRuntimeLabel(machine),
           cpuLoad: clampPercent((Number(machine.current) || 0) * 6.5),
           memoryUsage: clampPercent(((Number(machine.temp) || 0) / 90) * 100),
-          alarms: machineAlarms.filter(
-            (alarm) => String(alarm.status || "active").toLowerCase() === "active",
-          ).length,
-          errorCode:
-            leadAlarm?.error_code || machine.error_code || machine.active_error?.error_code || "",
+          alarms: alarmSummary.activeCount,
+          errorCode,
+          searchText: [name, id, firmware, status, errorCode].join(" ").toLowerCase(),
         };
       }),
-    [alarms, machines, t],
+    [alarmSummaryIndex, machines, t],
   );
 
   useConfigureTopbar(
@@ -264,54 +336,52 @@ export default function EquipmentPage() {
   );
 
   const filteredEquipment = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase();
+    const query = deferredSearchQuery.trim().toLowerCase();
     return equipmentRows.filter((equipment) => {
       const matchesStatus =
         statusFilter === "all" ? true : equipment.status === statusFilter;
-      const matchesQuery = query
-        ? [
-            equipment.name,
-            equipment.id,
-            equipment.firmware,
-            equipment.status,
-            equipment.errorCode,
-          ]
-            .join(" ")
-            .toLowerCase()
-            .includes(query)
-        : true;
+      const matchesQuery = query ? equipment.searchText.includes(query) : true;
       return matchesStatus && matchesQuery;
     });
-  }, [equipmentRows, searchQuery, statusFilter]);
+  }, [deferredSearchQuery, equipmentRows, statusFilter]);
+
+  const equipmentCounts = useMemo(() => {
+    const counts = { all: equipmentRows.length, fault: 0, warning: 0, ok: 0 };
+
+    equipmentRows.forEach((equipment) => {
+      if (counts[equipment.status] != null) {
+        counts[equipment.status] += 1;
+      }
+    });
+
+    return counts;
+  }, [equipmentRows]);
 
   const fleetSummary = useMemo(
     () => [
       {
         label: t("equipment.fleetUnits"),
-        value: equipmentRows.length,
+        value: equipmentCounts.all,
         hint: t("equipment.controllersInView"),
       },
       {
         label: t("equipment.needsReview"),
-        value: equipmentRows.filter(
-          (item) => item.status === "fault" || item.status === "warning",
-        ).length,
+        value: equipmentCounts.fault + equipmentCounts.warning,
         hint: t("equipment.faultAndWarningAssets"),
       },
       {
         label: t("equipment.healthy"),
-        value: equipmentRows.filter((item) => item.status === "ok").length,
+        value: equipmentCounts.ok,
         hint: t("equipment.stableOperation"),
       },
       {
         label: t("equipment.assistantReady"),
         value:
-          equipmentRows.filter((item) => item.status !== "ok").length ||
-          equipmentRows.length,
+          equipmentCounts.fault + equipmentCounts.warning || equipmentCounts.all,
         hint: t("equipment.directActionsAvailable"),
       },
     ],
-    [equipmentRows, t],
+    [equipmentCounts, t],
   );
 
   return (
@@ -351,8 +421,8 @@ export default function EquipmentPage() {
               </span>
               <strong>
                 {tab === "all"
-                  ? equipmentRows.length
-                  : equipmentRows.filter((item) => item.status === tab).length}
+                  ? equipmentCounts.all
+                  : equipmentCounts[tab] || 0}
               </strong>
             </button>
           ))}

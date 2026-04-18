@@ -18,6 +18,40 @@ export async function fetchOpsActions(limit = 150) {
   return normalized.actions;
 }
 
+export async function fetchOpsActionsPage({
+  limit = 15,
+  offset = 0,
+  query = "",
+  quickFilter = "all",
+  signal,
+} = {}) {
+  const params = {
+    limit,
+    offset,
+  };
+  const normalizedQuery = String(query || "").trim();
+  if (normalizedQuery) {
+    params.q = normalizedQuery;
+  }
+  if (quickFilter === "today") {
+    params.today = true;
+  } else if (quickFilter === "manual") {
+    params.status = "requires_manual";
+  } else if (quickFilter && quickFilter !== "all") {
+    params.status = quickFilter;
+  }
+
+  const response = await api.get("/api/plc/actions", { params, signal });
+  const normalized = normalizeActionsPayload(response?.data || {});
+  return {
+    actions: normalized.actions,
+    total: normalized.total,
+    limit: normalized.limit,
+    offset: normalized.offset,
+    stats: response?.data?.stats || null,
+  };
+}
+
 export async function resolveOpsAlarms({
   alarmIds = [],
   note = "",

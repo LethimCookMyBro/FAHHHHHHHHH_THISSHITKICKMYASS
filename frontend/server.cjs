@@ -56,7 +56,6 @@ try {
 }
 
 const targetHost = parsedApiTarget.host.toLowerCase();
-const targetHostname = parsedApiTarget.hostname.toLowerCase();
 
 const selfHost = (process.env.RAILWAY_PUBLIC_DOMAIN || "").toLowerCase();
 if (targetHost && selfHost && targetHost === selfHost) {
@@ -68,16 +67,31 @@ if (targetHost && selfHost && targetHost === selfHost) {
 
 const distDir = path.join(__dirname, "dist");
 const indexFile = path.join(distDir, "index.html");
+const assetsDirMarker = `${path.sep}assets${path.sep}`;
+
+const setStaticCacheHeaders = (res, filePath) => {
+  if (filePath.includes(assetsDirMarker)) {
+    res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+    return;
+  }
+
+  if (path.basename(filePath) === "index.html") {
+    res.setHeader("Cache-Control", "no-cache");
+    return;
+  }
+
+  res.setHeader("Cache-Control", "public, max-age=86400");
+};
 
 app.use("/api", (req, res, next) => {
-  const requestHostname = String(req.headers.host || "")
+  const requestHost = String(req.headers.host || "")
     .toLowerCase()
-    .split(":")[0];
-  if (requestHostname && requestHostname === targetHostname) {
+    .trim();
+  if (requestHost && requestHost === targetHost) {
     sendJson(res, 500, {
       message: "Invalid API proxy configuration (self-loop detected)",
       target: apiTarget,
-      host: requestHostname,
+      host: requestHost,
       hint: "Set API_PROXY_TARGET to the backend service domain, not this frontend domain.",
     });
     return;
@@ -118,9 +132,12 @@ app.use(
   }),
 );
 
-app.use(express.static(distDir));
-app.get("*", (_req, res) => res.sendFile(indexFile));
- 
+app.use(express.static(distDir, { setHeaders: setStaticCacheHeaders }));
+app.get("*", (_req, res) => {
+  res.setHeader("Cache-Control", "no-cache");
+  res.sendFile(indexFile);
+});
+
 app.listen(port, "0.0.0.0", () => {
   console.log(`[frontend] listening on 0.0.0.0:${port}`);
   console.log(`[frontend] serving: ${distDir}`);
