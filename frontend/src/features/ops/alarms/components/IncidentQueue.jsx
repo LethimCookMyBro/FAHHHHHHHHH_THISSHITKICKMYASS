@@ -52,7 +52,7 @@ export default function IncidentQueue({
   const { t } = useT();
 
   return (
-    <section className="alarms-panel">
+    <section className={`alarms-panel ${incidents.length === 0 ? "is-empty" : ""}`.trim()}>
       <header className="alarms-panel-head">
         <div>
           <h3>{t("alarms.incidentQueue")}</h3>
@@ -75,7 +75,7 @@ export default function IncidentQueue({
         ))}
       </div>
 
-      <div className="alarms-queue-scroll">
+      <div className={`alarms-queue-scroll ${incidents.length === 0 ? "is-empty" : ""}`.trim()}>
         {incidents.length === 0 ? (
           <EmptyState
             compact

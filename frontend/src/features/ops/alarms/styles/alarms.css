@@ -61,6 +61,10 @@
   min-height: 0;
 }
 
+.ops-alarms-grid.is-empty-state {
+  align-items: start;
+}
+
 .alarms-panel {
   border: 1px solid var(--line-soft);
   border-radius: var(--radius-lg);
@@ -70,6 +74,10 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
+}
+
+.alarms-panel.is-empty {
+  min-height: 380px;
 }
 
 .alarms-panel-head {
@@ -143,6 +151,25 @@
   display: grid;
   gap: 8px;
   padding: 10px;
+}
+
+.alarms-queue-scroll.is-empty {
+  align-content: start;
+  padding: 14px;
+}
+
+.alarms-queue-scroll.is-empty .ops-empty-state {
+  min-height: 200px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-style: dashed;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--bg-elevated) 92%, white),
+    color-mix(in srgb, var(--surface) 94%, transparent)
+  );
 }
 
 .incident-card {
@@ -287,10 +314,17 @@
 }
 
 .decision-panel.empty {
+  position: static;
+  top: auto;
+  max-height: none;
+  min-height: 380px;
   align-items: center;
   justify-content: center;
   text-align: center;
-  padding: 22px;
+  padding: 28px;
+  background:
+    radial-gradient(circle at top, color-mix(in srgb, var(--accent) 10%, transparent), transparent 45%),
+    var(--bg-card);
 }
 
 .decision-empty-icon {
@@ -314,6 +348,8 @@
   margin-top: 6px;
   font-size: 0.84rem;
   color: var(--text-secondary);
+  max-width: 320px;
+  line-height: 1.6;
 }
 
 .decision-panel-head {
@@ -548,14 +584,18 @@
   justify-content: space-between;
   gap: 12px;
   font-size: var(--text-body);
+  padding: 6px 2px 0;
+  color: var(--text-secondary);
 }
 
 .alarms-status-line span:first-child {
-  color: var(--status-warning-text);
+  color: color-mix(in srgb, var(--warning) 82%, var(--text-secondary));
+  font-weight: 600;
 }
 
 .alarms-status-line span:last-child {
-  color: var(--status-critical-text);
+  color: color-mix(in srgb, var(--error) 82%, var(--text-secondary));
+  font-weight: 600;
 }
 
 .incident-card {
@@ -914,6 +954,21 @@
   position: sticky;
   top: 96px;
   max-height: calc(100vh - 118px);
+}
+
+.ops-alarms-grid.is-empty-state {
+  grid-template-columns: minmax(360px, 420px) minmax(0, 1fr);
+}
+
+.ops-alarms-grid.is-empty-state .alarms-panel.is-empty {
+  height: auto;
+  min-height: 380px;
+}
+
+.ops-alarms-grid.is-empty-state .decision-panel.empty {
+  position: static;
+  max-height: none;
+  min-height: 380px;
 }
 
 @media (max-width: 1240px) {

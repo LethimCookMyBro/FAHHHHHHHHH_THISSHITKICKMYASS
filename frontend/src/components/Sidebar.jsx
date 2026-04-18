@@ -7,6 +7,7 @@ import {
   Briefcase,
   Lightbulb,
   MessageSquare,
+  ClipboardList,
   ChevronsLeft,
   ChevronsRight,
   Globe,
@@ -21,6 +22,7 @@ const NAV_ITEMS = [
   { to: "/overview", key: "nav.portMap", icon: Map },
   { to: "/equipment", key: "nav.equipment", icon: Briefcase },
   { to: "/alarms", key: "nav.alerts", icon: Lightbulb },
+  { to: "/actions", key: "nav.actions", icon: ClipboardList },
   { to: "/chat", key: "nav.chat", icon: MessageSquare },
 ];
 

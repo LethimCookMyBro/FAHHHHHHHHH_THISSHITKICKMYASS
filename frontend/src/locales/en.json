@@ -211,6 +211,8 @@
   "chat.confirmDeleteWarning": "This action cannot be undone. / การดำเนินการนี้ไม่สามารถย้อนกลับได้",
   "chat.cancelDelete": "Cancel / ยกเลิก",
   "chat.confirmDeleteAction": "Delete / ลบ",
+  "chat.emptySessionsTitle": "No recent chats",
+  "chat.emptySessionsHint": "Start with a diagnostic prompt and your sessions will appear here.",
 
   "common.liveStream": "Live stream",
   "common.loading": "Loading...",
@@ -273,6 +275,9 @@
   "actions.unknownAsset": "Unknown asset",
   "actions.noDecisionReason": "No decision reason",
   "actions.actionRecordCaptured": "Action record captured",
+  "actions.previousPage": "Previous",
+  "actions.nextPage": "Next",
+  "actions.paginationSummary": "Showing {start}-{end} of {total}",
 
   "alarms.active": "Active",
   "alarms.requireImmediateAction": "{critical} of {total} require immediate action",

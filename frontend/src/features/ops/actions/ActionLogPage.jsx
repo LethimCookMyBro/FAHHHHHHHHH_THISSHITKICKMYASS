@@ -19,6 +19,27 @@ import "./styles/actions.css";
 
 const QUICK_FILTERS = new Set(["all", "failed", "manual", "executed", "today"]);
 
+function buildPageItems(currentPage, totalPages) {
+  if (totalPages <= 7) {
+    return Array.from({ length: totalPages }, (_, index) => index + 1);
+  }
+
+  const items = [1];
+  const start = Math.max(2, currentPage - 1);
+  const end = Math.min(totalPages - 1, currentPage + 1);
+
+  if (start > 2) items.push("ellipsis-left");
+
+  for (let page = start; page <= end; page += 1) {
+    items.push(page);
+  }
+
+  if (end < totalPages - 1) items.push("ellipsis-right");
+
+  items.push(totalPages);
+  return items;
+}
+
 export default function ActionLogPage() {
   const { t } = useT();
   const navigate = useNavigate();
@@ -32,13 +53,30 @@ export default function ActionLogPage() {
     quickFilter,
     setQuickFilter,
     stats,
-    rows,
+    totalRows,
+    currentPage,
+    setCurrentPage,
+    totalPages,
+    pageStart,
+    pageEnd,
+    pagedRows,
     expandedId,
     setExpandedId,
   } = useActionLogViewModel();
 
   const { label: connectionLabel, tone: connectionTone } = useConnectionLabel(connectionState);
-  const hasRecords = rows.length > 0;
+  const hasRecords = totalRows > 0;
+  const pageItems = buildPageItems(currentPage, totalPages);
+  const paginationSummary = t("actions.paginationSummary", {
+    start: pageStart,
+    end: pageEnd,
+    total: totalRows,
+  });
+
+  const goToPage = (page) => {
+    setExpandedId(null);
+    setCurrentPage(page);
+  };
 
   useEffect(() => {
     const searchQuery = searchParams.get("q");
@@ -56,7 +94,7 @@ export default function ActionLogPage() {
   const exportCurrentView = () => {
     downloadCsv(
       `action_history_${new Date().toISOString().slice(0, 10)}`,
-      rows.map((row) => ({
+      pagedRows.map((row) => ({
         id: row.id,
         asset: row.machine_name || row.device_id || "",
         machine: row.machineText,
@@ -123,7 +161,7 @@ export default function ActionLogPage() {
       ) : (
         <SectionCard
           title={t("actions.timeline")}
-          subtitle={t("actions.recordCount", { count: rows.length })}
+          subtitle={t("actions.recordCount", { count: totalRows })}
         >
           <ActionFilterBar
             query={query}
@@ -132,11 +170,52 @@ export default function ActionLogPage() {
             onQuickFilterChange={setQuickFilter}
           />
           {hasRecords ? (
-            <ActionTimeline
-              rows={rows}
-              expandedId={expandedId}
-              onToggleExpand={setExpandedId}
-            />
+            <>
+              <ActionTimeline
+                rows={pagedRows}
+                expandedId={expandedId}
+                onToggleExpand={setExpandedId}
+              />
+              <div className="action-pagination">
+                <div className="action-pagination-summary">{paginationSummary}</div>
+                <div className="action-pagination-controls">
+                  <button
+                    type="button"
+                    className="action-pagination-btn"
+                    onClick={() => goToPage(Math.max(1, currentPage - 1))}
+                    disabled={currentPage === 1}
+                  >
+                    {t("actions.previousPage")}
+                  </button>
+                  <div className="action-pagination-pages">
+                    {pageItems.map((item) =>
+                      typeof item === "number" ? (
+                        <button
+                          key={item}
+                          type="button"
+                          className={`action-pagination-page ${item === currentPage ? "is-active" : ""}`}
+                          onClick={() => goToPage(item)}
+                        >
+                          {item}
+                        </button>
+                      ) : (
+                        <span key={item} className="action-pagination-ellipsis">
+                          ...
+                        </span>
+                      ),
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    className="action-pagination-btn"
+                    onClick={() => goToPage(Math.min(totalPages, currentPage + 1))}
+                    disabled={currentPage === totalPages}
+                  >
+                    {t("actions.nextPage")}
+                  </button>
+                </div>
+              </div>
+            </>
           ) : (
             <EmptyState
               icon={ClipboardList}

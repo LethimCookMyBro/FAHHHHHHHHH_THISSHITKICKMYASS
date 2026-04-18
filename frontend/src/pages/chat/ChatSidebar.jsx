@@ -79,6 +79,134 @@ const renderInlineMarkdownPreview = (text) => {
   );
 };
 
+const ChatPanelEmpty = memo(function ChatPanelEmpty({ t }) {
+  return (
+    <div className="chat-panel-empty">
+      <span className="chat-panel-empty-icon">
+        <MessageSquareText size={17} />
+      </span>
+      <p className="chat-panel-empty-title">{t("chat.emptySessionsTitle")}</p>
+      <p className="chat-panel-empty-copy">{t("chat.emptySessionsHint")}</p>
+    </div>
+  );
+});
+
+const ChatSessionItem = memo(function ChatSessionItem({
+  chat,
+  index,
+  isActive,
+  isDesktopCollapsed,
+  isPinned,
+  locale,
+  onDeleteChat,
+  onSelectChat,
+  onTogglePin,
+  t,
+}) {
+  const previewText = getSessionPreviewText(chat);
+  const pinLabel = isPinned ? t("chat.unpin") : t("chat.pin");
+
+  return (
+    <div
+      className={`chat-session-item glass-interactive group ${isActive ? "active" : ""}`}
+      style={{ "--session-index": index }}
+      data-active={isActive ? "1" : "0"}
+      onClick={() => onSelectChat(chat.id)}
+    >
+      <div className="relative">
+        <MessageSquareText
+          size={15}
+          className="text-[color:var(--text-secondary)]"
+        />
+        {isPinned ? (
+          <Pin
+            size={8}
+            className="absolute -top-1 -right-1 text-amber-400 fill-amber-400"
+          />
+        ) : null}
+      </div>
+
+      {!isDesktopCollapsed ? (
+        <div className="flex-1 min-w-0">
+          <p className="chat-session-title">{chat.title || t("chat.newChat")}</p>
+          {previewText ? (
+            <p className="chat-session-preview">
+              {renderInlineMarkdownPreview(previewText)}
+            </p>
+          ) : null}
+          {chat.updated_at ? (
+            <p className="chat-session-time">
+              {formatTimeAgo(chat.updated_at, locale)}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+
+      {!isDesktopCollapsed ? (
+        <div className="chat-session-actions">
+          <button
+            type="button"
+            onClick={(event) => onTogglePin(event, chat.id)}
+            className="chat-icon-btn chat-sidebar-icon-btn glass-interactive"
+            title={pinLabel}
+            aria-label={pinLabel}
+          >
+            <Pin
+              size={14}
+              className={isPinned ? "fill-amber-400 text-amber-400" : ""}
+            />
+          </button>
+
+          <button
+            type="button"
+            onClick={(event) => onDeleteChat(event, chat.id)}
+            className="chat-icon-btn chat-sidebar-icon-btn glass-interactive"
+            title={t("chat.delete")}
+            aria-label={t("chat.delete")}
+          >
+            <Trash2 size={14} />
+          </button>
+        </div>
+      ) : null}
+    </div>
+  );
+});
+
+const ChatSessionGroups = memo(function ChatSessionGroups({
+  activeChatId,
+  groupedChats,
+  isDesktopCollapsed,
+  locale,
+  onDeleteChat,
+  onSelectChat,
+  onTogglePin,
+  pinnedChats,
+  t,
+}) {
+  return Object.entries(groupedChats).map(([label, chats]) =>
+    chats.length ? (
+      <div key={label} className="chat-session-group">
+        <p className="chat-session-group-label">{t(`chat.group.${label}`)}</p>
+        {chats.map((chat, index) => (
+          <ChatSessionItem
+            key={chat.id}
+            chat={chat}
+            index={index}
+            isActive={chat.id === activeChatId}
+            isDesktopCollapsed={isDesktopCollapsed}
+            isPinned={pinnedChats.includes(chat.id)}
+            locale={locale}
+            onDeleteChat={onDeleteChat}
+            onSelectChat={onSelectChat}
+            onTogglePin={onTogglePin}
+            t={t}
+          />
+        ))}
+      </div>
+    ) : null,
+  );
+});
+
 function ChatSidebar({
   hasAppSidebar = false,
   isCompactLayout,
@@ -103,6 +231,7 @@ function ChatSidebar({
     () => groupChatsByDate(sortedChats),
     [sortedChats],
   );
+  const hasVisibleChats = sortedChats.length > 0;
 
   useEffect(() => {
     if (!isOverlayOpen) return undefined;
@@ -187,85 +316,20 @@ function ChatSidebar({
         ) : null}
 
         <div className="chat-panel-list">
-          {Object.entries(groupedChats).map(([label, chats]) =>
-            chats.length ? (
-              <div key={label} className="chat-session-group">
-                <p className="chat-session-group-label">{t(`chat.group.${label}`)}</p>
-                {chats.map((chat, index) => {
-                  const isPinned = pinnedChats.includes(chat.id);
-                  const isActive = chat.id === activeChatId;
-                  const previewText = getSessionPreviewText(chat);
-
-                  return (
-                    <div
-                      key={chat.id}
-                      className={`chat-session-item glass-interactive group ${isActive ? "active" : ""}`}
-                      style={{ "--session-index": index }}
-                      data-active={isActive ? "1" : "0"}
-                      onClick={() => onSelectChat(chat.id)}
-                    >
-                      <div className="relative">
-                        <MessageSquareText
-                          size={15}
-                          className="text-[color:var(--text-secondary)]"
-                        />
-                        {isPinned ? (
-                          <Pin
-                            size={8}
-                            className="absolute -top-1 -right-1 text-amber-400 fill-amber-400"
-                          />
-                        ) : null}
-                      </div>
-
-                      {!isDesktopCollapsed ? (
-                        <div className="flex-1 min-w-0">
-                          <p className="chat-session-title">
-                            {chat.title || t("chat.newChat")}
-                          </p>
-                          {previewText ? (
-                            <p className="chat-session-preview">
-                              {renderInlineMarkdownPreview(previewText)}
-                            </p>
-                          ) : null}
-                          {chat.updated_at ? (
-                            <p className="chat-session-time">
-                              {formatTimeAgo(chat.updated_at, locale)}
-                            </p>
-                          ) : null}
-                        </div>
-                      ) : null}
-
-                      {!isDesktopCollapsed ? (
-                        <div className="chat-session-actions">
-                          <button
-                            type="button"
-                            onClick={(event) => onTogglePin(event, chat.id)}
-                            className="chat-icon-btn chat-sidebar-icon-btn glass-interactive"
-                            title={isPinned ? t("chat.unpin") : t("chat.pin")}
-                            aria-label={isPinned ? t("chat.unpin") : t("chat.pin")}
-                          >
-                            <Pin
-                              size={14}
-                              className={isPinned ? "fill-amber-400 text-amber-400" : ""}
-                            />
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={(event) => onDeleteChat(event, chat.id)}
-                            className="chat-icon-btn chat-sidebar-icon-btn glass-interactive"
-                            title={t("chat.delete")}
-                            aria-label={t("chat.delete")}
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
-                      ) : null}
-                    </div>
-                  );
-                })}
-              </div>
-            ) : null,
+          {!hasVisibleChats && !isDesktopCollapsed ? (
+            <ChatPanelEmpty t={t} />
+          ) : (
+            <ChatSessionGroups
+              activeChatId={activeChatId}
+              groupedChats={groupedChats}
+              isDesktopCollapsed={isDesktopCollapsed}
+              locale={locale}
+              onDeleteChat={onDeleteChat}
+              onSelectChat={onSelectChat}
+              onTogglePin={onTogglePin}
+              pinnedChats={pinnedChats}
+              t={t}
+            />
           )}
         </div>
       </aside>

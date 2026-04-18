@@ -48,6 +48,7 @@ export default function AlarmsPage() {
   } = useAlarmsViewModel();
 
   const { label: connectionLabel, tone: connectionTone } = useConnectionLabel(connectionState);
+  const isEmptyIncidentState = incidentRows.length === 0 && !selectedAlarm;
 
   useEffect(() => {
     const requestedStatus = searchParams.get("status");
@@ -257,7 +258,7 @@ export default function AlarmsPage() {
           <SkeletonCard lines={6} />
         </div>
       ) : (
-        <div className="ops-alarms-grid">
+        <div className={`ops-alarms-grid ${isEmptyIncidentState ? "is-empty-state" : ""}`.trim()}>
           <IncidentQueue
             incidents={incidentRows}
             selectedAlarm={selectedAlarm}

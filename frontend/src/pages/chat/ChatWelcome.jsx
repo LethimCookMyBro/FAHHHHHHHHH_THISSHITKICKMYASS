@@ -16,7 +16,7 @@ export default function ChatWelcome({ user, onPromptSelect, composer }) {
     : t("chat.defaultUser");
 
   const prompts = ENGLISH_CHAT_PROMPTS;
-  const visiblePrompts = prompts.slice(0, 2);
+  const visiblePrompts = prompts.slice(0, 4);
 
   return (
     <div className="chat-welcome">

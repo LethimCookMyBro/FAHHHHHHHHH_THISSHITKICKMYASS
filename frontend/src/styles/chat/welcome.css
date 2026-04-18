@@ -5,12 +5,12 @@
   display: grid;
   align-content: center;
   justify-items: center;
-  padding: clamp(32px, 6vh, 72px) 28px 42px;
+  padding: clamp(24px, 4vh, 48px) 28px 34px;
   background:
     radial-gradient(
       circle at top center,
-      color-mix(in srgb, var(--accent) 14%, transparent) 0%,
-      transparent 26%
+      color-mix(in srgb, var(--accent) 10%, transparent) 0%,
+      transparent 28%
     ),
     radial-gradient(
       circle at bottom right,
@@ -20,33 +20,33 @@
 }
 
 .chat-hero {
-  width: min(980px, 100%);
+  width: min(900px, 100%);
   margin: 0 auto;
   display: grid;
-  gap: 24px;
+  gap: 18px;
   justify-items: center;
 }
 
 .chat-center-stage {
-  width: min(780px, 100%);
+  width: min(760px, 100%);
   margin: 0 auto;
   display: grid;
   justify-items: center;
   text-align: center;
-  gap: 16px;
-  padding: clamp(12px, 3vw, 24px) 0 0;
+  gap: 12px;
+  padding: 0;
 }
 
 .chat-hero-badge {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 14px;
+  padding: 7px 13px;
   border: 1px solid var(--surface-border);
   border-radius: 999px;
   background: var(--surface-overlay);
   color: var(--accent);
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -55,21 +55,21 @@
 
 .chat-hero-title {
   margin: 0;
-  max-width: 12ch;
+  max-width: 15ch;
   font-family: var(--font-heading);
-  font-size: clamp(3rem, 6vw, 4.8rem);
+  font-size: clamp(2.55rem, 4.8vw, 4rem);
   font-weight: 800;
-  line-height: 0.96;
-  letter-spacing: -0.05em;
+  line-height: 1;
+  letter-spacing: -0.045em;
   color: var(--text-primary);
   text-wrap: balance;
 }
 
 .chat-hero-sub {
-  max-width: 640px;
+  max-width: 520px;
   margin: 0;
-  font-size: 1.02rem;
-  line-height: 1.72;
+  font-size: 0.95rem;
+  line-height: 1.65;
   color: var(--text-secondary);
   text-wrap: balance;
 }
@@ -83,36 +83,36 @@
 }
 
 .chat-hero-composer {
-  width: min(780px, 100%);
+  width: min(720px, 100%);
   margin: 0 auto;
 }
 
 .chat-prompt-stage {
-  width: min(780px, 100%);
-  margin: 6px auto 0;
+  width: min(720px, 100%);
+  margin: 0 auto;
 }
 
 .prompt-grid {
   width: 100%;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  gap: 10px;
 }
 
 .prompt-card {
   width: 100%;
-  min-height: 64px;
+  min-height: 58px;
   display: inline-flex;
   align-items: center;
   gap: 12px;
-  padding: 15px 16px;
+  padding: 12px 14px;
   border: 1px solid var(--surface-border);
-  border-radius: 20px;
+  border-radius: 18px;
   background: var(--surface-overlay-strong);
   color: var(--text-primary);
   text-align: left;
-  font-size: 0.95rem;
-  line-height: 1.55;
+  font-size: 0.88rem;
+  line-height: 1.45;
   cursor: pointer;
   box-shadow: 0 14px 28px rgba(29, 118, 242, 0.06);
   transition:
@@ -130,8 +130,8 @@
 }
 
 .prompt-card-icon {
-  width: 36px;
-  height: 36px;
+  width: 34px;
+  height: 34px;
   flex-shrink: 0;
   display: inline-flex;
   align-items: center;
