@@ -1,6 +1,11 @@
 import { useMemo } from "react";
 import { useT } from "../../../../utils/i18n";
-import { useOpsSyncContext } from "../../OpsSyncContext";
+import {
+  useOpsSyncActions,
+  useOpsSyncAlarms,
+  useOpsSyncMachines,
+  useOpsSyncMeta,
+} from "../../OpsSyncContext";
 
 const CONNECTION_LABELS = {
   live: "common.liveStream",
@@ -50,11 +55,10 @@ export default function useDashboardViewModel() {
     error: opsError,
     liveError,
     loading: opsLoading,
-    machines,
-    alarms,
-    recentAlarms,
-    recentActions,
-  } = useOpsSyncContext();
+  } = useOpsSyncMeta();
+  const { machines } = useOpsSyncMachines();
+  const { criticalAlarmCount, recentAlarms } = useOpsSyncAlarms();
+  const { recentActions } = useOpsSyncActions();
 
   const connectionLabel =
     t(CONNECTION_LABELS[connectionState] || CONNECTION_LABELS.connecting);
@@ -71,12 +75,6 @@ export default function useDashboardViewModel() {
     if (totalMachineCount <= 0) return 0;
     return Math.round((runningMachineCount / totalMachineCount) * 100);
   }, [runningMachineCount, totalMachineCount]);
-
-  const criticalAlarmCount = useMemo(() => {
-    return alarms.filter(
-      (alarm) => alarm?.status === "active" && alarm?.severity === "critical",
-    ).length;
-  }, [alarms]);
 
   const warningMachineCount = machineStateCounts.warning;
 

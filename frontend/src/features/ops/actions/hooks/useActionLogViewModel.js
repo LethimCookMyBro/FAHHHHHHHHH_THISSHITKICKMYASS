@@ -1,7 +1,7 @@
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { useT } from "../../../../utils/i18n";
 import { getApiErrorMessage } from "../../../../utils/api";
-import { useOpsSyncContext } from "../../OpsSyncContext";
+import { useOpsSyncMeta } from "../../OpsSyncContext";
 import { fetchOpsActionsPage } from "../../opsDataApi";
 
 const PAGE_SIZE = 15;
@@ -38,7 +38,7 @@ export default function useActionLogViewModel() {
   const {
     connectionState,
     error: syncError,
-  } = useOpsSyncContext();
+  } = useOpsSyncMeta();
   const [query, setQuery] = useState("");
   const [quickFilter, setQuickFilter] = useState("all");
   const [expandedId, setExpandedId] = useState(null);

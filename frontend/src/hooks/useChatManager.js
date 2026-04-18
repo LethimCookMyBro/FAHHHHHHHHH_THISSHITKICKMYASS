@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { usePlcLiveDataContext } from "../features/plc/PlcLiveDataContext";
-import { useOpsSyncContext } from "../features/ops/OpsSyncContext";
+import {
+  useOpsSyncMeta,
+  useOpsSyncZones,
+} from "../features/ops/OpsSyncContext";
 import { useT } from "../utils/i18n";
 import {
   buildMockZoneAssistantReply,
@@ -223,13 +226,8 @@ export function useChatManager() {
   const navigate = useNavigate();
   const initialCompactLayout = getInitialCompactLayout();
   const { dashboard } = usePlcLiveDataContext();
-  const {
-    alarms: opsAlarms,
-    actions: opsActions,
-    machines: opsMachines,
-    zoneSummaries,
-    resolveZoneIncidents,
-  } = useOpsSyncContext();
+  const { resolveZoneIncidents } = useOpsSyncMeta();
+  const { zoneSummaries } = useOpsSyncZones();
   const [user, setUser] = useState(DEFAULT_USER);
   const [chatHistory, setChatHistory] = useState(readStoredMockZoneSessions);
   const [activeChatId, setActiveChatId] = useState(null);
@@ -269,11 +267,8 @@ export function useChatManager() {
         routeContext: rawMockRouteContext,
         dashboard,
         zoneSummaries,
-        machines: opsMachines,
-        alarms: opsAlarms,
-        actions: opsActions,
       }),
-    [dashboard, opsActions, opsAlarms, opsMachines, rawMockRouteContext, zoneSummaries],
+    [dashboard, rawMockRouteContext, zoneSummaries],
   );
 
   const activeChat = useMemo(

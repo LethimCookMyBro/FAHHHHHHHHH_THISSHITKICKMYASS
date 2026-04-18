@@ -15,7 +15,11 @@ import {
 } from "lucide-react";
 import useAgentAction from "../../../hooks/useAgentAction";
 import { downloadText } from "../../../utils/exporters";
-import { useOpsSyncContext } from "../OpsSyncContext";
+import {
+  useOpsSyncAlarms,
+  useOpsSyncMachines,
+  useOpsSyncMeta,
+} from "../OpsSyncContext";
 import { resolveMachineState } from "../dashboard/helpers";
 import { APP_ROUTES, buildPathWithSearch } from "../../../utils/routes";
 import DiagnosticPanel from "./components/DiagnosticPanel";
@@ -150,7 +154,9 @@ const resolveAlarmSummary = (alarmSummaryIndex, machine) => {
 export default function EquipmentPage() {
   const { t } = useT();
   const navigate = useNavigate();
-  const { connectionState, machines, alarms } = useOpsSyncContext();
+  const { connectionState } = useOpsSyncMeta();
+  const { machines } = useOpsSyncMachines();
+  const { alarms } = useOpsSyncAlarms();
   const { label: connectionLabel, tone: connectionTone } =
     useConnectionLabel(connectionState);
   const [searchQuery, setSearchQuery] = useState("");

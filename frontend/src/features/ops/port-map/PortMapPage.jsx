@@ -7,7 +7,7 @@ import useConnectionLabel from "../../../hooks/useConnectionLabel";
 import useAgentAction from "../../../hooks/useAgentAction";
 import { useT } from "../../../utils/i18n";
 import { APP_ROUTES, buildPathWithSearch } from "../../../utils/routes";
-import { useOpsSyncContext } from "../OpsSyncContext";
+import { useOpsSyncMeta, useOpsSyncZones } from "../OpsSyncContext";
 import { buildMockZoneChatUrl } from "../mockZoneChat";
 import ZoneSummaryPanel from "./components/ZoneSummaryPanel";
 import {
@@ -65,8 +65,8 @@ export default function PortMapPage() {
     connectionState,
     error,
     liveError,
-    zoneSummaries,
-  } = useOpsSyncContext();
+  } = useOpsSyncMeta();
+  const { zoneSummaries } = useOpsSyncZones();
   const { label: connectionLabel, tone: connectionTone } =
     useConnectionLabel(connectionState);
 

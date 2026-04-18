@@ -8,7 +8,7 @@ import {
 } from "../../features/plc/PlcLiveDataContext";
 import {
   OpsSyncProvider,
-  useOpsSyncContext,
+  useOpsSyncAlarms,
 } from "../../features/ops/OpsSyncContext";
 import { useUserUiPreferencesSync } from "../../hooks/useUserUiPreferencesSync";
 import { AppTopbarProvider } from "../../layout/AppTopbarContext";
@@ -28,13 +28,10 @@ function AuthenticatedLayoutContent({
 }) {
   const location = useLocation();
   const { connectionState } = usePlcLiveDataContext();
-  const { alarms } = useOpsSyncContext();
+  const { activeAlarmCount } = useOpsSyncAlarms();
   const chatRouteActive = isChatRoute(location.pathname);
   const isCompactLayout = useMediaQuery("(max-width: 980px)");
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
-  const activeAlarmCount = alarms.filter(
-    (alarm) => String(alarm?.status || "active").toLowerCase() === "active",
-  ).length;
   const shellClass = featureFlags.uiV2
     ? "plc-shell app-shell-ambience"
     : "min-h-screen flex bg-slate-950 text-slate-100";

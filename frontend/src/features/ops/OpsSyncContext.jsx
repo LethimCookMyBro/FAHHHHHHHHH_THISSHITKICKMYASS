@@ -20,6 +20,11 @@ import {
 } from "./opsDataApi";
 
 const OpsSyncContext = createContext(null);
+const OpsSyncMetaContext = createContext(null);
+const OpsSyncMachinesContext = createContext(null);
+const OpsSyncAlarmsContext = createContext(null);
+const OpsSyncActionsContext = createContext(null);
+const OpsSyncZonesContext = createContext(null);
 
 const ACTION_LIMIT = 40;
 const ALARM_LIMIT = 200;
@@ -286,6 +291,8 @@ export function OpsSyncProvider({ children }) {
   const lastRefreshAtRef = useRef(0);
   const alarmsSignatureRef = useRef("");
   const actionsSignatureRef = useRef("");
+  const resolvedAlarmMetaRef = useRef(resolvedAlarmMeta);
+  const localActionsRef = useRef(localActions);
   const activeAlarmMachineKeys = useMemo(
     () => buildActiveAlarmMachineKeySet(alarms),
     [alarms],
@@ -298,6 +305,14 @@ export function OpsSyncProvider({ children }) {
   useEffect(() => {
     actionsSignatureRef.current = buildActionListSignature(actions);
   }, [actions]);
+
+  useEffect(() => {
+    resolvedAlarmMetaRef.current = resolvedAlarmMeta;
+  }, [resolvedAlarmMeta]);
+
+  useEffect(() => {
+    localActionsRef.current = localActions;
+  }, [localActions]);
 
   const machines = useMemo(
     () =>
@@ -330,10 +345,10 @@ export function OpsSyncProvider({ children }) {
             fetchOpsActions(ACTION_LIMIT),
           ]);
           const nextSortedAlarms = sortAlarms(
-            applyResolvedAlarmMeta(nextAlarms, resolvedAlarmMeta),
+            applyResolvedAlarmMeta(nextAlarms, resolvedAlarmMetaRef.current),
           );
           const nextSortedActions = sortActions(
-            mergeRowsById(nextActions, localActions),
+            mergeRowsById(nextActions, localActionsRef.current),
           );
           const nextAlarmsSignature = buildAlarmListSignature(nextSortedAlarms);
           const nextActionsSignature = buildActionListSignature(nextSortedActions);
@@ -359,7 +374,7 @@ export function OpsSyncProvider({ children }) {
       refreshInFlightRef.current = request;
       return request;
     },
-    [localActions, resolvedAlarmMeta, t],
+    [t],
   );
 
   useEffect(() => {
@@ -395,6 +410,22 @@ export function OpsSyncProvider({ children }) {
 
   const recentAlarms = useMemo(() => alarms.slice(0, 10), [alarms]);
   const recentActions = useMemo(() => actions.slice(0, 8), [actions]);
+  const activeAlarmCount = useMemo(
+    () =>
+      alarms.filter(
+        (alarm) => String(alarm?.status || "active").toLowerCase() === "active",
+      ).length,
+    [alarms],
+  );
+  const criticalAlarmCount = useMemo(
+    () =>
+      alarms.filter(
+        (alarm) =>
+          String(alarm?.status || "active").toLowerCase() === "active" &&
+          String(alarm?.severity || "").toLowerCase() === "critical",
+      ).length,
+    [alarms],
+  );
 
   const refreshSyncedOps = useCallback(
     async ({ force = true } = {}) => {
@@ -596,7 +627,7 @@ export function OpsSyncProvider({ children }) {
     [alarms, resolveAlarmIds, zoneSummaries],
   );
 
-  const value = useMemo(
+  const metaValue = useMemo(
     () => ({
       dashboard,
       derived,
@@ -604,48 +635,119 @@ export function OpsSyncProvider({ children }) {
       liveError,
       loading: !hasLoaded,
       error,
-      machines,
-      alarms,
-      actions,
-      recentAlarms,
-      recentActions,
-      zoneSummaries,
       refreshOpsData,
       refreshSyncedOps,
       resolveAlarmIds,
       resolveZoneIncidents,
     }),
     [
-      actions,
-      alarms,
       connectionState,
       dashboard,
       derived,
       error,
       hasLoaded,
       liveError,
-      machines,
-      recentActions,
-      recentAlarms,
       refreshOpsData,
       refreshSyncedOps,
       resolveAlarmIds,
       resolveZoneIncidents,
+    ],
+  );
+
+  const machinesValue = useMemo(
+    () => ({
+      machines,
+    }),
+    [machines],
+  );
+
+  const alarmsValue = useMemo(
+    () => ({
+      alarms,
+      recentAlarms,
+      activeAlarmCount,
+      criticalAlarmCount,
+    }),
+    [activeAlarmCount, alarms, criticalAlarmCount, recentAlarms],
+  );
+
+  const actionsValue = useMemo(
+    () => ({
+      actions,
+      recentActions,
+    }),
+    [actions, recentActions],
+  );
+
+  const zonesValue = useMemo(
+    () => ({
       zoneSummaries,
+    }),
+    [zoneSummaries],
+  );
+
+  const value = useMemo(
+    () => ({
+      ...metaValue,
+      ...machinesValue,
+      ...alarmsValue,
+      ...actionsValue,
+      ...zonesValue,
+    }),
+    [
+      actionsValue,
+      alarmsValue,
+      machinesValue,
+      metaValue,
+      zonesValue,
     ],
   );
 
   return (
-    <OpsSyncContext.Provider value={value}>{children}</OpsSyncContext.Provider>
+    <OpsSyncMetaContext.Provider value={metaValue}>
+      <OpsSyncMachinesContext.Provider value={machinesValue}>
+        <OpsSyncAlarmsContext.Provider value={alarmsValue}>
+          <OpsSyncActionsContext.Provider value={actionsValue}>
+            <OpsSyncZonesContext.Provider value={zonesValue}>
+              <OpsSyncContext.Provider value={value}>{children}</OpsSyncContext.Provider>
+            </OpsSyncZonesContext.Provider>
+          </OpsSyncActionsContext.Provider>
+        </OpsSyncAlarmsContext.Provider>
+      </OpsSyncMachinesContext.Provider>
+    </OpsSyncMetaContext.Provider>
   );
 }
 
-export function useOpsSyncContext() {
-  const context = useContext(OpsSyncContext);
-  if (!context) {
-    throw new Error("useOpsSyncContext must be used within OpsSyncProvider");
+const useRequiredContext = (context, hookName) => {
+  const value = useContext(context);
+  if (!value) {
+    throw new Error(`${hookName} must be used within OpsSyncProvider`);
   }
-  return context;
+  return value;
+};
+
+export function useOpsSyncMeta() {
+  return useRequiredContext(OpsSyncMetaContext, "useOpsSyncMeta");
+}
+
+export function useOpsSyncMachines() {
+  return useRequiredContext(OpsSyncMachinesContext, "useOpsSyncMachines");
+}
+
+export function useOpsSyncAlarms() {
+  return useRequiredContext(OpsSyncAlarmsContext, "useOpsSyncAlarms");
+}
+
+export function useOpsSyncActions() {
+  return useRequiredContext(OpsSyncActionsContext, "useOpsSyncActions");
+}
+
+export function useOpsSyncZones() {
+  return useRequiredContext(OpsSyncZonesContext, "useOpsSyncZones");
+}
+
+export function useOpsSyncContext() {
+  return useRequiredContext(OpsSyncContext, "useOpsSyncContext");
 }
 
 export default OpsSyncContext;

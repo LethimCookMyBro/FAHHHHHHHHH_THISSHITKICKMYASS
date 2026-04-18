@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useT } from "../../../../utils/i18n";
-import { useOpsSyncContext } from "../../OpsSyncContext";
+import { useOpsSyncAlarms, useOpsSyncMeta } from "../../OpsSyncContext";
 import {
   buildAlarmCounts,
   buildPrimaryAction,
@@ -13,12 +13,12 @@ export default function useAlarmsViewModel() {
   const { t } = useT();
   const {
     connectionState,
-    alarms,
     loading: opsLoading,
     error: opsError,
     liveError,
     refreshSyncedOps,
-  } = useOpsSyncContext();
+  } = useOpsSyncMeta();
+  const { alarms } = useOpsSyncAlarms();
 
   const [ignoredAlarmIds, setIgnoredAlarmIds] = useState([]);
   const [error, setError] = useState("");
